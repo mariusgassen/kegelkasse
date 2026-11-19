@@ -26,12 +26,7 @@ def _can_manage(user: User, created_by: Optional[int], db: Session) -> bool:
     """Creator, committee member or admin may edit/delete a news item."""
     if created_by is not None and created_by == user.id:
         return True
-    if user.has_role(UserRole.admin):
-        return True
-    if not user.regular_member_id:
-        return False
-    member = db.query(RegularMember).filter(RegularMember.id == user.regular_member_id).first()
-    return bool(member and member.is_committee)
+    return user.has_role(UserRole.committee, UserRole.admin)
 
 
 def _require_manage(user: User, created_by: Optional[int], db: Session) -> None:
@@ -704,16 +699,5 @@ def list_committee_members(
     db: Session = Depends(get_db),
     user: User = Depends(require_club_member),
 ):
-    members = db.query(RegularMember).filter(
-        RegularMember.club_id == user.club_id,
-        RegularMember.is_committee == True,
-        RegularMember.is_active == True,
-    ).all()
-    return [
-        {
-            "id": m.id,
-            "name": m.name,
-            "nickname": m.nickname,
-        }
-        for m in members
-    ]
+    from api.deps import list_regular_members_with_role
+    return list_regular_members_with_role(db, user.club_id, UserRole.committee)

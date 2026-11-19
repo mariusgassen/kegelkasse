@@ -51,9 +51,13 @@ export const getUserRoles = (user: User | null): UserRole[] => {
 
 export const hasRole = (user: User | null, ...roles: UserRole[]): boolean => {
     if (!user) return false
+    if (roles.includes('member')) return true
     const assigned = getUserRoles(user)
-    if (assigned.includes('superadmin')) return true
-    return roles.some((r) => assigned.includes(r))
+    if (roles.some((r) => assigned.includes(r))) return true
+    if (assigned.includes('superadmin') && roles.some((r) => r !== 'auditor')) {
+        return true
+    }
+    return false
 }
 
 export const isAdmin = (user: User | null) =>
@@ -62,9 +66,22 @@ export const isAdmin = (user: User | null) =>
 export const isSuperadmin = (user: User | null) =>
     getUserRoles(user).includes('superadmin')
 
-export const isProductManager = (user: User | null) =>
-    hasRole(user, 'product_manager')
+export const isItAdmin = (user: User | null) =>
+    hasRole(user, 'it_admin')
+
+export const isTreasurer = (user: User | null) =>
+    hasRole(user, 'treasurer')
+
+export const isAuditor = (user: User | null) =>
+    getUserRoles(user).includes('auditor')
+
+export const isCommittee = (user: User | null) =>
+    hasRole(user, 'committee')
+
+export const isZeugwart = (user: User | null) =>
+    hasRole(user, 'zeugwart')
 
 export const canManageRoadmap = (user: User | null) =>
-    hasRole(user, 'product_manager', 'admin')
+    isSuperadmin(user)
+
 

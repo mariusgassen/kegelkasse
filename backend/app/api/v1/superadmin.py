@@ -183,7 +183,7 @@ def switch_club(club_id: int, db: Session = Depends(get_db),
         "access_token": token,
         "user": {
             "id": user.id, "email": user.email, "name": user.name,
-            "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+            "role": user.primary_role.value,
             "roles": sorted(list(user.all_roles)),
             "club_id": user.club_id,
             "preferred_locale": user.preferred_locale,
@@ -212,7 +212,7 @@ def list_users(
             "id": u.id,
             "name": u.name,
             "email": u.email,
-            "role": u.role.value if hasattr(u.role, "value") else str(u.role),
+            "role": u.primary_role.value,
             "roles": sorted(list(u.all_roles)),
             "club_id": u.club_id,
             "club_name": clubs.get(u.club_id) if u.club_id else None,
@@ -228,14 +228,13 @@ def _apply_user_roles(
     target_user: User,
     new_roles: list[str],
 ) -> dict:
+    from models.user import normalize_roles
     allowed_roles = {r.value for r in UserRole}
     for r in new_roles:
         if r not in allowed_roles:
             raise HTTPException(400, f"Invalid role: {r}. Allowed: {sorted(allowed_roles)}")
 
-    normalized_roles = list({r for r in new_roles if r in allowed_roles})
-    if not normalized_roles:
-        normalized_roles = [UserRole.member.value]
+    normalized_roles = normalize_roles(new_roles)
 
     # Safety: Cannot demote yourself if you are the only active superadmin
     if target_user.id == current_user.id and UserRole.superadmin.value not in normalized_roles:
@@ -244,28 +243,19 @@ def _apply_user_roles(
         if superadmin_count <= 1:
             raise HTTPException(400, "Cannot demote the only active superadmin")
 
-    target_user.roles = sorted(normalized_roles)
-    # Sync primary role column for backward compatibility
-    if UserRole.superadmin.value in normalized_roles:
-        target_user.role = UserRole.superadmin
-    elif UserRole.admin.value in normalized_roles:
-        target_user.role = UserRole.admin
-    elif UserRole.product_manager.value in normalized_roles:
-        target_user.role = UserRole.product_manager
-    else:
-        target_user.role = UserRole.member
+    target_user.roles = normalized_roles
 
     db.commit()
     db.refresh(target_user)
     logger.info(
-        "User roles updated: user_id=%d roles=%r primary_role=%r by superadmin=%d",
-        target_user.id, target_user.roles, target_user.role.value, current_user.id,
+        "User roles updated: user_id=%d roles=%r by superadmin=%d",
+        target_user.id, target_user.roles, current_user.id,
     )
     return {
         "id": target_user.id,
         "name": target_user.name,
         "email": target_user.email,
-        "role": target_user.role.value if hasattr(target_user.role, "value") else str(target_user.role),
+        "role": target_user.primary_role.value,
         "roles": sorted(list(target_user.all_roles)),
     }
 
@@ -291,7 +281,7 @@ def update_user_roles(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_superadmin),
 ):
-    """Assign multiple roles to a user (e.g. ['admin', 'product_manager'])."""
+    """Assign multiple roles to a user (e.g. ['admin', 'it_admin'])."""
     target_user = db.query(User).filter(User.id == user_id).first()
     if not target_user:
         raise HTTPException(404, "User not found")

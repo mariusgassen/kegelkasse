@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from api.deps import require_club_admin, require_club_member
+from api.deps import require_club_member
 from api.v1.ai import _require_ai, _run
 from core.database import get_db
 from core.schemas import TrimmedModel
@@ -139,6 +139,17 @@ def _is_current(db: Session, doc: ClubDocument) -> bool:
     return bool(last and last[0] == doc.id)
 
 
+DECISION_DOCUMENT_TYPES = ("satzung", "geschaeftsordnung")
+
+
+def _can_edit_document(doc: ClubDocument, user: User) -> bool:
+    if user.has_role(UserRole.admin):
+        return True
+    if doc.document_type in DECISION_DOCUMENT_TYPES:
+        return False
+    return doc.uploaded_by == user.id
+
+
 def _serialize(db: Session, doc: ClubDocument, user: User, include_acks: bool = False) -> dict:
     acks = db.query(ClubDocumentAcknowledgement).filter(
         ClubDocumentAcknowledgement.document_id == doc.id
@@ -156,12 +167,14 @@ def _serialize(db: Session, doc: ClubDocument, user: User, include_acks: bool = 
         "change_summary": doc.change_summary,
         "file_name": doc.file_name,
         "file_size": doc.file_size,
+        "uploaded_by": doc.uploaded_by,
         "uploaded_by_name": doc.uploaded_by_name,
         "uploaded_at": doc.created_at.isoformat() if doc.created_at else None,
         "is_current": _is_current(db, doc),
         "acknowledged_count": len(acks),
         "my_response": mine.response if mine else None,
         "my_confirmed_at": mine.confirmed_at.isoformat() if mine and mine.confirmed_at else None,
+        "can_edit": _can_edit_document(doc, user),
     }
     if include_acks:
         out["acknowledgements"] = [{
@@ -184,7 +197,8 @@ def list_documents(db: Session = Depends(get_db), user: User = Depends(require_c
     return {
         "documents": [_serialize(db, d, user) for d in docs],
         "member_count": member_count,
-        "can_upload": user.has_role(UserRole.admin),
+        "can_upload": True,
+        "can_upload_decisions": user.has_role(UserRole.admin),
     }
 
 
@@ -213,12 +227,12 @@ async def analyze_document(
     group_id: Optional[str] = Form(None),
     hint: Optional[str] = Form(None),
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_club_member),
 ):
     """Read an (unsaved) PDF with the Claude API and suggest the form fields plus a summary.
 
     With ``group_id`` the current version of that document is attached as well, so the model can
-    summarise what changed. Nothing is stored — the admin reviews the suggestion and uploads.
+    summarise what changed. Nothing is stored — the uploader reviews the suggestion and uploads.
     """
     cfg = _require_ai(db, user, "suggestions")
     data = await _read_pdf(file)
@@ -255,6 +269,8 @@ async def analyze_document(
     result = _run(_ANALYZE_SYSTEM, facts, _ANALYZE_SCHEMA,
                   task=task, effort="low", max_tokens=3000, model=cfg["model"], pdfs=pdfs)
     doc_type = result.get("document_type")
+    if doc_type in DECISION_DOCUMENT_TYPES and not user.has_role(UserRole.admin):
+        doc_type = "sonstiges"
     return {
         "title": (result.get("title") or "").strip() or None,
         "document_type": doc_type if doc_type in DOCUMENT_TYPES else None,
@@ -278,13 +294,15 @@ async def upload_document(
     summary: Optional[str] = Form(None),
     change_summary: Optional[str] = Form(None),
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_club_member),
 ):
     title = title.strip()
     if not title:
         raise HTTPException(400, "A title is required")
     if document_type not in DOCUMENT_TYPES:
         raise HTTPException(400, "Unsupported document type")
+    if document_type in DECISION_DOCUMENT_TYPES and not user.has_role(UserRole.admin):
+        raise HTTPException(403, "Club admin role required for official decision documents (Satzung/Geschäftsordnung)")
     data = await _read_pdf(file)
 
     decision = _parse_date(decision_date, "decision_date")
@@ -292,9 +310,13 @@ async def upload_document(
     if group_id:
         if not _GROUP_RE.match(group_id):
             raise HTTPException(400, "Invalid group id")
-        existing = db.query(ClubDocument).filter(ClubDocument.group_id == group_id).first()
+        existing = db.query(ClubDocument).filter(
+            ClubDocument.group_id == group_id
+        ).order_by(ClubDocument.id.desc()).first()
         if existing and existing.club_id != user.club_id:
             raise HTTPException(400, "Invalid group id")
+        if existing and not _can_edit_document(existing, user):
+            raise HTTPException(403, "Not allowed to upload a new version for this document")
     else:
         group_id = uuid.uuid4().hex
 
@@ -317,9 +339,11 @@ async def upload_document(
 
 @router.patch("/{doc_id}")
 def update_document(doc_id: int, data: UpdateDocumentBody, db: Session = Depends(get_db),
-                    user: User = Depends(require_club_admin)):
+                    user: User = Depends(require_club_member)):
     """Correct the metadata of one version. A field sent as null/empty is cleared (title and type stay required)."""
     doc = _get_doc(db, doc_id, user)
+    if not _can_edit_document(doc, user):
+        raise HTTPException(403, "Only the uploader or a club admin can edit this document")
     sent = data.model_fields_set
     if "title" in sent:
         title = (data.title or "").strip()
@@ -329,6 +353,8 @@ def update_document(doc_id: int, data: UpdateDocumentBody, db: Session = Depends
     if "document_type" in sent:
         if data.document_type not in DOCUMENT_TYPES:
             raise HTTPException(400, "Unsupported document type")
+        if data.document_type in DECISION_DOCUMENT_TYPES and not user.has_role(UserRole.admin):
+            raise HTTPException(403, "Club admin role required for official decision documents (Satzung/Geschäftsordnung)")
         doc.document_type = data.document_type
     if "version" in sent:
         doc.version = (data.version or "").strip() or None
@@ -383,8 +409,10 @@ def withdraw_acknowledgement(doc_id: int, db: Session = Depends(get_db), user: U
 
 
 @router.delete("/{doc_id}", status_code=204)
-def delete_document(doc_id: int, db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+def delete_document(doc_id: int, db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     doc = _get_doc(db, doc_id, user)
+    if not _can_edit_document(doc, user):
+        raise HTTPException(403, "Only the uploader or a club admin can delete this document")
     if db.query(ClubDocumentAcknowledgement).filter(
         ClubDocumentAcknowledgement.document_id == doc.id
     ).count():

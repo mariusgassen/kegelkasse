@@ -401,10 +401,10 @@ class TestPenaltyManagement:
                              headers=auth_headers)
         assert resp.status_code == 404
 
-    def test_update_penalty_date_requires_admin(
+    def test_update_penalty_date_allowed_for_member(
             self, client: TestClient, auth_headers: dict, admin_headers: dict,
             evening: Evening, player: EveningPlayer, db: Session):
-        """Lines 410-419: non-admin cannot change penalty date."""
+        """Members can change penalty date on an open evening."""
         log = PenaltyLog(
             evening_id=evening.id, player_id=player.id, player_name=player.name,
             penalty_type_name="Test", icon="⚠️", amount=1.0, mode="euro",
@@ -416,7 +416,7 @@ class TestPenaltyManagement:
         resp = client.patch(f"/api/v1/evening/{evening.id}/penalties/{log.id}",
                             headers=auth_headers,
                             json={"date": "2025-06-15"})
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
     def test_update_penalty_date_as_admin(
             self, client: TestClient, admin_headers: dict,
@@ -455,12 +455,12 @@ class TestAbsencePenalties:
         assert "avg" in data
         assert "absent_count" in data
 
-    def test_member_cannot_trigger_absence_penalties(
+    def test_member_can_trigger_absence_penalties(
             self, client: TestClient, auth_headers: dict, evening: Evening):
-        """Lines 566-573: member role gets 403."""
+        """Members can trigger absence penalty calculation on open evenings."""
         resp = client.post(f"/api/v1/evening/{evening.id}/absence-penalties",
                            headers=auth_headers)
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -997,9 +997,9 @@ class TestAbsencePenaltiesExtended:
         db.delete(m)
         db.commit()
 
-    def test_requires_admin(self, client, auth_headers, evening):
+    def test_member_allowed(self, client, auth_headers, evening):
         resp = client.post(
             f"/api/v1/evening/{evening.id}/absence-penalties",
             headers=auth_headers,
         )
-        assert resp.status_code == 403
+        assert resp.status_code == 200

@@ -376,9 +376,20 @@ class TestDeleteTrip:
 
 class TestListCommitteeMembers:
     def test_returns_committee_members_only(self, client: TestClient, db, club, auth_headers):
-        non_committee = RegularMember(club_id=club.id, name="Normal", is_committee=False)
-        committee = RegularMember(club_id=club.id, name="Committee Person", is_committee=True)
+        non_committee = RegularMember(club_id=club.id, name="Normal")
+        committee = RegularMember(club_id=club.id, name="Committee Person")
         db.add_all([non_committee, committee])
+        db.flush()
+        cu = User(
+            email="committeeperson@test.de",
+            name="Committee Person",
+            hashed_password=get_password_hash("x"),
+            roles=[UserRole.committee.value, UserRole.member.value],
+            club_id=club.id,
+            regular_member_id=committee.id,
+            is_active=True,
+        )
+        db.add(cu)
         db.commit()
         resp = client.get("/api/v1/committee/members", headers=auth_headers)
         assert resp.status_code == 200

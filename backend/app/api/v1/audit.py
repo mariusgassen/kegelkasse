@@ -45,8 +45,7 @@ def _my_member(db: Session, user: User) -> Optional[RegularMember]:
 
 
 def _is_auditor(db: Session, user: User) -> bool:
-    m = _my_member(db, user)
-    return bool(m and m.is_auditor and not m.is_guest)
+    return user.is_auditor
 
 
 def _display_name(db: Session, user: User) -> str:
@@ -254,12 +253,8 @@ def _parse_date(value: str, field: str) -> date:
 
 @router.get("/auditors")
 def list_auditors(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    members = db.query(RegularMember).filter(
-        RegularMember.club_id == user.club_id,
-        RegularMember.is_auditor == True,
-        RegularMember.is_guest == False,
-    ).order_by(RegularMember.name).all()
-    return [{"id": m.id, "name": m.name, "nickname": m.nickname} for m in members]
+    from api.deps import list_regular_members_with_role
+    return list_regular_members_with_role(db, user.club_id, UserRole.auditor)
 
 
 class AuditorToggle(TrimmedModel):
@@ -269,27 +264,21 @@ class AuditorToggle(TrimmedModel):
 @router.patch("/auditors/{mid}")
 def set_auditor(mid: int, data: AuditorToggle, db: Session = Depends(get_db),
                 user: User = Depends(require_club_admin)):
-    member = db.query(RegularMember).filter(
-        RegularMember.id == mid, RegularMember.club_id == user.club_id
-    ).first()
-    if not member:
-        raise HTTPException(404, "Member not found")
-    if member.is_guest and data.is_auditor:
-        raise HTTPException(400, "Guests cannot be auditors")
-    member.is_auditor = data.is_auditor
-    db.commit()
-    return {"id": member.id, "is_auditor": member.is_auditor}
+    from api.deps import toggle_regular_member_role
+    member = toggle_regular_member_role(db, user.club_id, mid, UserRole.auditor, data.is_auditor)
+    return {"id": member.id, "is_auditor": data.is_auditor}
 
 
 # ── Audits ───────────────────────────────────────────────────────────────────
 
 @router.get("/")
 def list_audits(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    from api.deps import can_manage_treasury
     audits = db.query(TreasuryAudit).filter(
         TreasuryAudit.club_id == user.club_id
     ).order_by(TreasuryAudit.period_end.desc(), TreasuryAudit.id.desc()).all()
     return {
-        "can_create": _is_admin(user) or _is_auditor(db, user),
+        "can_create": can_manage_treasury(user, db) or _is_auditor(db, user),
         "can_sign": _is_auditor(db, user),
         "audits": [_serialize(db, a, user, full=False) for a in audits],
     }
@@ -320,8 +309,9 @@ class AuditCreate(TrimmedModel):
 @router.post("/", status_code=201)
 def create_audit(data: AuditCreate, background_tasks: BackgroundTasks,
                  db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    if not (_is_admin(user) or _is_auditor(db, user)):
-        raise HTTPException(403, "Admin or auditor required")
+    from api.deps import can_manage_treasury, list_regular_members_with_role
+    if not (can_manage_treasury(user, db) or _is_auditor(db, user)):
+        raise HTTPException(403, "Kassenwart or auditor required")
     start = _parse_date(data.period_start, "period_start")
     end = _parse_date(data.period_end, "period_end")
     if end < start:
@@ -340,10 +330,10 @@ def create_audit(data: AuditCreate, background_tasks: BackgroundTasks,
     logger.info("Treasury audit created: id=%d club=%d user=%d period=%s..%s",
                 audit.id, user.club_id, user.id, start, end)
 
-    auditor_ids = [m.id for m in db.query(RegularMember).filter(
-        RegularMember.club_id == user.club_id, RegularMember.is_auditor == True,
-        RegularMember.is_guest == False,
-    ).all() if m.id != user.regular_member_id]
+    auditor_ids = [
+        m["id"] for m in list_regular_members_with_role(db, user.club_id, UserRole.auditor)
+        if m["id"] != user.regular_member_id
+    ]
     period = f"{start.strftime('%d.%m.%Y')} – {end.strftime('%d.%m.%Y')}"
     for mid in auditor_ids:
         background_tasks.add_task(

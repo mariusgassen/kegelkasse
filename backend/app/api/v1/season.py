@@ -9,7 +9,7 @@ from core.schemas import TrimmedModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from api.deps import require_club_admin, require_club_member
+from api.deps import require_club_member, require_treasurer
 from core.database import get_db
 from models.evening import Evening, EveningPlayer, RegularMember
 from models.payment import MemberPayment
@@ -228,7 +228,7 @@ def get_snapshot(year: int, db: Session = Depends(get_db), user: User = Depends(
 def reopen_season(
     year: int,
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_treasurer),
 ):
     """Reopen a closed season: delete the snapshot and reverse carry-over payments."""
     snap = (
@@ -256,7 +256,7 @@ def reopen_season(
 
 
 @router.get("/available-years")
-def list_available_years(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+def list_available_years(db: Session = Depends(get_db), user: User = Depends(require_treasurer)):
     """Return distinct years that have at least one evening, plus the current year."""
     from sqlalchemy import extract, func
     rows = (
@@ -274,7 +274,7 @@ def list_available_years(db: Session = Depends(get_db), user: User = Depends(req
 def get_balance_preview(
     year: int,
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_treasurer),
 ):
     """Return non-zero member balances for the given year (year-specific)."""
     if not 2000 <= year <= 2100:
@@ -287,7 +287,7 @@ def get_balance_preview(
 def close_season(
     data: SeasonCloseRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_treasurer),
 ):
     """Perform the full season-closing workflow for the given year."""
     if not 2000 <= data.year <= 2100:

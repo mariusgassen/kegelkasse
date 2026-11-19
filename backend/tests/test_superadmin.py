@@ -245,21 +245,21 @@ class TestUserRoleManagement:
         assert member_user.id in user_ids
         assert superadmin_user.id in user_ids
 
-    def test_update_user_role_to_product_manager_and_superadmin(
+    def test_update_user_role_to_it_admin_and_superadmin(
         self, client, superadmin_headers, member_user, db
     ):
-        # Promote regular member to product_manager
+        # Promote regular member to it_admin
         resp = client.patch(
             f"/api/v1/superadmin/users/{member_user.id}/role",
-            json={"role": "product_manager"},
+            json={"role": "it_admin"},
             headers=superadmin_headers,
         )
         assert resp.status_code == 200
-        assert resp.json()["role"] == "product_manager"
+        assert resp.json()["role"] == "it_admin"
         db.refresh(member_user)
-        assert member_user.role == UserRole.product_manager
+        assert member_user.role == UserRole.it_admin
 
-        # Promote product_manager to superadmin
+        # Promote it_admin to superadmin
         resp2 = client.patch(
             f"/api/v1/superadmin/users/{member_user.id}/role",
             json={"role": "superadmin"},
@@ -272,7 +272,9 @@ class TestUserRoleManagement:
 
     def test_cannot_demote_only_superadmin(self, client, superadmin_headers, superadmin_user, db):
         # Ensure only 1 superadmin exists
-        db.query(User).filter(User.id != superadmin_user.id, User.role == UserRole.superadmin).update({User.role: UserRole.member})
+        for u in db.query(User).filter(User.id != superadmin_user.id).all():
+            if u.is_superadmin:
+                u.roles = ["member"]
         db.commit()
         resp = client.patch(
             f"/api/v1/superadmin/users/{superadmin_user.id}/role",
@@ -303,28 +305,30 @@ class TestUserRoleManagement:
     def test_assign_multiple_roles(self, client, superadmin_headers, member_user, db):
         resp = client.patch(
             f"/api/v1/superadmin/users/{member_user.id}/roles",
-            json={"roles": ["admin", "product_manager"]},
+            json={"roles": ["admin", "it_admin", "treasurer"]},
             headers=superadmin_headers,
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert set(data["roles"]) == {"admin", "product_manager"}
+        assert set(data["roles"]) == {"admin", "it_admin", "treasurer"}
         db.refresh(member_user)
         assert member_user.has_role(UserRole.admin)
-        assert member_user.has_role(UserRole.product_manager)
+        assert member_user.has_role(UserRole.it_admin)
+        assert member_user.has_role(UserRole.treasurer)
         assert member_user.is_admin
-        assert member_user.is_product_manager
+        assert member_user.is_it_admin
+        assert member_user.is_treasurer
         assert not member_user.is_superadmin
 
     def test_cannot_demote_only_superadmin_via_roles(self, client, superadmin_headers, superadmin_user, db):
-        db.query(User).filter(User.id != superadmin_user.id).update({User.role: UserRole.member, User.roles: ["member"]})
+        for u in db.query(User).filter(User.id != superadmin_user.id).all():
+            u.roles = ["member"]
         superadmin_user.roles = ["superadmin"]
-        superadmin_user.role = UserRole.superadmin
         db.commit()
 
         resp = client.patch(
             f"/api/v1/superadmin/users/{superadmin_user.id}/roles",
-            json={"roles": ["admin", "product_manager"]},
+            json={"roles": ["admin", "it_admin"]},
             headers=superadmin_headers,
         )
         assert resp.status_code == 400

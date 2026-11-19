@@ -501,26 +501,26 @@ class TestMarkNotificationsRead:
 # ---------------------------------------------------------------------------
 
 class TestTriggerReminders:
-    def test_admin_can_trigger(self, client, db, club):
+    def test_it_admin_can_trigger(self, client, db, club):
         from core.security import create_access_token, get_password_hash
         from models.user import User, UserRole
-        admin = User(
+        it_admin = User(
             email="pushadmin@test.de",
-            name="Push Admin",
+            name="Push IT Admin",
             hashed_password=get_password_hash("pass"),
-            role=UserRole.admin,
+            role=UserRole.it_admin,
             club_id=club.id,
             is_active=True,
         )
-        db.add(admin)
+        db.add(it_admin)
         db.commit()
-        db.refresh(admin)
-        headers = {"Authorization": f"Bearer {create_access_token({'sub': str(admin.id)})}"}
+        db.refresh(it_admin)
+        headers = {"Authorization": f"Bearer {create_access_token({'sub': str(it_admin.id)})}"}
         with patch("core.reminders.send_all_reminders", new=AsyncMock(return_value=None)):
             r = client.post("/api/v1/push/trigger-reminders", headers=headers)
         assert r.status_code == 200
         assert r.json()["ok"] is True
-        db.delete(admin)
+        db.delete(it_admin)
         db.commit()
 
     def test_member_forbidden(self, client, auth_headers):

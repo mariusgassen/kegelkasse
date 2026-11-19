@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
-from api.deps import require_club_admin, require_club_member
+from api.deps import require_club_member, require_it_admin
 from core.config import settings
 from core.database import get_db
 from models.push import NotificationLog, PushSubscription
@@ -300,8 +300,8 @@ def mark_notifications_read(data: MarkReadRequest = MarkReadRequest(),
 
 
 @router.post("/trigger-reminders")
-async def trigger_reminders(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
-    """Admin: manually trigger all reminder checks now (for testing / catchup)."""
+async def trigger_reminders(db: Session = Depends(get_db), user: User = Depends(require_it_admin)):
+    """IT-Admin: manually trigger all reminder checks now (for testing / catchup)."""
     from core.reminders import send_all_reminders
     await send_all_reminders(db)
     return {"ok": True}

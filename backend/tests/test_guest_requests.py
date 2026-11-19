@@ -357,9 +357,6 @@ class TestGuestRequestCategory:
         assert _user_channels(user, "guest_requests") == []
 
     def test_schedule_toggle_round_trips(self, client, db, club, user: User, auth_headers):
-        from models.user import UserRole
-        user.role = UserRole.admin
-        db.commit()
         with patch("api.v1.schedule.push_to_club"):
             r = client.post("/api/v1/schedule/", json={"date": "2099-11-14T20:00", "guest_requests_enabled": False},
                             headers=auth_headers)
@@ -375,10 +372,19 @@ class TestBackfillMigration:
     def test_migration_backfills_unlinked_guests_and_approved_requests(self, db, club):
         from pathlib import Path
         import importlib.util
+        from sqlalchemy import text
         path = Path(__file__).resolve().parent.parent / "alembic" / "versions" / "071_backfill_guest_members.py"
         spec = importlib.util.spec_from_file_location("migration_071", path)
         migration = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(migration)
+
+        # Simulate pre-079 schema expected by migration 071
+        for col in ("is_committee", "is_auditor", "is_zeugwart"):
+            try:
+                db.execute(text(f"ALTER TABLE regular_member ADD COLUMN {col} BOOLEAN DEFAULT 0"))
+            except Exception:
+                pass
+        db.commit()
 
         se = _evening(db, club)
         # 1. Existing planned guest without regular_member_id (legacy row)

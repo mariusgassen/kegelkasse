@@ -41,7 +41,7 @@ from models.game import GameTemplate
 from models.penalty import PenaltyType
 from models.schedule import MemberRsvp, ScheduledEvening
 from models.sticker import Sticker
-from models.user import User, UserRole
+from models.user import User
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -236,9 +236,11 @@ def club_snapshot(db: Session, user: User) -> tuple[dict, dict[str, set[int]]]:
         RegularMember.club_id == cid, RegularMember.is_active == True,  # noqa: E712
     ).all()
     regular = [m for m in members if not m.is_guest and m.deactivated_at is None]
-    admin_member_ids = {u.regular_member_id for u in db.query(User).filter(
-        User.club_id == cid, User.is_active == True,  # noqa: E712
-        User.role.in_([UserRole.admin, UserRole.superadmin]), User.regular_member_id.isnot(None)).all()}
+    club_users = db.query(User).filter(
+        User.club_id == cid, User.is_active == True, User.regular_member_id.isnot(None),  # noqa: E712
+    ).all()
+    user_by_member_id = {u.regular_member_id: u for u in club_users}
+    admin_member_ids = {u.regular_member_id for u in club_users if u.is_admin}
 
     upcoming = db.query(ScheduledEvening).filter(
         ScheduledEvening.club_id == cid, ScheduledEvening.is_deleted == False,  # noqa: E712
@@ -323,7 +325,7 @@ def club_snapshot(db: Session, user: User) -> tuple[dict, dict[str, set[int]]]:
         "ich": {
             "name": _alias(me, user.name) if me else _alias(None, user.name),
             "rolle": "admin" if _is_admin(user) else "mitglied",
-            "vga_mitglied": bool(me and me.is_committee),
+            "vga_mitglied": user.is_committee,
             "kassenpruefer": _is_auditor(db, user),
             "mit_mitglied_verknuepft": me is not None,
         },
@@ -352,7 +354,9 @@ def club_snapshot(db: Session, user: User) -> tuple[dict, dict[str, set[int]]]:
         ],
         "abstimmungen": [{"id": p.id, "titel": p.title, "offen": not p.is_closed} for p in polls],
         "mitglieder": sorted(
-            [{"name": _alias(m, m.name), "vga": bool(m.is_committee), "kassenpruefer": bool(m.is_auditor),
+            [{"name": _alias(m, m.name),
+              "vga": bool(user_by_member_id.get(m.id) and user_by_member_id[m.id].is_committee),
+              "kassenpruefer": bool(user_by_member_id.get(m.id) and user_by_member_id[m.id].is_auditor),
               "admin": m.id in admin_member_ids} for m in regular], key=lambda x: x["name"].lower()),
         "gaeste_anzahl": sum(1 for m in members if m.is_guest),
     }

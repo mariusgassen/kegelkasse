@@ -352,11 +352,11 @@ def test_regenerate_requires_admin(client: TestClient, auth_headers, settings):
 def test_regenerate_rotates_and_invalidates(client: TestClient, db: Session, club: Club, settings):
     from core.security import create_access_token, get_password_hash
     from models.user import User, UserRole
-    admin = User(email="sbadmin@test.de", name="A", hashed_password=get_password_hash("x"),
-                 role=UserRole.admin, club_id=club.id, is_active=True)
-    db.add(admin)
+    it_admin = User(email="sbadmin@test.de", name="A", hashed_password=get_password_hash("x"),
+                    role=UserRole.it_admin, club_id=club.id, is_active=True)
+    db.add(it_admin)
     db.commit()
-    headers = {"Authorization": f"Bearer {create_access_token({'sub': str(admin.id)})}"}
+    headers = {"Authorization": f"Bearer {create_access_token({'sub': str(it_admin.id)})}"}
 
     new_token = client.post("/api/v1/club/settings/regenerate-scoreboard-token",
                             headers=headers).json()["scoreboard_token"]

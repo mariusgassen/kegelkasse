@@ -505,7 +505,8 @@ export const api = {
         request<{
             id: number;
             name: string;
-            role: string;
+            role: UserRole;
+            roles?: UserRole[];
             username: string | null;
             regular_member_id: number | null;
             is_active: boolean;
@@ -513,6 +514,8 @@ export const api = {
         }[]>(
             'GET', `/club/members${includeInactive ? '?include_inactive=true' : ''}`),
     updateMemberRole: (id: number, role: string) => request<void>('PATCH', `/club/members/${id}/role?role=${role}`),
+    updateMemberRoles: (id: number, roles: UserRole[]) =>
+        request<{id: number; role: UserRole; roles: UserRole[]}>('PATCH', `/club/members/${id}/roles`, {roles}),
     deactivateMember: (id: number) => request<void>('DELETE', `/club/members/${id}`),
     reactivateMember: (id: number) => request<void>('PATCH', `/club/members/${id}/reactivate`),
     linkUserToRoster: (userId: number, regularMemberId: number | null) =>

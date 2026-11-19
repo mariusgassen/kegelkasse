@@ -12,7 +12,7 @@ from sqlalchemy import func, or_
 from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
-from api.deps import require_club_member, require_club_admin
+from api.deps import require_club_member
 from core.clubtime import wall_to_utc, wall_now
 from api.v1.evenings import _parse_date, _do_calculate_absence_penalties
 from core.database import get_db
@@ -122,7 +122,7 @@ def create_scheduled_evening(
     data: ScheduledEveningCreate,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_club_member),
 ):
     scheduled_at = _parse_date(data.date)
     se = ScheduledEvening(
@@ -164,7 +164,7 @@ def update_scheduled_evening(
     data: ScheduledEveningUpdate,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_club_member),
 ):
     se = _get_se(sid, user.club_id, db)
     old_date = se.scheduled_at
@@ -193,7 +193,7 @@ def update_scheduled_evening(
 def delete_scheduled_evening(
     sid: int,
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_club_member),
 ):
     se = _get_se(sid, user.club_id, db)
     se.is_deleted = True
@@ -266,7 +266,7 @@ def add_guest(
     sid: int,
     data: GuestCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_club_member),
 ):
     se = _get_se(sid, user.club_id, db)
     if data.regular_member_id is not None:
@@ -303,7 +303,7 @@ def remove_guest(
     sid: int,
     gid: int,
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_club_member),
 ):
     se = _get_se(sid, user.club_id, db)
     guest = db.query(ScheduledEveningGuest).filter(
@@ -483,7 +483,7 @@ def set_rsvp_for_member(
     mid: int,
     data: RsvpSet,
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_club_member),
 ):
     if data.status not in (RsvpStatus.attending, RsvpStatus.absent):
         raise HTTPException(400, "Invalid status")
@@ -529,7 +529,7 @@ def remove_rsvp(
 def list_rsvps(
     sid: int,
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_club_member),
 ):
     se = _get_se(sid, user.club_id, db)
     all_members = db.query(RegularMember).filter(
@@ -555,7 +555,7 @@ def send_reminder(
     sid: int,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_club_member),
 ):
     se = _get_se(sid, user.club_id, db)
     responded_ids = {r.regular_member_id for r in se.rsvps}

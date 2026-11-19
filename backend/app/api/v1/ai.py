@@ -23,8 +23,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from api.deps import require_club_admin, require_club_member
-from api.v1.audit import _is_admin, _is_auditor
+from api.deps import can_manage_treasury, require_club_admin, require_club_member, require_it_admin
+from api.v1.audit import _is_auditor
 from api.v1.stats import _penalty_euro
 from core.ai import AIUnavailable, ai_enabled, generate_json
 from core.config import settings
@@ -140,8 +140,8 @@ def _settings_out(cfg: dict) -> dict:
 
 
 @router.get("/settings")
-def get_ai_settings(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
-    """Admin: the club's AI settings. The API key is never stored or returned, only whether it is set."""
+def get_ai_settings(db: Session = Depends(get_db), user: User = Depends(require_it_admin)):
+    """IT-Admin: the club's AI settings. The API key is never stored or returned, only whether it is set."""
     return _settings_out(get_ai_config(db, user.club_id))
 
 
@@ -159,7 +159,7 @@ class AiSettingsUpdate(TrimmedModel):
 
 @router.patch("/settings")
 def update_ai_settings(data: AiSettingsUpdate, db: Session = Depends(get_db),
-                       user: User = Depends(require_club_admin)):
+                       user: User = Depends(require_it_admin)):
     payload = data.model_dump(exclude_unset=True, exclude_none=True)
     for key in ("model", "search_model"):
         if key in payload and payload[key] not in _model_choices():
@@ -606,7 +606,7 @@ class NicknameRequest(TrimmedModel):
 
 @router.post("/suggest/nickname/{member_id}")
 def suggest_nickname(member_id: int, data: Optional[NicknameRequest] = None, db: Session = Depends(get_db),
-                     user: User = Depends(require_club_admin)):
+                     user: User = Depends(require_club_member)):
     member = db.query(RegularMember).filter(RegularMember.id == member_id,
                                             RegularMember.club_id == user.club_id).first()
     if not member:
@@ -644,12 +644,20 @@ def suggest_nickname(member_id: int, data: Optional[NicknameRequest] = None, db:
     pins = stats.pop("pins")
     stats["schnitt_pro_wurf"] = round(pins / wuerfe, 1) if wuerfe else None
     stats["strafen_euro"] = round(stats["strafen_euro"], 2)
+    linked_user = db.query(User).filter(
+        User.regular_member_id == member.id,
+        User.club_id == user.club_id,
+    ).first()
     facts = {
         "vorname": _first_name(member.name),
         "aktueller_kegelname": member.nickname,
         "mitglied_seit": member.created_at.year if member.created_at else None,
-        "rollen": [r for r, on in (("Vergnügungsausschuss", member.is_committee),
-                                   ("Kassenprüfer", member.is_auditor)) if on],
+        "rollen": [r for r, on in (
+            ("Vergnügungsausschuss", bool(linked_user and linked_user.is_committee)),
+            ("Kassenprüfer", bool(linked_user and linked_user.is_auditor)),
+            ("Kassenwart", bool(linked_user and linked_user.is_treasurer)),
+            ("Zeugwart", bool(linked_user and linked_user.is_zeugwart)),
+        ) if on],
         "statistik": stats,
         "haeufigste_strafen": [{"art": t, "anzahl": n} for t, n in types.most_common(5)],
         "vergebene_kegelnamen": taken,
@@ -802,8 +810,8 @@ _REVIEW_SYSTEM = (
 @router.post("/booking-review")
 def booking_review(data: BookingReviewRequest, db: Session = Depends(get_db),
                    user: User = Depends(require_club_member)):
-    if not (_is_admin(user) or _is_auditor(db, user)):
-        raise HTTPException(status_code=403, detail="Admin or auditor required")
+    if not (can_manage_treasury(user, db) or _is_auditor(db, user)):
+        raise HTTPException(status_code=403, detail="Treasurer, admin or auditor required")
     today = datetime.now(timezone.utc).date()
     start = data.start or date(today.year, 1, 1)
     end = data.end or date(today.year, 12, 31)

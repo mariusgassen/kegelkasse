@@ -302,13 +302,15 @@ def push_to_user(db: Session, user_id: int, title: str, body: str,
 
 def push_to_club_admins(db: Session, club_id: int, title: str, body: str,
                         url: str = '/', category: str = '', extra: dict | None = None) -> None:
-    """Notify all admin/superadmin members of a club (push or email per preference)."""
-    from models.user import UserRole
+    """Notify all admin/superadmin members of a club (and treasurers for payment categories)."""
     users = db.query(User).filter(
         User.club_id == club_id,
         User.is_active == True,
-        User.role.in_([UserRole.admin, UserRole.superadmin]),
     ).all()
+    recipients = [
+        u for u in users
+        if u.is_admin or (category == "payments" and u.is_treasurer)
+    ]
     email_cache: dict = {}
-    for user in users:
+    for user in recipients:
         notify_user(db, user, title, body, url, category=category, extra=extra, email_cache=email_cache)

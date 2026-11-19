@@ -149,8 +149,8 @@ class TestReportData:
     def test_requires_auth(self, client):
         assert client.get("/api/v1/reports/data").status_code == 401
 
-    def test_member_forbidden(self, client, auth_headers):
-        assert client.get("/api/v1/reports/data", headers=auth_headers).status_code == 403
+    def test_member_allowed(self, client, auth_headers):
+        assert client.get("/api/v1/reports/data", headers=auth_headers).status_code == 200
 
     def test_empty_club_has_full_shape(self, client, admin_headers):
         r = client.get("/api/v1/reports/data", headers=admin_headers)

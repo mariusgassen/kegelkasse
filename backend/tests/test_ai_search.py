@@ -70,7 +70,7 @@ def claude(monkeypatch):
 @pytest.fixture()
 def admin_headers(db: Session, club: Club):
     u = User(email="admin_search@test.de", name="Search Admin", hashed_password=get_password_hash("x"),
-             role=UserRole.admin, club_id=club.id, is_active=True)
+             roles=[UserRole.admin.value, UserRole.it_admin.value], club_id=club.id, is_active=True)
     db.add(u)
     db.commit()
     return {"Authorization": f"Bearer {create_access_token({'sub': str(u.id)})}"}

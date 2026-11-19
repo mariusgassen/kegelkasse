@@ -356,7 +356,7 @@ export function GamesPage() {
                 <Button variant="primary" className="flex-1" onClick={openAddSheet}>
                     + {t('game.add')}
                 </Button>
-                {isAdmin(user) && throwTracking && (
+                {throwTracking && (
                     <Button variant="secondary" aria-label={t('camera.title')} onClick={() => setCameraOpen(true)}>
                         <Camera size={16} strokeWidth={2} aria-hidden="true"/>
                     </Button>
@@ -453,7 +453,7 @@ export function GamesPage() {
                                     ...(game.status !== 'finished'
                                         ? [{icon: '✏️', label: t('action.edit'), onClick: () => openEditSheet(game)}]
                                         : []),
-                                    ...(isAdmin(user) && game.id > 0 && (game.status === 'running' || game.status === 'finished')
+                                    ...((!evening.is_closed || isAdmin(user)) && game.id > 0 && (game.status === 'running' || game.status === 'finished')
                                         ? [{icon: '🕐', label: t('game.editTimes'), onClick: () => openTimeEditSheet(game)}]
                                         : []),
                                     {

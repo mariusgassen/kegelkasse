@@ -60,9 +60,9 @@ def alice(db, club):
 
 @pytest.fixture()
 def auditor(db, club, alice):
-    alice.is_auditor = True
     u = User(email="auditor@test.de", name="Alice", hashed_password=get_password_hash("x"),
-             role=UserRole.member, club_id=club.id, is_active=True, regular_member_id=alice.id)
+             roles=[UserRole.auditor.value, UserRole.member.value], club_id=club.id, is_active=True,
+             regular_member_id=alice.id)
     db.add(u)
     db.commit()
     db.refresh(u)
@@ -84,7 +84,11 @@ def _exp(db, club, amount, d, desc="Bahnmiete", **kw):
 
 
 class TestAuditors:
-    def test_admin_sets_auditor(self, client, admin, alice):
+    def test_admin_sets_auditor(self, client, db, club, admin, alice):
+        u = User(email="alice_user@test.de", name="Alice", hashed_password=get_password_hash("x"),
+                 roles=[UserRole.member.value], club_id=club.id, is_active=True, regular_member_id=alice.id)
+        db.add(u)
+        db.commit()
         r = client.patch(f"/api/v1/treasury-audits/auditors/{alice.id}", json={"is_auditor": True},
                          headers=_headers(admin))
         assert r.status_code == 200 and r.json()["is_auditor"] is True

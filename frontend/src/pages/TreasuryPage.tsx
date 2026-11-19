@@ -2,7 +2,7 @@ import {clubEventsFromBookings, monthlyStatements} from '@/lib/balanceHistory.ts
 import {Caption} from '@/components/ui/Caption.tsx'
 import {Fragment, lazy, type ReactNode, Suspense, useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {isAdmin, useAppStore} from '@/store/app.ts'
+import {isAdmin, isAuditor, isTreasurer, useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
@@ -144,7 +144,8 @@ export function TreasuryPage() {
     const qc = useQueryClient()
     const user = useAppStore(s => s.user)
     const regularMembers = useAppStore(s => s.regularMembers)
-    const admin = isAdmin(user)
+    const hasClubTreasurer = regularMembers.some(m => m.is_treasurer)
+    const admin = isTreasurer(user) || (isAdmin(user) && !hasClubTreasurer)
 
     // Übersicht is the glance level (one card per core question); Analyse is the drill-in
     // destination that owns the player filter, the itemized money flow and the history graph.

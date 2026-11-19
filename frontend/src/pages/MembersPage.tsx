@@ -21,11 +21,20 @@ import {shareOrCopy} from '@/utils/share.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
-import type {RegularMember} from '@/types.ts'
+import type {RegularMember, UserRole} from '@/types.ts'
 import {Button} from '@/components/ui/Button.tsx'
 import {Field} from '@/components/ui/Field.tsx'
 
 type MemberAction = SheetAction
+
+const CLUB_ROLES: { role: UserRole; labelKey: string }[] = [
+    {role: 'admin', labelKey: 'role.admin'},
+    {role: 'it_admin', labelKey: 'role.it_admin'},
+    {role: 'treasurer', labelKey: 'role.treasurer'},
+    {role: 'auditor', labelKey: 'role.auditor'},
+    {role: 'committee', labelKey: 'role.committee'},
+    {role: 'zeugwart', labelKey: 'role.zeugwart'},
+]
 
 export function MembersPage() {
     const t = useT()
@@ -91,6 +100,37 @@ export function MembersPage() {
 
     // Row action sheet — tap a member/user row to see its available actions
     const [actionSheet, setActionSheet] = useState<{ title: string; actions: MemberAction[] } | null>(null)
+    const [rolesUser, setRolesUser] = useState<(typeof appUsers)[number] | null>(null)
+    const [updatingRoles, setUpdatingRoles] = useState(false)
+
+    function getUserRoles(u: { role: string; roles?: string[] }): UserRole[] {
+        if (u.roles && Array.isArray(u.roles) && u.roles.length > 0) {
+            return u.roles as UserRole[]
+        }
+        return (u.role ? [u.role] : ['member']) as UserRole[]
+    }
+
+    async function handleToggleUserRole(targetUser: (typeof appUsers)[number], roleToToggle: UserRole) {
+        const currentRoles = getUserRoles(targetUser)
+        const has = currentRoles.includes(roleToToggle)
+        let nextRoles: UserRole[]
+        if (has) {
+            nextRoles = currentRoles.filter(r => r !== roleToToggle)
+            if (nextRoles.length === 0) nextRoles = ['member']
+        } else {
+            nextRoles = [...currentRoles.filter(r => r !== 'member'), roleToToggle]
+        }
+        setUpdatingRoles(true)
+        try {
+            const res = await api.updateMemberRoles(targetUser.id, nextRoles)
+            setRolesUser(prev => prev && prev.id === targetUser.id ? {...prev, role: res.role, roles: res.roles} : prev)
+            await Promise.all([refetchUsers(), refetchRoster()])
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setUpdatingRoles(false)
+        }
+    }
 
     /**
      * `origin` is the tapped row. Passing it through `morphFrom` lets the browser grow that row
@@ -447,10 +487,12 @@ export function MembersPage() {
                 : activeUsers.map(u => {
                     const linked = regularMembers.find(m => m.id === u.regular_member_id)
                     const displayName = linked?.nickname || u.name
+                    const uRoles = getUserRoles(u)
+                    const visibleRoles = uRoles.filter(r => r !== 'member')
 
                     const actions: MemberAction[] = []
+                    if (linked) actions.push({icon: '✏️', label: t('action.edit'), onClick: () => openEdit(linked)})
                     if (admin) {
-                        if (linked) actions.push({icon: '✏️', label: t('action.edit'), onClick: () => openEdit(linked)})
                         if (!linked && u.role !== 'superadmin') actions.push({
                             icon: '🔗', label: t('member.action.linkToRoster'),
                             onClick: () => { setLinkUserId(u.id); setLinkUserName(u.name); setLinkSheet(true) },
@@ -458,6 +500,10 @@ export function MembersPage() {
                         if (u.role !== 'superadmin') actions.push({
                             icon: '🔑', label: t('auth.reset.createLink'), disabled: !isOnline,
                             onClick: () => openResetSheet(u.id, u.name),
+                        })
+                        if (u.role !== 'superadmin') actions.push({
+                            icon: '🛡️', label: t('member.action.manageRoles'),
+                            onClick: () => setRolesUser(u),
                         })
                         if (u.role !== 'superadmin' && u.id !== user?.id) actions.push({
                             icon: u.role === 'admin' ? '↓' : '↑',
@@ -486,10 +532,15 @@ export function MembersPage() {
                                 {!linked && <div>{t('member.noRosterEntry')}</div>}
                             </>}
                             trailing={
-                                <span
-                                    className={u.role === 'admin' || u.role === 'superadmin' ? 'role-badge-admin' : 'role-badge-member'}>
-                                    {u.role}
-                                </span>
+                                <div className="flex flex-wrap items-center justify-end gap-1">
+                                    {(visibleRoles.length > 0 ? visibleRoles : ['member' as UserRole]).map(r => (
+                                        <span
+                                            key={r}
+                                            className={r === 'admin' || r === 'superadmin' ? 'role-badge-admin' : 'role-badge-member'}>
+                                            {r}
+                                        </span>
+                                    ))}
+                                </div>
                             }
                             actionLabel={`${t('member.actionsFor')} ${displayName}`}
                             onClick={hasActions ? (origin) => openActionSheet(displayName, actions, origin) : undefined}
@@ -545,9 +596,9 @@ export function MembersPage() {
                         disabled: inEvening,
                         onClick: () => addToEvening(m),
                     })
+                    if (admin && !deactivated) actions.push({icon: '📨', label: t('member.action.createInvite'), disabled: !isOnline, onClick: () => openInvite(m)})
+                    actions.push({icon: '✏️', label: t('action.edit'), onClick: () => openEdit(m)})
                     if (admin) {
-                        if (!deactivated) actions.push({icon: '📨', label: t('member.action.createInvite'), disabled: !isOnline, onClick: () => openInvite(m)})
-                        actions.push({icon: '✏️', label: t('action.edit'), onClick: () => openEdit(m)})
                         actions.push({
                             icon: '⇄', label: t('member.action.merge'),
                             onClick: () => { setMergeDiscard(m); setMergeSheet(true) },
@@ -902,6 +953,40 @@ export function MembersPage() {
                         {t('action.save')}
                     </Button>
                 </div>
+            </Sheet>
+
+            {/* Manage club roles sheet */}
+            <Sheet open={!!rolesUser} onClose={() => setRolesUser(null)}
+                   title={`🛡️ ${rolesUser?.name ?? ''} — ${t('member.action.manageRoles')}`}>
+                {rolesUser && (
+                    <div className="flex flex-col gap-2">
+                        {CLUB_ROLES.map(({role, labelKey}) => {
+                            const currentRoles = getUserRoles(rolesUser)
+                            const isActive = currentRoles.includes(role)
+                            const isSelfAdmin = role === 'admin' && rolesUser.id === user?.id && isActive
+                            return (
+                                <button
+                                    key={role}
+                                    type="button"
+                                    disabled={updatingRoles || isSelfAdmin}
+                                    onClick={() => handleToggleUserRole(rolesUser, role)}
+                                    className={`kce-card p-3 flex items-center justify-between gap-3 text-left transition-all ${
+                                        isActive ? 'border-accent bg-accent-tint' : 'border-line'
+                                    } ${updatingRoles || isSelfAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    <span className="text-sm font-bold text-ink">
+                                        {t(labelKey as Parameters<typeof t>[0])}
+                                    </span>
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                                        isActive ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'
+                                    }`}>
+                                        {isActive ? '✓' : '+'}
+                                    </span>
+                                </button>
+                            )
+                        })}
+                    </div>
+                )}
             </Sheet>
         </div>
     )

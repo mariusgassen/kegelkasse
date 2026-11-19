@@ -14,7 +14,7 @@ import {shareOrCopy} from '@/utils/share.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import {applyClubTheme, hexToHsl, hslToHex} from '@/App.tsx'
 import {DEFAULT_DARK_BG, DEFAULT_PRIMARY, DEFAULT_SECONDARY} from '@/lib/tokens'
-import {useAppStore} from '@/store/app.ts'
+import {isAdmin, isItAdmin, isSuperadmin, useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {AdminGuard} from '@/components/ui/AdminGuard.tsx'
 import {OfflineNotice} from '@/components/ui/OfflineNotice.tsx'
@@ -81,7 +81,7 @@ export function ClubAdminPage() {
         {id: 'pins', label: t('club.tab.pins'), icon: '📌'},
         {id: 'committee', label: t('club.tab.committee'), icon: '🛠️'},
         {id: 'season', label: `📆 ${t('season.tab')}`},
-        ...(user?.role === 'superadmin' ? [
+        ...(isSuperadmin(user) ? [
             {id: 'clubs', label: t('club.tab.clubs'), icon: '🏛️'},
             {id: 'roles', label: `👥 ${t('superadmin.roles.title')}`},
             {id: 'backups', label: t('club.tab.backups'), icon: '💾'},
@@ -108,7 +108,7 @@ export function ClubAdminPage() {
                 <div className="page-scroll px-3 pb-24">
                     <OfflineNotice message={t('offline.noticeAdmin')}/>
                     {tab === 'settings' && (
-                        <AdminGuard>
+                        <AdminGuard roles={['admin', 'it_admin']}>
                             <ClubSettingsTab club={club} onSaved={async () => {
                                 await qc.invalidateQueries({queryKey: ['club']})
                                 showToast(t('club.savedOk'))
@@ -141,19 +141,19 @@ export function ClubAdminPage() {
                         </AdminGuard>
                     )}
                     {tab === 'season' && (
-                        <AdminGuard>
+                        <AdminGuard roles={['admin', 'treasurer']}>
                             <SeasonTab/>
                         </AdminGuard>
                     )}
-                    {tab === 'clubs' && user?.role === 'superadmin' && (
+                    {tab === 'clubs' && isSuperadmin(user) && (
                         <SuperadminClubsTab qc={qc}/>
                     )}
-                    {tab === 'roles' && user?.role === 'superadmin' && (
+                    {tab === 'roles' && isSuperadmin(user) && (
                         <div className="p-1">
                             <SuperadminRolesManager/>
                         </div>
                     )}
-                    {tab === 'backups' && user?.role === 'superadmin' && (
+                    {tab === 'backups' && isSuperadmin(user) && (
                         <BackupsTab/>
                     )}
                 </div>
@@ -186,6 +186,9 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const t = useT()
     const qc = useQueryClient()
     const isOnline = useOnline()
+    const user = useAppStore(s => s.user)
+    const canAdmin = isAdmin(user)
+    const canItAdmin = isItAdmin(user)
     const setGuestPenaltyCap = useAppStore(s => s.setGuestPenaltyCap)
     const [clubName, setClubName] = useState(club?.name || '')
     const [venue, setVenue] = useState(club?.settings?.home_venue || '')
@@ -204,7 +207,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const [audioCallouts, setAudioCallouts] = useState(club?.settings?.audio_callouts_enabled !== false)
     const [publicSchedule, setPublicSchedule] = useState(club?.settings?.public_schedule_enabled === true)
     const [mapStyle, setMapStyle] = useState<MapStyle>(club?.settings?.map_style || 'voyager')
-    const [section, setSection] = useState<'general' | 'operations' | 'integrations'>('general')
+    const [section, setSection] = useState<'general' | 'operations' | 'integrations'>(canAdmin ? 'general' : 'integrations')
 
     useEffect(() => {
         if (!club) return
@@ -313,12 +316,14 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     return (
         <div className="flex flex-col gap-4">
             <Tabs value={section} onChange={setSection} className="-mb-1" items={[
-                {id: 'general', label: t('club.settingsSection.general')},
-                {id: 'operations', label: t('club.settingsSection.operations')},
-                {id: 'integrations', label: t('club.settingsSection.integrations')},
+                ...(canAdmin ? [
+                    {id: 'general' as const, label: t('club.settingsSection.general')},
+                    {id: 'operations' as const, label: t('club.settingsSection.operations')},
+                ] : []),
+                {id: 'integrations' as const, label: t('club.settingsSection.integrations')},
             ]}/>
 
-            {section === 'general' && <>
+            {canAdmin && section === 'general' && <>
             {/* ── Allgemein ── */}
             <div className="kce-card p-4">
                 <div className="sec-heading mb-3">{t('club.settings.general')}</div>
@@ -477,7 +482,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             <AppIconCard/>
             </>}
 
-            {section === 'operations' && <>
+            {canAdmin && section === 'operations' && <>
             {/* ── Sonderstrafen ── */}
             <div className="kce-card p-4">
                 <div className="sec-heading mb-3">{t('club.settings.specialPenalties')}</div>
@@ -534,7 +539,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             </div>
 
             {/* ── TV-Scoreboard ── */}
-            <ScoreboardLinkCard token={club?.settings?.scoreboard_token ?? null}/>
+            <ScoreboardLinkCard token={club?.settings?.scoreboard_token ?? null} canRegenerate={canItAdmin}/>
 
             {/* ── Zahlungen ── */}
             <div className="kce-card p-4">
@@ -551,19 +556,22 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             </div>
             </>}
 
-            {section !== 'integrations' && (
+            {canAdmin && section !== 'integrations' && (
                 <Button variant="primary" block onClick={handleSave} disabled={!isOnline}>
                     {isOnline ? t('action.save') : t('offline.btnLabel')}
                 </Button>
             )}
 
             {section === 'integrations' && <>
-            <ReminderSettingsCard />
-            <EmailSettingsCard />
-            <TelegramSettingsCard />
-            <AiSettingsCard />
-            <BroadcastPushCard />
-            <ClubConfigCard />
+            {canAdmin && <ReminderSettingsCard />}
+            {canItAdmin && <EmailSettingsCard />}
+            {canItAdmin && <TelegramSettingsCard />}
+            {canItAdmin && <AiSettingsCard />}
+            {canAdmin && <BroadcastPushCard />}
+            {canItAdmin && !canAdmin && (
+                <ScoreboardLinkCard token={club?.settings?.scoreboard_token ?? null} canRegenerate={canItAdmin}/>
+            )}
+            {canItAdmin && <ClubConfigCard />}
             </>}
         </div>
     )
@@ -636,7 +644,7 @@ function AppIconCard() {
  * it. Rotating is behind a confirmation because it silently blanks whatever screen is currently
  * showing the old link.
  */
-function ScoreboardLinkCard({token}: {token: string | null}) {
+function ScoreboardLinkCard({token, canRegenerate = false}: {token: string | null; canRegenerate?: boolean}) {
     const t = useT()
     const isOnline = useOnline()
     const qc = useQueryClient()
@@ -683,11 +691,15 @@ function ScoreboardLinkCard({token}: {token: string | null}) {
                             {copied ? '✓' : t('scoreboard.copy')}
                         </Button>
                     </div>
-                    <Button variant="secondary" size="sm" block className="mt-2" disabled={!isOnline}
-                            onClick={() => setConfirmRegen(true)}>
-                        {t('scoreboard.regenerate')}
-                    </Button>
-                    <p className="text-xs text-muted mt-1">{t('scoreboard.regenerateHint')}</p>
+                    {canRegenerate && (
+                        <>
+                            <Button variant="secondary" size="sm" block className="mt-2" disabled={!isOnline}
+                                    onClick={() => setConfirmRegen(true)}>
+                                {t('scoreboard.regenerate')}
+                            </Button>
+                            <p className="text-xs text-muted mt-1">{t('scoreboard.regenerateHint')}</p>
+                        </>
+                    )}
                 </>
             ) : (
                 <SkeletonCard lines={2}/>
