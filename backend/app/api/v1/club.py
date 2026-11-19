@@ -14,7 +14,13 @@ from sqlalchemy import or_, and_, func, case
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from api.deps import require_club_member, require_club_admin, require_it_admin, require_treasurer
+from api.deps import (
+    ensure_club_retains_admin,
+    require_club_member,
+    require_club_admin,
+    require_it_admin,
+    require_treasurer,
+)
 from api.v1.app_icon import serialize_app_icon
 from api.v1.stickers import CARTO_STYLES, DEFAULT_MAP_STYLE
 from core.database import get_db
@@ -292,7 +298,9 @@ def _set_club_member_roles(db: Session, actor: User, member_id: int, requested_r
         if requested_platform != existing_platform:
             raise HTTPException(403, "Only superadmin can assign platform roles")
 
-    target.roles = normalize_roles(requested_roles)
+    normalized = normalize_roles(requested_roles)
+    ensure_club_retains_admin(db, target, new_roles=normalized)
+    target.roles = normalized
     db.commit()
     db.refresh(target)
     logger.info("Member roles updated: user=%d new_roles=%r by admin=%d", member_id, target.roles, actor.id)
@@ -328,6 +336,7 @@ def deactivate_member(member_id: int, db: Session = Depends(get_db),
         raise HTTPException(403, "Cannot deactivate superadmin")
     if target.id == user.id:
         raise HTTPException(400, "Verwende 'Konto löschen' im eigenen Profil")
+    ensure_club_retains_admin(db, target, will_be_active=False)
     target.is_active = False
     target.set_roles([UserRole.member])
     db.commit()
@@ -510,8 +519,10 @@ def deactivate_regular_member(mid: int, data: Optional[DeactivateRegularMemberBo
             raise HTTPException(400, "Ungültiges Datum")
         if deactivated_at.tzinfo is None:
             deactivated_at = deactivated_at.replace(tzinfo=timezone.utc)
-    m.deactivated_at = deactivated_at
     linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
+    if linked_user:
+        ensure_club_retains_admin(db, linked_user, will_be_active=False)
+    m.deactivated_at = deactivated_at
     if linked_user:
         linked_user.is_active = False
         linked_user.set_roles([UserRole.member])
@@ -568,6 +579,9 @@ def delete_regular_member(mid: int, db: Session = Depends(get_db),
     if m.is_guest:
         # Guests stay part of the club history (evening participation, stats) — never deletable
         raise HTTPException(400, "Gäste können nicht entfernt werden — sie bleiben Teil der Vereinshistorie")
+    linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
+    if linked_user:
+        ensure_club_retains_admin(db, linked_user, will_be_active=False)
     # Regular member leaving — convert to guest so they can still play, block login, clear pins
     m.is_guest = True
     if m.deactivated_at is None:
@@ -576,7 +590,6 @@ def delete_regular_member(mid: int, db: Session = Depends(get_db),
         pin.holder_regular_member_id = None
         pin.holder_name = None
         pin.assigned_at = None
-    linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
     if linked_user:
         linked_user.is_active = False
         linked_user.set_roles([UserRole.member])

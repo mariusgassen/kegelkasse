@@ -684,29 +684,29 @@ describe('MembersPage — inactive users', () => {
     })
 })
 
-describe('MembersPage — role toggle and deactivate', () => {
+describe('MembersPage — role management and deactivate', () => {
     beforeEach(() => {
         vi.clearAllMocks()
     })
 
-    it('shows role toggle action (↑/↓) for non-self admin users', async () => {
+    it('offers manageRoles and omits legacy makeAdmin/removeAdmin quick toggle', async () => {
         await setupAdmin()
         await renderMembersPage()
-        // Franz Schmidt is member (id=11), current user is id=10 → ↑ should be offered for Franz
         const actionSheet = await openRowActions('Franz Schmidt')
-        expect(within(actionSheet).getByText('↑')).toBeInTheDocument()
+        expect(within(actionSheet).getByText('member.action.manageRoles')).toBeInTheDocument()
+        expect(within(actionSheet).queryByText('member.action.makeAdmin')).not.toBeInTheDocument()
+        expect(within(actionSheet).queryByText('member.action.removeAdmin')).not.toBeInTheDocument()
     })
 
-    it('calls api.updateMemberRole when ↑ action clicked', async () => {
+    it('prevents removing admin from the only active admin in the per-user role sheet', async () => {
         await setupAdmin()
-        const { api } = await import('@/api/client.ts')
-        vi.mocked(api.updateMemberRole).mockResolvedValueOnce(undefined as any)
         await renderMembersPage()
-        const actionSheet = await openRowActions('Franz Schmidt')
-        fireEvent.click(within(actionSheet).getByText('↑'))
-        await waitFor(() => {
-            expect(api.updateMemberRole).toHaveBeenCalledWith(11, 'admin')
-        })
+        const actionSheet = await openRowActions('Hansi')
+        fireEvent.click(within(actionSheet).getByText('member.action.manageRoles'))
+        const roleSheet = await screen.findByTestId('sheet')
+        expect(within(roleSheet).getByText('member.roles.lastAdminHint')).toBeInTheDocument()
+        const adminBtn = within(roleSheet).getByText('role.admin').closest('button')!
+        expect(adminBtn).toBeDisabled()
     })
 
     it('calls api.deactivateMember when deactivate action clicked on other user', async () => {
@@ -1667,6 +1667,11 @@ describe('MembersPage — club role assignment menu', () => {
         expect(within(sheet).queryByRole('tab', { name: /role\.it_admin/ })).not.toBeInTheDocument()
         expect(within(sheet).queryByRole('tab', { name: /role\.superadmin/ })).not.toBeInTheDocument()
 
+        // Admin tab disables removing the last active admin and displays hint
+        expect(within(sheet).getByText(/member\.roles\.lastAdminHint/)).toBeInTheDocument()
+        expect(within(sheet).getByText('Hansi').closest('button')).toBeDisabled()
+        expect(within(sheet).getByText('Franz Schmidt').closest('button')).not.toBeDisabled()
+
         // Switch to committee tab and assign Franz Schmidt
         fireEvent.click(within(sheet).getByRole('tab', { name: /role\.committee/ }))
         expect(within(sheet).getByText('member.roles.desc.committee')).toBeInTheDocument()
@@ -1677,4 +1682,5 @@ describe('MembersPage — club role assignment menu', () => {
         })
     })
 })
+
 

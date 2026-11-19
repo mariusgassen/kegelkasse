@@ -507,6 +507,8 @@ export function MembersPage() {
                     const displayName = linked?.nickname || u.name
                     const uRoles = getUserRoles(u)
                     const visibleRoles = uRoles.filter(r => r !== 'member')
+                    const activeAdminCount = appUsers.filter(au => au.is_active && getUserRoles(au).includes('admin')).length
+                    const isLastAdminUser = uRoles.includes('admin') && activeAdminCount <= 1
 
                     const actions: MemberAction[] = []
                     if (linked) actions.push({icon: '✏️', label: t('action.edit'), onClick: () => openEdit(linked)})
@@ -523,12 +525,7 @@ export function MembersPage() {
                             icon: '🛡️', label: t('member.action.manageRoles'),
                             onClick: () => setRolesUser(u),
                         })
-                        if (u.role !== 'superadmin' && u.id !== user?.id) actions.push({
-                            icon: u.role === 'admin' ? '↓' : '↑',
-                            label: u.role === 'admin' ? t('member.action.removeAdmin') : t('member.action.makeAdmin'),
-                            onClick: () => api.updateMemberRole(u.id, u.role === 'admin' ? 'member' : 'admin').then(() => refetchUsers()),
-                        })
-                        if (u.role !== 'superadmin' && u.id !== user?.id) actions.push({
+                        if (u.role !== 'superadmin' && u.id !== user?.id && !isLastAdminUser) actions.push({
                             icon: '✕', label: t('member.action.deactivate'), danger: true,
                             onClick: () => handleDeactivate(u.id),
                         })
@@ -974,40 +971,47 @@ export function MembersPage() {
             {/* Manage club roles sheet (per member) */}
             <Sheet open={!!rolesUser} onClose={() => setRolesUser(null)}
                    title={`🛡️ ${rolesUser?.name ?? ''} — ${t('member.action.manageRoles')}`}>
-                {rolesUser && (
-                    <div className="flex flex-col gap-2">
-                        {CLUB_ROLES.map(({role, labelKey, descKey}) => {
-                            const currentRoles = getUserRoles(rolesUser)
-                            const isActive = currentRoles.includes(role)
-                            const isSelfAdmin = role === 'admin' && rolesUser.id === user?.id && isActive
-                            return (
-                                <button
-                                    key={role}
-                                    type="button"
-                                    disabled={updatingRoles || isSelfAdmin}
-                                    onClick={() => handleToggleUserRole(rolesUser, role)}
-                                    className={`kce-card p-3 flex items-center justify-between gap-3 text-left transition-all ${
-                                        isActive ? 'border-accent bg-accent-tint' : 'border-line'
-                                    } ${updatingRoles || isSelfAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                    <div className="min-w-0">
-                                        <div className="text-sm font-bold text-ink">
-                                            {t(labelKey as Parameters<typeof t>[0])}
+                {rolesUser && (() => {
+                    const activeAdminCount = appUsers.filter(au => au.is_active && getUserRoles(au).includes('admin')).length
+                    const currentRoles = getUserRoles(rolesUser)
+                    const isLastAdminUser = currentRoles.includes('admin') && activeAdminCount <= 1
+                    return (
+                        <div className="flex flex-col gap-2">
+                            {CLUB_ROLES.map(({role, labelKey, descKey}) => {
+                                const isActive = currentRoles.includes(role)
+                                const isLastAdminGuard = role === 'admin' && isActive && activeAdminCount <= 1
+                                return (
+                                    <button
+                                        key={role}
+                                        type="button"
+                                        disabled={updatingRoles || isLastAdminGuard}
+                                        onClick={() => handleToggleUserRole(rolesUser, role)}
+                                        className={`kce-card p-3 flex items-center justify-between gap-3 text-left transition-all ${
+                                            isActive ? 'border-accent bg-accent-tint' : 'border-line'
+                                        } ${updatingRoles || isLastAdminGuard ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-bold text-ink">
+                                                {t(labelKey as Parameters<typeof t>[0])}
+                                            </div>
+                                            <div className="text-xs text-muted">
+                                                {t(descKey as Parameters<typeof t>[0])}
+                                            </div>
                                         </div>
-                                        <div className="text-xs text-muted">
-                                            {t(descKey as Parameters<typeof t>[0])}
-                                        </div>
-                                    </div>
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded flex-shrink-0 ${
-                                        isActive ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'
-                                    }`}>
-                                        {isActive ? '✓' : '+'}
-                                    </span>
-                                </button>
-                            )
-                        })}
-                    </div>
-                )}
+                                        <span className={`text-xs font-bold px-2 py-0.5 rounded flex-shrink-0 ${
+                                            isActive ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'
+                                        }`}>
+                                            {isActive ? '✓' : '+'}
+                                        </span>
+                                    </button>
+                                )
+                            })}
+                            {isLastAdminUser && (
+                                <p className="text-xs text-muted pt-1">{t('member.roles.lastAdminHint')}</p>
+                            )}
+                        </div>
+                    )
+                })()}
             </Sheet>
 
             {/* Club Role Assignment Menu Sheet (by role across all active members) */}
@@ -1015,6 +1019,7 @@ export function MembersPage() {
                    title={`🛡️ ${t('member.roles.menuTitle')}`}>
                 {(() => {
                     const allActiveUsers = appUsers.filter(u => u.is_active)
+                    const activeAdminCount = allActiveUsers.filter(u => getUserRoles(u).includes('admin')).length
                     const activeRoleDef = CLUB_ROLES.find(r => r.role === selectedMenuRole) ?? CLUB_ROLES[0]
                     const actorIsSuper = user ? getUserRoles(user).includes('superadmin') : false
                     return (
@@ -1045,6 +1050,9 @@ export function MembersPage() {
 
                             <p className="text-xs text-muted">
                                 {t(activeRoleDef.descKey as Parameters<typeof t>[0])}
+                                {selectedMenuRole === 'admin' && activeAdminCount <= 1 && (
+                                    <> {t('member.roles.lastAdminHint')}</>
+                                )}
                             </p>
 
                             {allActiveUsers.length === 0 ? (
@@ -1057,8 +1065,8 @@ export function MembersPage() {
                                         const uRoles = getUserRoles(u)
                                         const isActive = uRoles.includes(selectedMenuRole)
                                         const isSuperTarget = uRoles.includes('superadmin')
-                                        const isSelfAdmin = selectedMenuRole === 'admin' && u.id === user?.id && isActive
-                                        const disabled = updatingRoles || isSelfAdmin || (isSuperTarget && !actorIsSuper)
+                                        const isLastAdminGuard = selectedMenuRole === 'admin' && isActive && activeAdminCount <= 1
+                                        const disabled = updatingRoles || isLastAdminGuard || (isSuperTarget && !actorIsSuper)
                                         return (
                                             <button
                                                 key={u.id}

@@ -178,18 +178,23 @@ export function SuperadminRolesManager() {
                                     </span>
                                     {ROLE_CONFIG.map(({role, labelKey, activeClass, inactiveClass}) => {
                                         const isActive = uRoles.includes(role)
+                                        const clubAdminCount = u.club_id != null
+                                            ? users.filter(x => x.is_active !== false && x.club_id === u.club_id && getUserRoles(x).includes('admin')).length
+                                            : 0
+                                        const isLastClubAdmin = role === 'admin' && isActive && u.club_id != null && clubAdminCount <= 1
+                                        const isDisabled = updatingId === u.id || isLastClubAdmin
                                         return (
                                             <button
                                                 key={role}
                                                 type="button"
-                                                disabled={updatingId === u.id}
+                                                disabled={isDisabled}
                                                 onClick={() => handleToggleRole(u.id, uRoles, role)}
                                                 className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg border transition-all ${
                                                     isActive
                                                         ? `${activeClass} shadow-xs`
                                                         : `bg-surface-2 ${inactiveClass}`
                                                 } ${
-                                                    updatingId === u.id
+                                                    isDisabled
                                                         ? 'opacity-50 cursor-not-allowed'
                                                         : 'cursor-pointer active:scale-95'
                                                 }`}

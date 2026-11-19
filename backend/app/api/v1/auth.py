@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status, Backgrou
 from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
-from api.deps import get_current_user
+from api.deps import ensure_club_retains_admin, get_current_user
 from core.database import get_db
 from core.push import push_to_club_admins
 from core.refresh import (
@@ -221,6 +221,7 @@ def update_profile(req: UpdateProfileRequest, request: Request, db: Session = De
 @router.delete("/me")
 def delete_own_account(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Self-service account deactivation (soft delete)."""
+    ensure_club_retains_admin(db, current_user, will_be_active=False)
     current_user.is_active = False
     current_user.set_roles([UserRole.member])
     db.commit()

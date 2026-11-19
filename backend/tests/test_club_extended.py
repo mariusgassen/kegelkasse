@@ -240,6 +240,55 @@ class TestUpdateMemberRole:
                             headers=auth_headers, params={"role": "admin"})
         assert resp.status_code == 403
 
+    def test_cannot_demote_or_deactivate_last_active_admin(
+        self, client: TestClient, db: Session, admin_headers: dict, admin_user: User, club: Club
+    ):
+        from models.evening import RegularMember
+
+        # admin_user is the only active admin in the club
+        resp = client.patch(f"/api/v1/club/members/{admin_user.id}/role",
+                            headers=admin_headers, params={"role": "member"})
+        assert resp.status_code == 400
+
+        resp2 = client.patch(f"/api/v1/club/members/{admin_user.id}/roles",
+                             headers=admin_headers, json={"roles": ["treasurer"]})
+        assert resp2.status_code == 400
+
+        # Also cannot self-delete account when last admin
+        resp3 = client.delete("/api/v1/auth/me", headers=admin_headers)
+        assert resp3.status_code == 400
+
+        # Link regular member to admin_user — deactivating/removing roster entry is also blocked
+        rm = RegularMember(club_id=club.id, name="Only Admin Roster", user_id=admin_user.id)
+        db.add(rm)
+        db.commit()
+        db.refresh(rm)
+        admin_user.regular_member_id = rm.id
+        db.commit()
+
+        resp4 = client.patch(f"/api/v1/club/regular-members/{rm.id}/deactivate", headers=admin_headers)
+        assert resp4.status_code == 400
+        resp5 = client.delete(f"/api/v1/club/regular-members/{rm.id}", headers=admin_headers)
+        assert resp5.status_code == 400
+
+        # Once a second active admin exists, the first admin CAN be demoted
+        second_admin = User(
+            email="second_admin_ext@test.de",
+            name="Second Admin",
+            hashed_password="x",
+            roles=["admin"],
+            club_id=club.id,
+            is_active=True,
+        )
+        db.add(second_admin)
+        db.commit()
+
+        resp6 = client.patch(f"/api/v1/club/members/{admin_user.id}/roles",
+                             headers=admin_headers, json={"roles": ["treasurer"]})
+        assert resp6.status_code == 200
+        assert set(resp6.json()["roles"]) == {"treasurer"}
+
+
 
 # ---------------------------------------------------------------------------
 # DELETE /club/members/{id}
