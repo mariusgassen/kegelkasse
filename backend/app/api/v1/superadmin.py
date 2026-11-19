@@ -204,8 +204,26 @@ def list_users(
     db: Session = Depends(get_db),
     user: User = Depends(require_superadmin),
 ):
-    """List all users with their club and roles for global role administration."""
-    users = db.query(User).order_by(User.name).all()
+    """List all active users with their club and roles for global role administration."""
+    all_users = db.query(User).order_by(User.name).all()
+    rms_by_id = {m.id: m for m in db.query(RegularMember).all()}
+    dirty = False
+    active_users: list[User] = []
+    for u in all_users:
+        rm = rms_by_id.get(u.regular_member_id) if u.regular_member_id else None
+        rm_inactive = rm is not None and (not rm.is_active or rm.deactivated_at is not None)
+        if not u.is_active or rm_inactive:
+            if u.is_active:
+                u.is_active = False
+                dirty = True
+            if u.roles != [UserRole.member.value]:
+                u.set_roles([UserRole.member])
+                dirty = True
+            continue
+        active_users.append(u)
+    if dirty:
+        db.commit()
+
     clubs = {c.id: c.name for c in db.query(Club).all()}
     return [
         {
@@ -218,7 +236,7 @@ def list_users(
             "club_name": clubs.get(u.club_id) if u.club_id else None,
             "is_active": u.is_active,
         }
-        for u in users
+        for u in active_users
     ]
 
 
@@ -229,6 +247,8 @@ def _apply_user_roles(
     new_roles: list[str],
 ) -> dict:
     from models.user import normalize_roles
+    if not target_user.is_active:
+        raise HTTPException(400, "Cannot assign roles to an inactive user")
     allowed_roles = {r.value for r in UserRole}
     for r in new_roles:
         if r not in allowed_roles:

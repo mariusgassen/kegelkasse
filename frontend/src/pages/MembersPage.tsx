@@ -530,18 +530,16 @@ export function MembersPage() {
                             meta={<>
                                 {u.username && admin && <div className="truncate">@{u.username}</div>}
                                 {!linked && <div>{t('member.noRosterEntry')}</div>}
-                            </>}
-                            trailing={
-                                <div className="flex flex-wrap items-center justify-end gap-1">
+                                <div className="flex flex-wrap items-center gap-1 mt-1 whitespace-normal">
                                     {(visibleRoles.length > 0 ? visibleRoles : ['member' as UserRole]).map(r => (
                                         <span
                                             key={r}
                                             className={r === 'admin' || r === 'superadmin' ? 'role-badge-admin' : 'role-badge-member'}>
-                                            {r}
+                                            {t(`role.${r}` as Parameters<typeof t>[0])}
                                         </span>
                                     ))}
                                 </div>
-                            }
+                            </>}
                             actionLabel={`${t('member.actionsFor')} ${displayName}`}
                             onClick={hasActions ? (origin) => openActionSheet(displayName, actions, origin) : undefined}
                         />

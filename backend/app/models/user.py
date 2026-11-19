@@ -115,6 +115,9 @@ class User(Base):
         else:
             self.roles = normalize_roles([value])
 
+    def set_roles(self, roles: list[UserRole | str] | set[UserRole | str] | tuple[UserRole | str, ...]) -> None:
+        self.roles = normalize_roles(list(roles))
+
     def has_role(self, *roles: object) -> bool:
         """Return True if user has ANY of the specified roles.
 

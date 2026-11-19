@@ -334,3 +334,36 @@ class TestUserRoleManagement:
         assert resp.status_code == 400
         assert "only active superadmin" in resp.json()["detail"]
 
+    def test_inactive_users_excluded_and_roles_revoked(
+        self, client, superadmin_headers, member_user, db
+    ):
+        # Give member_user multiple roles first
+        member_user.roles = ["admin", "treasurer", "committee"]
+        db.commit()
+
+        # Deactivate via club endpoint -> should revoke roles to ["member"]
+        deact_resp = client.delete(
+            f"/api/v1/club/members/{member_user.id}",
+            headers=superadmin_headers,
+        )
+        assert deact_resp.status_code == 200
+        db.refresh(member_user)
+        assert member_user.is_active is False
+        assert member_user.roles == ["member"]
+
+        # Should not appear in superadmin users list
+        list_resp = client.get("/api/v1/superadmin/users", headers=superadmin_headers)
+        assert list_resp.status_code == 200
+        ids = [u["id"] for u in list_resp.json()]
+        assert member_user.id not in ids
+
+        # Cannot assign roles to an inactive user
+        assign_resp = client.patch(
+            f"/api/v1/superadmin/users/{member_user.id}/roles",
+            json={"roles": ["admin"]},
+            headers=superadmin_headers,
+        )
+        assert assign_resp.status_code == 400
+
+
+

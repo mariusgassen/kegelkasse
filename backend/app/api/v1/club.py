@@ -248,6 +248,15 @@ def delete_club_logo(db: Session = Depends(get_db), user: User = Depends(require
 @router.get("/members")
 def get_members(include_inactive: bool = False, db: Session = Depends(get_db),
                 user: User = Depends(require_club_member)):
+    all_club_users = db.query(User).filter(User.club_id == user.club_id).all()
+    dirty = False
+    for u in all_club_users:
+        if not u.is_active and u.roles != [UserRole.member.value]:
+            u.set_roles([UserRole.member])
+            dirty = True
+    if dirty:
+        db.commit()
+
     q = db.query(User).filter(User.club_id == user.club_id)
     if not include_inactive:
         q = q.filter(User.is_active == True)
@@ -266,6 +275,8 @@ def _set_club_member_roles(db: Session, actor: User, member_id: int, requested_r
     target = db.query(User).filter(User.id == member_id, User.club_id == actor.club_id).first()
     if not target:
         raise HTTPException(404)
+    if not target.is_active:
+        raise HTTPException(400, "Cannot modify roles of an inactive user")
     if target.is_superadmin and not actor.is_superadmin:
         raise HTTPException(403, "Cannot modify superadmin roles")
 
@@ -314,6 +325,7 @@ def deactivate_member(member_id: int, db: Session = Depends(get_db),
     if target.id == user.id:
         raise HTTPException(400, "Verwende 'Konto löschen' im eigenen Profil")
     target.is_active = False
+    target.set_roles([UserRole.member])
     db.commit()
     # Drop the sessions too, so a later reactivation doesn't silently revive a
     # refresh token that has been sitting on an old device for months.
@@ -374,7 +386,8 @@ def _member_dict(
     evening_count: int = 0,
     linked_user: User | None = None,
 ) -> dict:
-    u_roles = linked_user.all_roles if linked_user else set()
+    is_active_member = bool(m.is_active) and m.deactivated_at is None
+    u_roles = linked_user.all_roles if (linked_user and linked_user.is_active and is_active_member) else set()
     resolved_avatar = avatar if avatar is not None else (linked_user.avatar if linked_user else None)
     return {
         "id": m.id, "name": m.name, "nickname": m.nickname,
@@ -383,7 +396,7 @@ def _member_dict(
         "is_auditor": UserRole.auditor.value in u_roles,
         "is_zeugwart": UserRole.zeugwart.value in u_roles,
         "is_treasurer": UserRole.treasurer.value in u_roles,
-        "roles": sorted(u_roles) if linked_user else [],
+        "roles": sorted(u_roles) if (linked_user and linked_user.is_active and is_active_member) else [],
         "avatar": resolved_avatar,
         "deactivated_at": m.deactivated_at.isoformat() if m.deactivated_at else None,
         "evening_count": evening_count,
@@ -497,6 +510,7 @@ def deactivate_regular_member(mid: int, data: Optional[DeactivateRegularMemberBo
     linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
     if linked_user:
         linked_user.is_active = False
+        linked_user.set_roles([UserRole.member])
     db.commit()
     db.refresh(m)
     if linked_user:
@@ -561,6 +575,7 @@ def delete_regular_member(mid: int, db: Session = Depends(get_db),
     linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
     if linked_user:
         linked_user.is_active = False
+        linked_user.set_roles([UserRole.member])
     db.commit()
     if linked_user:
         from core.refresh import revoke_all_for_user
