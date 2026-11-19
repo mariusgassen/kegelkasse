@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.80.1](https://github.com/mariusgassen/kegelkasse/compare/v1.80.0...v1.80.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* Live-Insel im Ruhezustand ohne dauerhaften Kontostand und ohne abgeschnittene Texte ([#673](https://github.com/mariusgassen/kegelkasse/issues/673)) ([89c0f56](https://github.com/mariusgassen/kegelkasse/commit/89c0f56dcda97d4380ac057f62efc9b40c6aecd3))
+* Neuigkeiten auf Start nach Klebedatum, Bearbeitung und Aktivität sortieren ([#670](https://github.com/mariusgassen/kegelkasse/issues/670)) ([ac48fc3](https://github.com/mariusgassen/kegelkasse/commit/ac48fc3ae1e4ff020aca7988f205ef023ca162a3))
+* Update-Benachrichtigungen über Island als gelesen markieren und Push-Text kürzen ([#672](https://github.com/mariusgassen/kegelkasse/issues/672)) ([4225e48](https://github.com/mariusgassen/kegelkasse/commit/4225e482f51faec3f19963f4da3f42807a372c56))
+
 ## [1.80.0](https://github.com/mariusgassen/kegelkasse/compare/v1.79.1...v1.80.0) (2026-11-19)
 
 

@@ -1,6 +1,44 @@
 {
   "releases": [
     {
+      "version": "1.80.1",
+      "date": "2026-11-19",
+      "sections": [
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "89c0f56",
+              "pr": 673,
+              "sha": "89c0f56",
+              "text": {
+                "en": "Live-Insel im Ruhezustand ohne dauerhaften Kontostand und ohne abgeschnittene Texte",
+                "de": "Live-Insel im Ruhezustand ohne dauerhaften Kontostand und ohne abgeschnittene Texte"
+              }
+            },
+            {
+              "key": "ac48fc3",
+              "pr": 670,
+              "sha": "ac48fc3",
+              "text": {
+                "en": "Neuigkeiten auf Start nach Klebedatum, Bearbeitung und Aktivität sortieren",
+                "de": "Neuigkeiten auf Start nach Klebedatum, Bearbeitung und Aktivität sortieren"
+              }
+            },
+            {
+              "key": "4225e48",
+              "pr": 672,
+              "sha": "4225e48",
+              "text": {
+                "en": "Update-Benachrichtigungen über Island als gelesen markieren und Push-Text kürzen",
+                "de": "Update-Benachrichtigungen über Island als gelesen markieren und Push-Text kürzen"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.80.0",
       "date": "2026-11-19",
       "sections": [
