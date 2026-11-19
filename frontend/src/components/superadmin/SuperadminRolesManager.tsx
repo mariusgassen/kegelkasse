@@ -78,9 +78,10 @@ export function SuperadminRolesManager() {
     }
 
     const filteredUsers = useMemo(() => {
-        if (!search.trim()) return users
+        const activeUsers = users.filter(u => u.is_active !== false)
+        if (!search.trim()) return activeUsers
         const q = search.toLowerCase().trim()
-        return users.filter(u => {
+        return activeUsers.filter(u => {
             const uRoles = getUserRoles(u)
             return (
                 u.name.toLowerCase().includes(q) ||
@@ -145,7 +146,7 @@ export function SuperadminRolesManager() {
             ) : filteredUsers.length === 0 ? (
                 <Empty icon="👥" text={t('superadmin.roles.empty')} />
             ) : (
-                <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                <div className="space-y-2">
                     {filteredUsers.map(u => {
                         const uRoles = getUserRoles(u)
                         const isPlainMember = !ROLE_CONFIG.some(rc => uRoles.includes(rc.role))

@@ -222,6 +222,7 @@ def update_profile(req: UpdateProfileRequest, request: Request, db: Session = De
 def delete_own_account(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Self-service account deactivation (soft delete)."""
     current_user.is_active = False
+    current_user.set_roles([UserRole.member])
     db.commit()
     revoke_all_for_user(db, current_user.id)
     return {"ok": True}

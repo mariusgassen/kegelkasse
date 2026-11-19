@@ -30,11 +30,14 @@ def upgrade():
         sa.column('role', sa.String),
         sa.column('roles', sa.JSON),
         sa.column('regular_member_id', sa.Integer),
+        sa.column('is_active', sa.Boolean),
     )
     rm_table = sa.table(
         'regular_member',
         sa.column('id', sa.Integer),
         sa.column('user_id', sa.Integer),
+        sa.column('is_active', sa.Boolean),
+        sa.column('deactivated_at', sa.DateTime(timezone=True)),
         sa.column('is_committee', sa.Boolean),
         sa.column('is_auditor', sa.Boolean),
         sa.column('is_zeugwart', sa.Boolean),
@@ -44,6 +47,8 @@ def upgrade():
         sa.select(
             rm_table.c.id,
             rm_table.c.user_id,
+            rm_table.c.is_active,
+            rm_table.c.deactivated_at,
             rm_table.c.is_committee,
             rm_table.c.is_auditor,
             rm_table.c.is_zeugwart,
@@ -58,10 +63,22 @@ def upgrade():
             user_table.c.role,
             user_table.c.roles,
             user_table.c.regular_member_id,
+            user_table.c.is_active,
         )
     ).fetchall()
 
     for u in user_rows:
+        linked_rm = rm_by_id.get(u.regular_member_id) or rm_by_user_id.get(u.id)
+        is_inactive = (not u.is_active) or (
+            linked_rm is not None and (not linked_rm.is_active or linked_rm.deactivated_at is not None)
+        )
+
+        if is_inactive:
+            bind.execute(
+                user_table.update().where(user_table.c.id == u.id).values(roles=['member'], is_active=False)
+            )
+            continue
+
         roles_set: set[str] = set()
         if isinstance(u.roles, list):
             for r in u.roles:
@@ -70,7 +87,6 @@ def upgrade():
         if u.role and str(u.role) in _VALID_ROLES:
             roles_set.add(str(u.role))
 
-        linked_rm = rm_by_id.get(u.regular_member_id) or rm_by_user_id.get(u.id)
         if linked_rm:
             if linked_rm.is_committee:
                 roles_set.add('committee')
