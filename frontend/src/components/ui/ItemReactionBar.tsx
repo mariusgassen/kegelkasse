@@ -115,10 +115,16 @@ export function ItemReactionBar({parentType, parentId, commentOpen, onCommentTog
     })
     const commentCount = comments.reduce((sum, c) => sum + 1 + (c.replies?.length ?? 0), 0)
 
+    const feedKey = parentType === 'announcement' ? ['announcements']
+        : parentType === 'trip' ? ['trips']
+        : parentType === 'sticker' ? ['stickers']
+        : null
+
     async function handleToggle(emoji: string) {
         try {
             const res = await api.toggleItemReaction(parentType, parentId, emoji)
             qc.setQueryData(reactionKey, res.reactions)
+            if (feedKey) qc.invalidateQueries({queryKey: feedKey})
         } catch (e) {
             toastError(e)
         }

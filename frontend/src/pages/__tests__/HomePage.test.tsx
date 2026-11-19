@@ -32,6 +32,7 @@ const api = {
     getMyBalance: vi.fn(),
     listAnnouncements: vi.fn(),
     listTrips: vi.fn(),
+    listStickers: vi.fn(),
     getMyThrowStats: vi.fn(),
     getMemberPenalties: vi.fn(),
     setRsvp: vi.fn(),
@@ -42,6 +43,7 @@ vi.mock('@/api/client.ts', () => ({api: {
     getMyBalance: (...a: unknown[]) => api.getMyBalance(...a),
     listAnnouncements: (...a: unknown[]) => api.listAnnouncements(...a),
     listTrips: (...a: unknown[]) => api.listTrips(...a),
+    listStickers: (...a: unknown[]) => api.listStickers(...a),
     getMyThrowStats: (...a: unknown[]) => api.getMyThrowStats(...a),
     getMemberPenalties: (...a: unknown[]) => api.getMemberPenalties(...a),
     setRsvp: (...a: unknown[]) => api.setRsvp(...a),
@@ -70,6 +72,7 @@ beforeEach(() => {
     api.getMyBalance.mockResolvedValue({regular_member_id: 7, penalty_total: 0, payments_total: 0, balance: 0})
     api.listAnnouncements.mockResolvedValue([])
     api.listTrips.mockResolvedValue([])
+    api.listStickers.mockResolvedValue([])
     api.getMyThrowStats.mockResolvedValue({
         regular_member_id: 7, year: 2026, total_pins: 0, throw_count: 0,
         avg_pins: null, best_avg: null, worst_avg: null, evenings: [],
@@ -140,13 +143,45 @@ describe('HomePage', () => {
     })
 
     it('lists community news and deep-links on click', async () => {
-        api.listAnnouncements.mockResolvedValue([{id: 5, title: 'Sommerfest', text: null, media_url: null, created_by_name: null, created_at: '2026-07-20T10:00'}])
+        api.listAnnouncements.mockResolvedValue([{
+            id: 5, title: 'Sommerfest', text: null, media_url: null, created_by_name: null,
+            created_at: '2026-07-20T10:00', comment_count: 2, reaction_count: 4, last_activity_at: '2026-07-22T12:00',
+        }])
         await renderHome()
         await waitFor(() => screen.getByText('Sommerfest'))
+        expect(screen.getByText('❤️ 4')).toBeInTheDocument()
+        expect(screen.getByText('💬 2')).toBeInTheDocument()
+        expect(screen.getByText(/22\./)).toBeInTheDocument()
         fireEvent.click(screen.getByText('Sommerfest'))
         expect(mockNavigate).toHaveBeenCalledWith(expect.objectContaining({
             to: '/committee', search: {tab: 'announcements', item: 5},
         }))
+    })
+
+    it('orders stickers by stuck_on date and bubbles posts with recent activity', async () => {
+        api.listAnnouncements.mockResolvedValue([{
+            id: 1, title: 'Ankündigung', text: null, media_url: null, created_by_name: null,
+            created_at: '2026-07-10T10:00',
+        }])
+        api.listStickers.mockResolvedValue([
+            {
+                id: 10, media_url: '', media_urls: [], place_name: 'Alter Sticker',
+                latitude: 0, longitude: 0, caption: null, stuck_on: '2024-05-01',
+                created_by_name: null, created_at: '2026-07-20T10:00', can_edit: false,
+            },
+            {
+                id: 11, media_url: '', media_urls: [], place_name: 'Aktiver Sticker',
+                latitude: 0, longitude: 0, caption: null, stuck_on: '2025-06-01',
+                created_by_name: null, created_at: '2026-07-01T10:00', can_edit: false,
+                comment_count: 1, reaction_count: 0, last_activity_at: '2026-07-25T10:00',
+            },
+        ])
+        await renderHome()
+        const active = await screen.findByText('Aktiver Sticker')
+        const ann = screen.getByText('Ankündigung')
+        const old = screen.getByText('Alter Sticker')
+        expect(active.compareDocumentPosition(ann) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+        expect(ann.compareDocumentPosition(old) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
 
     it('shows the season metric when the member has throws', async () => {

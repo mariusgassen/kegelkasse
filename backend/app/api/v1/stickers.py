@@ -8,6 +8,7 @@ from pydantic import Field
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member
+from api.v1.comments import activity_rollup
 from core.config import settings
 from core.database import get_db
 from core.push import push_to_club
@@ -57,7 +58,12 @@ def _can_edit(s: Sticker, user: User) -> bool:
     return s.created_by == user.id or user.has_role(UserRole.admin)
 
 
-def _serialize(s: Sticker, names: dict[int, str], user: User) -> dict:
+def _serialize(
+    s: Sticker,
+    names: dict[int, str],
+    user: User,
+    activity: tuple[int, int, Optional[str]] = (0, 0, None),
+) -> dict:
     return {
         "id": s.id,
         "media_url": s.media_url,
@@ -69,7 +75,11 @@ def _serialize(s: Sticker, names: dict[int, str], user: User) -> dict:
         "stuck_on": s.stuck_on.isoformat() if s.stuck_on else None,
         "created_by_name": names.get(s.created_by) if s.created_by else None,
         "created_at": s.created_at.isoformat() if s.created_at else None,
+        "updated_at": s.updated_at.isoformat() if s.updated_at else None,
         "can_edit": _can_edit(s, user),
+        "comment_count": activity[0],
+        "reaction_count": activity[1],
+        "last_activity_at": activity[2],
     }
 
 
@@ -147,7 +157,8 @@ def list_stickers(db: Session = Depends(get_db), user: User = Depends(require_cl
     items.sort(key=lambda s: (s.stuck_on or (s.created_at.date() if s.created_at else date_type.min),
                               s.created_at or datetime.min.replace(tzinfo=UTC), s.id), reverse=True)
     names = _author_names({s.created_by for s in items if s.created_by}, db)
-    return [_serialize(s, names, user) for s in items]
+    activity = activity_rollup("sticker", [s.id for s in items], db)
+    return [_serialize(s, names, user, activity.get(s.id, (0, 0, None))) for s in items]
 
 
 @router.post("/")
@@ -208,7 +219,12 @@ def update_sticker(sid: int, data: StickerUpdate, db: Session = Depends(get_db),
     s.updated_at = datetime.now(UTC)
     db.commit()
     db.refresh(s)
-    return _serialize(s, _author_names({s.created_by} if s.created_by else set(), db), user)
+    return _serialize(
+        s,
+        _author_names({s.created_by} if s.created_by else set(), db),
+        user,
+        activity_rollup("sticker", [s.id], db).get(s.id, (0, 0, None)),
+    )
 
 
 @router.delete("/{sid}", status_code=204)
