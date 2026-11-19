@@ -14,6 +14,7 @@ import {flashDeepLinkTarget, useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
 import {nowDateTimeInput} from '@/lib/datetime.ts'
 import type {GuestRequest} from '@/types.ts'
 import {Button} from '@/components/ui/Button.tsx'
+import {Markdown} from '@/components/ui/Markdown.tsx'
 
 export const GUEST_REQUESTS_ANCHOR = 'guest-requests'
 
@@ -51,9 +52,7 @@ function PendingCard({req, onDecide}: {req: GuestRequest; onDecide: (d: Decision
                 )}
             </div>
             {req.message && (
-                <p className="text-sm text-ink italic mt-2 pl-2.5 border-l-2 border-line whitespace-pre-line break-words">
-                    {req.message}
-                </p>
+                <Markdown text={req.message} className="text-sm text-ink italic mt-2 pl-2.5 border-l-2 border-line break-words"/>
             )}
             <div className="flex gap-2 mt-2.5">
                 <Button variant="secondary" size="sm" className="flex-1" disabled={!isOnline}

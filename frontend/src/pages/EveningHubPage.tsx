@@ -28,6 +28,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {useCloseReopenEvening} from '@/hooks/useCloseReopenEvening.ts'
 import {Button} from '@/components/ui/Button.tsx'
 import {Field} from '@/components/ui/Field.tsx'
+import {Markdown} from '@/components/ui/Markdown.tsx'
 
 type SubTab = 'live' | 'penalties' | 'games' | 'highlights' | 'manage'
 
@@ -222,8 +223,9 @@ export function EveningHubPage() {
                             {!isClosed && (
                                 <div className="flex flex-col gap-1.5 mb-4">
                                     <div className="flex gap-2">
-                                        <input
-                                            className="kce-input flex-1"
+                                        <textarea
+                                            rows={1}
+                                            className="kce-input flex-1 resize-none"
                                             value={highlightText}
                                             onChange={e => setHighlightText(e.target.value)}
                                             placeholder={t('highlight.placeholder')}
@@ -266,7 +268,7 @@ export function EveningHubPage() {
                                                         <ZoomableImage src={h.media_url}
                                                              className="mt-1 rounded max-h-64 max-w-full object-contain border border-line/40"/>
                                                     )}
-                                                    {h.text && <div className="text-sm mt-1">{h.text}</div>}
+                                                    {h.text && <Markdown text={h.text} className="text-sm mt-1"/>}
                                                 </div>
                                                 {!isClosed && (
                                                     <Button variant="danger" size="xs" className="flex-shrink-0"

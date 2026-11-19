@@ -15,6 +15,7 @@ import {ZoomableImage} from '@/components/ui/ZoomableImage'
 import type {Comment} from '@/types'
 import {SkeletonRows} from '@/components/ui/Skeleton'
 import {Button} from '@/components/ui/Button.tsx'
+import {Markdown} from '@/components/ui/Markdown.tsx'
 
 const PICKER_W = 300
 const PICKER_H = 380
@@ -225,9 +226,10 @@ function CommentItem({
 
                             {editing ? (
                                 <div className="flex flex-col gap-1.5 mt-1.5">
-                                    <div className="flex gap-1.5">
-                                        <input
-                                            className="kce-input flex-1 py-1"
+                                    <div className="flex gap-1.5 items-start">
+                                        <textarea
+                                            rows={2}
+                                            className="kce-input flex-1 py-1 resize-none"
                                             value={editText}
                                             onChange={e => setEditText(e.target.value)}
                                             autoFocus
@@ -263,9 +265,7 @@ function CommentItem({
                                         />
                                     )}
                                     {comment.text && (
-                                        <p className="text-xs text-ink/90 mt-0.5 leading-relaxed whitespace-pre-wrap">
-                                            {comment.text}
-                                        </p>
+                                        <Markdown text={comment.text} className="text-xs text-ink/90 mt-0.5"/>
                                     )}
                                 </>
                             )}
@@ -384,7 +384,7 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
     const [mediaUrl, setMediaUrl] = useState<string | null>(null)
     const [replyTo, setReplyTo] = useState<Comment | null>(null)
     const [saving, setSaving] = useState(false)
-    const inputRef = useRef<HTMLInputElement>(null)
+    const inputRef = useRef<HTMLTextAreaElement>(null)
 
     const queryKey = ['comments', parentType, parentId]
     const {data: comments = [], isLoading} = useQuery({
@@ -498,11 +498,12 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
                         )}
                         <div className="flex items-center gap-2">
                             <Avatar src={user?.avatar ?? null} name={user?.name ?? null} size={28}/>
-                            <div className="flex-1 flex items-center bg-surface-2 rounded-full border border-line/40 px-3 gap-1.5 min-w-0"
+                            <div className="flex-1 flex items-center bg-surface-2 rounded-2xl border border-line/40 px-3 gap-1.5 min-w-0"
                                  style={{paddingTop: '6px', paddingBottom: '6px'}}>
-                                <input
+                                <textarea
                                     ref={inputRef}
-                                    className="flex-1 bg-transparent text-ink outline-none placeholder:text-muted min-w-0"
+                                    rows={1}
+                                    className="flex-1 bg-transparent text-ink outline-none placeholder:text-muted min-w-0 resize-none"
                                     value={text}
                                     onChange={e => setText(e.target.value)}
                                     placeholder={replyTo ? `@${replyTo.created_by_name || ''}…` : t('comment.placeholder')}

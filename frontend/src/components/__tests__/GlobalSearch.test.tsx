@@ -196,6 +196,17 @@ describe('GlobalSearch', () => {
         expect(onClose).toHaveBeenCalled()
     })
 
+    it('renders Markdown cleanly in search result subtitles', async () => {
+        mockApi.listStickers.mockResolvedValueOnce([{
+            id: 78, place_name: 'Porto', caption: 'Am **Hafen**\n- Super', created_by_name: 'Pudel',
+        }])
+        await renderSearch(true)
+        fireEvent.change(screen.getByPlaceholderText('search.placeholder'), {target: {value: 'porto'}})
+        await waitFor(() => expect(screen.getByText('Porto')).toBeInTheDocument())
+        expect(screen.getByText('Hafen').tagName).toBe('STRONG')
+        expect(screen.getByTestId('inline-markdown').textContent).toBe('Am Hafen • Super · Pudel')
+    })
+
     it('finds club documents and selecting opens the document deep link', async () => {
         const {onClose} = await renderSearch(true)
         fireEvent.change(screen.getByPlaceholderText('search.placeholder'), {target: {value: 'satzung'}})

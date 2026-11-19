@@ -185,4 +185,10 @@ describe('GuestRequestsSection', () => {
         renderSection()
         await waitFor(() => expect(flashDeepLinkTarget).toHaveBeenCalledWith('guest-requests'))
     })
+
+    it('renders Markdown formatting in guest request message', async () => {
+        vi.mocked(api.listGuestRequests).mockResolvedValue([request({ message: 'Bringe **Snacks** mit!' })])
+        renderSection()
+        await waitFor(() => expect(screen.getByText('Snacks').tagName).toBe('STRONG'))
+    })
 })

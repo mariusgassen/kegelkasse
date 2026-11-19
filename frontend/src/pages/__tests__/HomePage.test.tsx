@@ -158,6 +158,19 @@ describe('HomePage', () => {
         }))
     })
 
+    it('renders Markdown formatting cleanly in community news subtitles', async () => {
+        api.listAnnouncements.mockResolvedValue([{
+            id: 5, title: 'Sommerfest', text: '## Programm\n**Grill** startet um *18 Uhr*\n- Bier',
+            media_url: null, created_by_name: null, created_at: '2026-07-20T10:00',
+        }])
+        await renderHome()
+        await waitFor(() => screen.getByText('Sommerfest'))
+        const inline = screen.getByTestId('inline-markdown')
+        expect(inline.textContent).toBe('Programm Grill startet um 18 Uhr • Bier')
+        expect(screen.getByText('Grill').tagName).toBe('STRONG')
+        expect(screen.getByText('18 Uhr').tagName).toBe('EM')
+    })
+
     it('orders stickers by stuck_on date and bubbles posts with recent activity', async () => {
         api.listAnnouncements.mockResolvedValue([{
             id: 1, title: 'Ankündigung', text: null, media_url: null, created_by_name: null,

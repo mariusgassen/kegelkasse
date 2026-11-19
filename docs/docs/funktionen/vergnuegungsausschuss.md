@@ -25,15 +25,15 @@ Ankündigungen, Abstimmungen und Kegelfahrten erscheinen zusammen in **einem Fee
 
 Admins können im **Verein-Tab → 🛠️ VGA-Verwaltung** beliebige Stammspieler als VGA-Mitglieder markieren. VGA-Mitglieder dürfen als Einzige Kegelfahrten anlegen und fremde Beiträge verwalten.
 
-## Ankündigungen
+## Ankündigungen & Abstimmungen
 
-- Alle Mitglieder können Ankündigungen mit Titel und optionalem Text einstellen
+- Alle Mitglieder können Ankündigungen (mit Titel und optionalem Markdown-Text samt Vorschau) sowie Abstimmungen (Beschreibung ebenfalls mit Markdown und Vorschau) einstellen
 - Beim Posten erhalten alle Clubmitglieder eine **Push-Notification**
 - Ankündigungen erscheinen im Neuigkeiten-Feed
 
 ## Kegelfahrten
 
-- VGA-Mitglieder und Admins können Kegelfahrten mit Datum, Ziel und optionaler Notiz eintragen
+- VGA-Mitglieder und Admins können Kegelfahrten mit Datum, Ziel und optionaler Notiz (Markdown-Feld mit Vorschau) eintragen
 - Für mehrtägige Fahrten gibt es ein optionales **Enddatum** — die Karte zeigt dann den ganzen Zeitraum, und die Fahrt gilt bis zu ihrem letzten Tag als „kommend"
 - Kegelfahrten erscheinen außerdem als ganztägige Termine in deinem persönlichen Kalender-Abo (siehe [Termine](termine.md))
 - Beim Eintragen einer Fahrt erhalten alle Clubmitglieder eine **Push-Notification**

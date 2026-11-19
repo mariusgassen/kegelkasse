@@ -370,4 +370,17 @@ describe('StickersPage', () => {
         fireEvent.click(screen.getByText('action.confirmDelete'))
         await waitFor(() => expect(api.deleteSticker).toHaveBeenCalledWith(1))
     })
+
+    it('renders Markdown in sticker captions and previews it in the form', async () => {
+        vi.mocked(api.listStickers).mockResolvedValue([S({caption: '**Direkt** am *Pier*\n- Sichtbar'})])
+        renderPage()
+        await waitFor(() => expect(screen.getByText('Direkt').tagName).toBe('STRONG'))
+        expect(screen.getByText('Pier').tagName).toBe('EM')
+        expect(screen.getByText('Sichtbar')).toBeInTheDocument()
+
+        fireEvent.click(screen.getByLabelText('action.more'))
+        fireEvent.click(await screen.findByText('action.edit'))
+        fireEvent.click(screen.getByTestId('sticker-caption-preview-tab'))
+        expect(screen.getByTestId('sticker-caption-preview')).toHaveTextContent('Direkt am Pier')
+    })
 })

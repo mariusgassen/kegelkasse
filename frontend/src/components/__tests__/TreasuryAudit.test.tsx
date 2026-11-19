@@ -191,4 +191,13 @@ describe('TreasuryAudit', () => {
         fireEvent.click(await screen.findByText('action.delete'))
         await waitFor(() => expect(api.deleteTreasuryAudit).toHaveBeenCalledWith(7))
     })
+
+    it('renders Markdown formatting in auditor signature notes', async () => {
+        const api = await setup(AUDITOR, { audits: [audit()] })
+        vi.mocked(api.getTreasuryAudit).mockResolvedValue(audit({
+            signatures: [{ id: 1, signer_name: 'Bernie', approved: false, note: 'Beleg **42** fehlt', signed_at: '2026-07-01T10:00:00', is_me: false }],
+        }) as any)
+        fireEvent.click(await screen.findByTestId('audit-row'))
+        await waitFor(() => expect(screen.getByText('42').tagName).toBe('STRONG'))
+    })
 })

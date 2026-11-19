@@ -201,6 +201,17 @@ describe('EveningHubPage — with active evening', () => {
         expect(screen.getByText('Great shot!')).toBeInTheDocument()
     })
 
+    it('renders Markdown formatting in highlight cards', async () => {
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['highlights', vi.fn()] as any)
+        const highlights = [
+            { id: 10, text: '**Alle Neune** von *Hans*', media_url: null, created_at: '' },
+        ]
+        await setup(makeEvening({ highlights }))
+        expect(screen.getByText('Alle Neune').tagName).toBe('STRONG')
+        expect(screen.getByText('Hans').tagName).toBe('EM')
+    })
+
     it('calls api.addHighlight when + button is clicked with text', async () => {
         const { api } = await import('@/api/client.ts')
         const { useHashTab } = await import('@/hooks/usePage.ts')

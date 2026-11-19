@@ -6,6 +6,7 @@
  * just with a different heading and a different cap on how far back it reaches.
  */
 import {Caption} from '@/components/ui/Caption.tsx'
+import {InlineMarkdown} from '@/components/ui/Markdown.tsx'
 import {useT} from '@/i18n'
 import type {LiveEvent} from '@/lib/liveEvening.ts'
 import {gameBandColor} from '@/lib/protocolTimeline.ts'
@@ -78,7 +79,9 @@ export function EventTicker({events}: {events: LiveEvent[]}) {
                          style={Object.keys(style).length > 0 ? style : undefined}>
                         <span className="text-lg flex-shrink-0">{e.icon}</span>
                         <div className="flex-1 min-w-0">
-                            <div className="text-sm font-bold text-ink truncate">{e.title}</div>
+                            {e.kind === 'highlight'
+                                ? <InlineMarkdown text={e.title} className="block text-sm font-bold text-ink truncate"/>
+                                : <div className="text-sm font-bold text-ink truncate">{e.title}</div>}
                             {e.kind === 'throw'
                                 ? <div className="text-sm font-bold text-accent-fg truncate">{t('live.allNine')}</div>
                                 : e.subtitle && <div className="text-sm text-muted truncate">{e.subtitle}</div>}

@@ -19,6 +19,7 @@ import {parseAmount} from '@/utils/parse.ts'
 import type {Game, TurnMode, WinnerType} from '@/types.ts'
 import {CameraCapturePage} from '@/pages/CameraCapturePage.tsx'
 import {Button} from '@/components/ui/Button.tsx'
+import {MarkdownField} from '@/components/ui/MarkdownField.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -570,10 +571,8 @@ export function GamesPage() {
                     </Field>
 
                     {/* Note */}
-                    <Field label={t('game.note')}>
-                        <input className="kce-input" value={gameNote} onChange={e => setGameNote(e.target.value)}
-                               placeholder="…"/>
-                    </Field>
+                    <MarkdownField id="game-add-note" label={t('game.note')} value={gameNote} onChange={setGameNote}
+                                   rows={3} placeholder="…"/>
 
                     {/* Auto-add teams toggle (only when no teams exist yet) */}
                     {teams.length === 0 && (
@@ -826,10 +825,8 @@ export function GamesPage() {
                         </div>
                         <p className="text-xs text-muted mt-1">{t('game.perPointNote')}</p>
                     </Field>
-                    <Field label={t('game.note')}>
-                        <input className="kce-input" value={editNote} onChange={e => setEditNote(e.target.value)}
-                               placeholder="…"/>
-                    </Field>
+                    <MarkdownField id="game-edit-note" label={t('game.note')} value={editNote} onChange={setEditNote}
+                                   rows={3} placeholder="…"/>
                     <Button type="submit" variant="primary" block className="mt-1"
                             disabled={saving}>{t('action.save')}
                     </Button>

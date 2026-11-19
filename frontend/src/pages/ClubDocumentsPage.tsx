@@ -14,6 +14,7 @@ import {isAdmin, useAppStore} from '@/store/app.ts'
 import {Button} from '@/components/ui/Button.tsx'
 import {Field} from '@/components/ui/Field.tsx'
 import {Markdown} from '@/components/ui/Markdown.tsx'
+import {MarkdownField} from '@/components/ui/MarkdownField.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {nextVersion} from '@/lib/documentVersion.ts'
 import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
@@ -45,38 +46,6 @@ function fDateTime(iso: string | null): string {
     return new Date(iso).toLocaleString('de-DE', {
         day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
     })
-}
-
-/** Textarea with a Markdown preview toggle (summaries are rendered as Markdown on the card). */
-function MarkdownField({id, label, value, onChange}: {
-    id: string
-    label: string
-    value: string
-    onChange: (v: string) => void
-}) {
-    const t = useT()
-    const [preview, setPreview] = useState(false)
-    const tab = (active: boolean) =>
-        `px-2 py-0.5 rounded-md text-xs font-bold ${active ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`
-    return (
-        <Field label={label} htmlFor={id} hint={t('document.markdownHint')}>
-            <div className="flex gap-1 mb-1">
-                <button type="button" aria-pressed={!preview} className={tab(!preview)}
-                        onClick={() => setPreview(false)}>{t('document.edit')}</button>
-                <button type="button" aria-pressed={preview} className={tab(preview)}
-                        data-testid={`${id}-preview-tab`}
-                        onClick={() => setPreview(true)}>{t('document.preview')}</button>
-            </div>
-            {preview ? (
-                <div className="kce-input w-full min-h-24 text-sm" data-testid={`${id}-preview`}>
-                    {value.trim() ? <Markdown text={value}/> : <span className="text-muted">–</span>}
-                </div>
-            ) : (
-                <textarea id={id} className="kce-input w-full" rows={5} value={value}
-                          maxLength={4000} onChange={e => onChange(e.target.value)}/>
-            )}
-        </Field>
-    )
 }
 
 function fileSize(bytes: number): string {
@@ -250,10 +219,10 @@ function UploadSheet({group, edit, onClose, onUploaded}: {
                                onChange={e => setEffectiveDate(e.target.value)}/>
                     </Field>
                 </div>
-                <MarkdownField id="doc-summary" label={t('document.summary')} value={summary} onChange={setSummary}/>
+                <MarkdownField id="doc-summary" label={t('document.summary')} value={summary} onChange={setSummary} rows={5} maxLength={4000}/>
                 {(group || edit) && (
                     <MarkdownField id="doc-changes" label={t('document.changeSummary')}
-                                   value={changeSummary} onChange={setChangeSummary}/>
+                                   value={changeSummary} onChange={setChangeSummary} rows={5} maxLength={4000}/>
                 )}
                 <div className="flex gap-2 pt-1">
                     <Button variant="secondary" className="flex-1" data-testid="document-cancel"

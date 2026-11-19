@@ -24,6 +24,8 @@ import type {
 } from '@/types.ts'
 import {Button} from '@/components/ui/Button.tsx'
 import {Field} from '@/components/ui/Field.tsx'
+import {Markdown} from '@/components/ui/Markdown.tsx'
+import {MarkdownField} from '@/components/ui/MarkdownField.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -262,38 +264,40 @@ function AuditDetailSheet({auditId, canSign, onClose}: {auditId: number | null; 
                                         {s.is_me && <MeBadge/>}
                                         <span className="text-xs text-muted ml-auto">{fDate(s.signed_at)}</span>
                                     </div>
-                                    {s.note && <p className="text-sm text-ink mt-0.5 whitespace-pre-line break-words">{s.note}</p>}
-                                </div>
-                            ))}
-                    </div>
+                                    {s.note && <Markdown text={s.note} className="text-sm text-ink mt-0.5 break-words"/>}
+                                 </div>
+                             ))}
+                     </div>
 
-                    {canSign && !audit.signed_by_me && (
-                        <div className="kce-card p-3 space-y-2" data-testid="audit-sign-form">
-                            <div className="flex gap-2">
-                                <button className={verdict === 'approve' ? 'btn-primary btn-sm flex-1' : 'btn-secondary btn-sm flex-1'}
-                                        onClick={() => setVerdict('approve')}>
-                                    ✅ {t('audit.approve')}
-                                </button>
-                                <button className={verdict === 'object' ? 'btn-danger btn-sm flex-1' : 'btn-secondary btn-sm flex-1'}
-                                        onClick={() => setVerdict('object')}>
-                                    ⚠️ {t('audit.object')}
-                                </button>
-                            </div>
-                            {verdict && (
-                                <>
-                                    <label className="field-label" htmlFor="audit-note">
-                                        {t(verdict === 'object' ? 'audit.noteRequired' : 'audit.noteOptional')}
-                                    </label>
-                                    <textarea id="audit-note" className="kce-input w-full" rows={3} value={note}
-                                              onChange={e => setNote(e.target.value)}/>
-                                    <Button variant="primary" block disabled={busy || !isOnline || objectionInvalid}
-                                            onClick={sign}>
-                                        {t('audit.submit')}
-                                    </Button>
-                                </>
-                            )}
-                        </div>
-                    )}
+                     {canSign && !audit.signed_by_me && (
+                         <div className="kce-card p-3 space-y-2" data-testid="audit-sign-form">
+                             <div className="flex gap-2">
+                                 <button className={verdict === 'approve' ? 'btn-primary btn-sm flex-1' : 'btn-secondary btn-sm flex-1'}
+                                         onClick={() => setVerdict('approve')}>
+                                     ✅ {t('audit.approve')}
+                                 </button>
+                                 <button className={verdict === 'object' ? 'btn-danger btn-sm flex-1' : 'btn-secondary btn-sm flex-1'}
+                                         onClick={() => setVerdict('object')}>
+                                     ⚠️ {t('audit.object')}
+                                 </button>
+                             </div>
+                             {verdict && (
+                                 <>
+                                     <MarkdownField
+                                         id="audit-note"
+                                         label={t(verdict === 'object' ? 'audit.noteRequired' : 'audit.noteOptional')}
+                                         value={note}
+                                         onChange={setNote}
+                                         rows={3}
+                                     />
+                                     <Button variant="primary" block disabled={busy || !isOnline || objectionInvalid}
+                                             onClick={sign}>
+                                         {t('audit.submit')}
+                                     </Button>
+                                 </>
+                             )}
+                         </div>
+                     )}
 
                     {audit.signed_by_me && (
                         <Button variant="secondary" block disabled={busy || !isOnline} onClick={withdraw}>

@@ -53,6 +53,26 @@ function parse(src: string): Block[] {
     return blocks.filter(b => b.t !== 'p' || b.lines.length > 0)
 }
 
+function flattenInline(src: string): string {
+    const lines: string[] = []
+    for (const raw of src.replace(/\r\n?/g, '\n').split('\n')) {
+        const line = raw.trim()
+        if (!line) continue
+        const h = /^#{1,6}\s+(.*)$/.exec(line)
+        if (h) {
+            if (h[1].trim()) lines.push(h[1].trim())
+            continue
+        }
+        const ul = /^[-*+]\s+(.*)$/.exec(line)
+        if (ul) {
+            if (ul[1].trim()) lines.push(`• ${ul[1].trim()}`)
+            continue
+        }
+        lines.push(line)
+    }
+    return lines.join(' ')
+}
+
 export function Markdown({text, className = '', renderLink}: { text: string; className?: string; renderLink?: RenderLink }) {
     const il = (s: string) => inline(s, renderLink)
     return (
@@ -67,5 +87,14 @@ export function Markdown({text, className = '', renderLink}: { text: string; cla
                 return <p key={i}>{b.lines.map((l, j) => <Fragment key={j}>{j > 0 && <br/>}{il(l)}</Fragment>)}</p>
             })}
         </div>
+    )
+}
+
+/** Single-line inline Markdown renderer for compact/truncated previews (e.g. HomePage news, ticker, search). */
+export function InlineMarkdown({text, className = '', renderLink}: { text: string; className?: string; renderLink?: RenderLink }) {
+    return (
+        <span className={className} data-testid="inline-markdown">
+            {inline(flattenInline(text), renderLink)}
+        </span>
     )
 }

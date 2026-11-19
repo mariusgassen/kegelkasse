@@ -33,6 +33,8 @@ import {useClub} from '@/hooks/useClub.ts'
 import {GuestRequestsSection} from '@/components/schedule/GuestRequestsSection.tsx'
 import {Switch} from '@/components/ui/Switch'
 import {Button} from '@/components/ui/Button.tsx'
+import {Markdown, InlineMarkdown} from '@/components/ui/Markdown.tsx'
+import {MarkdownField} from '@/components/ui/MarkdownField.tsx'
 import {memberLabels, scheduledGuestLabels} from '@/lib/guestNames'
 
 const TODAY = todayDateInput()
@@ -617,7 +619,7 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                 <div className="flex-1 min-w-0">
                     <div className="text-sm font-bold text-ink">{fDateTimeLong(se.scheduled_at)}</div>
                     {se.venue && <div className="text-xs text-muted mt-0.5 truncate">🏠 {se.venue}</div>}
-                    {se.note && <div className="text-xs text-muted mt-0.5 italic truncate">{se.note}</div>}
+                    {se.note && <InlineMarkdown text={se.note} className="block text-xs text-muted mt-0.5 italic truncate"/>}
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
                     {se.absent_count > 0 && (
@@ -784,10 +786,8 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
                     <input type="text" className="kce-input" placeholder={t('evening.venuePlaceholder')}
                            value={venue} onChange={e => setVenue(e.target.value)}/>
                 </Field>
-                <Field label={t('schedule.note')}>
-                    <input type="text" className="kce-input" placeholder={t('common.optional')}
-                           value={note} onChange={e => setNote(e.target.value)}/>
-                </Field>
+                <MarkdownField id="schedule-note" label={t('schedule.note')} value={note} onChange={setNote}
+                               rows={3} placeholder={t('common.optional')}/>
                 <Switch checked={guestRequests} onChange={setGuestRequests} label={t('schedule.guestRequestsEnabled')} hint={t('schedule.guestRequestsHint')}/>
                 <Button type="submit" variant="primary" block disabled={saving || !datetime}>{t('action.save')}</Button>
             </div>
@@ -900,7 +900,7 @@ function RsvpQuickSheet({se, onClose, onUpdate}: { se: ScheduledEvening; onClose
                 <div className="kce-card p-3">
                     <div className="text-sm font-bold text-ink">{fDateTimeLong(se.scheduled_at)}</div>
                     {se.venue && <div className="text-xs text-muted mt-0.5">🏠 {se.venue}</div>}
-                    {se.note && <div className="text-xs text-muted mt-0.5 italic">{se.note}</div>}
+                    {se.note && <Markdown text={se.note} className="text-xs text-muted mt-0.5 italic"/>}
                 </div>
                 <p className="text-sm text-muted text-center">{t('schedule.rsvpQuickHint')}</p>
                 <div className="flex gap-3">
@@ -1360,7 +1360,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                                             <ZoomableImage src={h.media_url}
                                                                                  className="rounded max-h-32 max-w-full object-contain border border-line/40 mb-1"/>
                                                                         )}
-                                                                        {h.text && <span className="text-xs text-ink">{h.text}</span>}
+                                                                        {h.text && <Markdown text={h.text} className="text-xs text-ink"/>}
                                                                     </div>
                                                                 </div>
                                                             ))}

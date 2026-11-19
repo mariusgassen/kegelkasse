@@ -63,8 +63,8 @@ Am oberen Bildschirmrand sitzt durchgehend eine **Live-Insel** (auch über der S
 
 Unter dem Spieler-/Team-Bereich gibt es einen **✨ Highlights**-Abschnitt:
 
-- Trage denkwürdige Momente des Abends als Freitext ein (z. B. *„Schuh geworfen"*, *„Kugel gegen die Heizung"*)
-- Highlights werden mit dem Abend gespeichert und erscheinen beim nächsten Öffnen
+- Trage denkwürdige Momente des Abends als Markdown-Text ein (`Shift+Enter` für Zeilenumbrüche, z. B. *„**Schuh** geworfen"*, *„Kugel gegen die Heizung"*)
+- Highlights werden mit dem Abend gespeichert und erscheinen formatiert beim nächsten Öffnen
 - Jeder Spieler des Abends kann Highlights eintragen und über das **⋮**-Menü der Highlight-Karte löschen
 
 ## Spieler verwalten
