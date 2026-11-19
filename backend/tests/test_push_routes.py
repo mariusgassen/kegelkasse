@@ -491,6 +491,42 @@ class TestMarkNotificationsRead:
         db.delete(log2)
         db.commit()
 
+    def test_marks_category_read_without_touching_others(self, client, auth_headers, db, user):
+        from models.push import NotificationLog
+        upd = NotificationLog(
+            user_id=user.id, title="Neue Version 1.2.0", body="B", url="/",
+            category="app_updates", is_read=False,
+        )
+        legacy_upd = NotificationLog(
+            user_id=user.id, title="New version 1.1.0", body="B", url="/",
+            category=None, is_read=False,
+        )
+        other = NotificationLog(
+            user_id=user.id, title="Strafe", body="5€", url="/#evening",
+            category="penalties", is_read=False,
+        )
+        db.add_all([upd, legacy_upd, other])
+        db.commit()
+
+        recent = client.get("/api/v1/push/recent", headers=auth_headers).json()
+        by_id = {n["id"]: n for n in recent}
+        assert by_id[upd.id]["category"] == "app_updates"
+        assert by_id[other.id]["category"] == "penalties"
+
+        r = client.post(
+            "/api/v1/push/notifications/read",
+            json={"category": "app_updates"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 204
+        db.expire_all()
+        assert upd.is_read is True
+        assert legacy_upd.is_read is True
+        assert other.is_read is False
+        for row in (upd, legacy_upd, other):
+            db.delete(row)
+        db.commit()
+
     def test_401_without_auth(self, client):
         r = client.post("/api/v1/push/notifications/read", json={})
         assert r.status_code == 401
