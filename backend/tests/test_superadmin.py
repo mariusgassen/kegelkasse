@@ -335,8 +335,18 @@ class TestUserRoleManagement:
         assert "only active superadmin" in resp.json()["detail"]
 
     def test_inactive_users_excluded_and_roles_revoked(
-        self, client, superadmin_headers, member_user, db
+        self, client, superadmin_headers, member_user, club, db
     ):
+        # Ensure the club has another active admin so member_user can be deactivated
+        club_admin = User(
+            email="club_admin_s@test.de",
+            name="Club Admin",
+            hashed_password="x",
+            roles=["admin"],
+            club_id=club.id,
+            is_active=True,
+        )
+        db.add(club_admin)
         # Give member_user multiple roles first
         member_user.roles = ["admin", "treasurer", "committee"]
         db.commit()
