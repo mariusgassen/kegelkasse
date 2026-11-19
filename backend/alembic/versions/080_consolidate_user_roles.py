@@ -3,15 +3,15 @@
 Merges user.role and linked regular_member office flags (is_committee, is_auditor, is_zeugwart)
 into user.roles, replaces product_manager, and drops the redundant columns.
 
-Revision ID: 079
-Revises: 078
+Revision ID: 080
+Revises: 079
 Create Date: 2026-11-19
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = '079'
-down_revision = '078'
+revision = '080'
+down_revision = '079'
 branch_labels = None
 depends_on = None
 
