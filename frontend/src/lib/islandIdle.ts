@@ -1,38 +1,18 @@
 /**
  * Pure helpers for the Dynamic Island's idle mode (when no evening is running).
  *
- * Composes over the existing `schedule` and `my-balance` endpoints (`lib/dashboard.ts`):
- * shows the next upcoming scheduled evening (with inline RSVP + personal balance) when one is
- * scheduled, falls back to the member's treasury balance when no upcoming evening is planned,
- * and falls back to a quick schedule shortcut when neither is available.
+ * Composes over the existing `schedule` endpoint (`lib/dashboard.ts`): surfaces the next
+ * upcoming scheduled evening (with inline 1-tap RSVP) while it sits inside the club's reminder
+ * window, and leaves the island quietly at rest (`null`) otherwise instead of nagging with an
+ * always-on account balance.
  */
 import type {ScheduledEvening} from '../types'
-import {balanceState, nextAppointment, type BalanceState} from './dashboard'
+import {nextAppointment} from './dashboard'
 
-export interface MyBalanceSummary {
-    regular_member_id: number | null
-    penalty_total: number | null
-    payments_total: number | null
-    balance: number | null
+export type IdleIslandMode = {
+    kind: 'schedule'
+    appointment: ScheduledEvening
 }
-
-export type IdleIslandMode =
-    | {
-          kind: 'schedule'
-          appointment: ScheduledEvening
-          balance: number | null
-          balanceState: BalanceState
-      }
-    | {
-          kind: 'balance'
-          balance: number
-          penaltyTotal: number | null
-          paymentsTotal: number | null
-          balanceState: BalanceState
-      }
-    | {
-          kind: 'fallback'
-      }
 
 /** Local `YYYY-MM-DD` date string matching `HomePage` / `SchedulePage`. */
 export function todayLocalKey(now: Date = new Date()): string {
@@ -104,53 +84,20 @@ export function formatScheduleFull(scheduledAt: string, locale: string): string 
     return timeMatch ? `${dayStr} · ${timeMatch[1]}` : dayStr
 }
 
-/**
- * Compact € formatting for the island pill. Uses U+2212 (`−`) for negative amounts as expected by
- * `NumberText`, omits `.00` for whole euros so figures stay inside the 72 pt compact slot, and
- * prefixes positive non-zero credits with `+`.
- */
-export function formatEurCompact(amount: number): string {
-    if (Math.abs(amount) < 0.005) return '0 €'
-    const abs = Math.abs(amount)
-    const isWhole = Math.abs(abs - Math.round(abs)) < 0.005
-    const formatted = abs.toLocaleString('de-DE', {
-        minimumFractionDigits: isWhole ? 0 : 2,
-        maximumFractionDigits: isWhole ? 0 : 2,
-    })
-    const sign = amount < 0 ? '\u2212' : '+'
-    return `${sign}${formatted} €`
-}
-
-/** Full € formatting with two decimals and U+2212 (`−`) for negative values. */
-export function formatEurFull(amount: number): string {
-    if (Math.abs(amount) < 0.005) return '0,00 €'
-    const abs = Math.abs(amount)
-    const formatted = abs.toLocaleString('de-DE', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    })
-    const sign = amount < 0 ? '\u2212' : '+'
-    return `${sign}${formatted} €`
-}
-
 export const DEFAULT_UPCOMING_REMINDER_DAYS = 5
 
 /**
  * Decide what the island displays when no evening is running:
- * 1. Next upcoming scheduled evening within `upcomingReminderDays` (default 5, matching the club's
- *    `upcoming_evening.days_before` reminder setting; carries personal balance if known)
- * 2. Personal balance fallback when no evening is within the window
- * 3. Account quick-shortcut fallback once queries have resolved and neither exists
- * Returns `null` while an evening is open, the user is signed out, or data hasn't loaded yet.
+ * - Next upcoming scheduled evening within `upcomingReminderDays` (default 5, matching the club's
+ *   `upcoming_evening.days_before` reminder setting)
+ * - `null` (quiet resting pill) when no evening is within the window, an evening is open, the user
+ *   is signed out, or data hasn't loaded yet.
  */
 export function deriveIdleIslandMode(params: {
     hasOpenEvening: boolean
     isLoggedIn: boolean
     schedules: ScheduledEvening[] | undefined
     todayKey: string
-    regularMemberId: number | null
-    myBalance: MyBalanceSummary | undefined
-    balanceFailed?: boolean
     upcomingReminderDays?: number | null
     reminderReady?: boolean
 }): IdleIslandMode | null {
@@ -159,47 +106,17 @@ export function deriveIdleIslandMode(params: {
         isLoggedIn,
         schedules,
         todayKey,
-        regularMemberId,
-        myBalance,
-        balanceFailed,
         upcomingReminderDays,
         reminderReady = true,
     } = params
-    if (!isLoggedIn || hasOpenEvening) return null
+    if (!isLoggedIn || hasOpenEvening || schedules === undefined) return null
 
-    const hasScheduleData = schedules !== undefined
-    const hasBalanceData = regularMemberId == null || myBalance !== undefined || !!balanceFailed
-    if (!hasScheduleData && !hasBalanceData) return null
-
-    const next = schedules ? nextAppointment(schedules, todayKey) : null
-    if (next && !reminderReady) return null
+    const next = nextAppointment(schedules, todayKey)
+    if (!next || !reminderReady) return null
 
     const windowDays = Math.max(0, upcomingReminderDays ?? DEFAULT_UPCOMING_REMINDER_DAYS)
-    const daysAhead = next ? daysUntilDate(next.scheduled_at, todayKey) : Number.NaN
-    const upcoming = next && (Number.isNaN(daysAhead) || daysAhead <= windowDays) ? next : null
+    const daysAhead = daysUntilDate(next.scheduled_at, todayKey)
+    const upcoming = Number.isNaN(daysAhead) || daysAhead <= windowDays ? next : null
 
-    const rawBalance = regularMemberId != null ? (myBalance?.balance ?? null) : null
-    const bState = balanceState(rawBalance)
-
-    if (upcoming) {
-        return {
-            kind: 'schedule',
-            appointment: upcoming,
-            balance: rawBalance,
-            balanceState: bState,
-        }
-    }
-
-    if (rawBalance != null) {
-        return {
-            kind: 'balance',
-            balance: rawBalance,
-            penaltyTotal: myBalance?.penalty_total ?? null,
-            paymentsTotal: myBalance?.payments_total ?? null,
-            balanceState: bState,
-        }
-    }
-
-    if (!hasScheduleData || !hasBalanceData) return null
-    return {kind: 'fallback'}
+    return upcoming ? {kind: 'schedule', appointment: upcoming} : null
 }

@@ -21,6 +21,7 @@ import type {RsvpStatus, ScheduledEvening} from '@/types.ts'
 import {
     nextAppointment,
     recentCommunity,
+    formatNewsDate,
     balanceState,
     recentThrowAvgs,
     recentPenaltyEvenings,
@@ -169,8 +170,10 @@ const NEWS_FILTERS: {id: CommunityKind | undefined; label: TKey}[] = [
 
 // ── Community news row ─────────────────────────────────────────────────────────
 const COMMUNITY_ICON: Record<CommunityKind, string> = {announcement: '📣', trip: '🚌', sticker: '📍'}
-function CommunityRow({item}: {item: CommunityItem}) {
+function CommunityRow({item, locale}: {item: CommunityItem; locale: string}) {
     const icon = COMMUNITY_ICON[item.kind]
+    const dateLabel = formatNewsDate(item.date, locale)
+    const hasActivity = item.reactionCount > 0 || item.commentCount > 0
     function open() {
         const nav = item.kind === 'sticker'
             ? router.navigate({to: '/stickers', search: {tab: 'feed', item: item.id}})
@@ -185,8 +188,25 @@ function CommunityRow({item}: {item: CommunityItem}) {
                 className="w-full flex items-center gap-2 py-1.5 text-left active:opacity-70">
             <span className="text-base flex-shrink-0">{icon}</span>
             <div className="flex-1 min-w-0">
-                <div className="text-xs font-bold text-ink truncate">{item.title}</div>
-                {item.subtitle && <div className="text-sm text-muted truncate">{item.subtitle}</div>}
+                <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs font-bold text-ink truncate">{item.title}</div>
+                    {dateLabel && (
+                        <span className="text-xs text-muted flex-shrink-0">{dateLabel}</span>
+                    )}
+                </div>
+                {(item.subtitle || hasActivity) && (
+                    <div className="flex items-center gap-2 min-w-0 mt-0.5">
+                        {item.subtitle && (
+                            <span className="text-sm text-muted truncate flex-1 min-w-0">{item.subtitle}</span>
+                        )}
+                        {hasActivity && (
+                            <span className="flex items-center gap-1.5 text-xs text-muted flex-shrink-0">
+                                {item.reactionCount > 0 && <span>❤️ {item.reactionCount}</span>}
+                                {item.commentCount > 0 && <span>💬 {item.commentCount}</span>}
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
             <ChevronRight size={14} strokeWidth={2} className="flex-shrink-0 text-muted"/>
         </button>
@@ -376,7 +396,7 @@ export function HomePage() {
                         ))}
                     </div>
                     <div className="divide-y divide-surface-2">
-                        {news.map(item => <CommunityRow key={`${item.kind}-${item.id}`} item={item}/>)}
+                        {news.map(item => <CommunityRow key={`${item.kind}-${item.id}`} item={item} locale={locale}/>)}
                         {news.length === 0 && <p className="text-xs text-muted py-1.5">{t('home.newsEmpty')}</p>}
                     </div>
                 </Section>

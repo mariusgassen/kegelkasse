@@ -35,20 +35,77 @@ export interface CommunityItem {
     id: number
     title: string
     subtitle: string | null
-    /** Sort timestamp in ms (from `created_at`); 0 when unknown so it sinks to the bottom. */
+    /** Effective display date/datetime (latest activity when newer than post date, else post date). */
+    date: string | null
+    /** Post's own date (`stuck_on` for stickers when set, else `updated_at ?? created_at`). */
+    postDate: string | null
+    /** Latest comment/reaction timestamp, if any. */
+    lastActivityAt: string | null
+    commentCount: number
+    reactionCount: number
+    /** Sort timestamp in ms (newest first); 0 when unknown so it sinks to the bottom. */
     ts: number
+    /** Tie-breaker timestamp in ms (e.g. `created_at` when stickers share the same `stuck_on` day). */
+    tieTs: number
 }
 
-function tsOf(iso: string | null): number {
+function tsOf(iso: string | null | undefined): number {
     if (!iso) return 0
     const ms = Date.parse(iso)
     return Number.isNaN(ms) ? 0 : ms
 }
 
 /**
+ * Format a news item's date for the Start feed: day + short month in the current year, adding the
+ * year for older entries (such as throwback stickers). Date-only strings (`YYYY-MM-DD`) are
+ * parsed as local calendar dates so they never shift across timezones.
+ */
+export function formatNewsDate(iso: string | null, locale: string, currentYear?: number): string {
+    if (!iso) return ''
+    const d = iso.length === 10 ? new Date(`${iso}T00:00:00`) : new Date(iso)
+    if (Number.isNaN(d.getTime())) return ''
+    const year = currentYear ?? new Date().getFullYear()
+    const opts: Intl.DateTimeFormatOptions = d.getFullYear() === year
+        ? {day: '2-digit', month: 'short'}
+        : {day: '2-digit', month: 'short', year: 'numeric'}
+    return d.toLocaleDateString(locale === 'en' ? 'en-GB' : 'de-DE', opts)
+}
+
+function buildCommunityItem(params: {
+    kind: CommunityKind
+    id: number
+    title: string
+    subtitle: string | null
+    postDate: string | null
+    postTs: number
+    tieTs: number
+    lastActivityAt: string | null
+    commentCount: number
+    reactionCount: number
+}): CommunityItem {
+    const activityTs = tsOf(params.lastActivityAt)
+    const activeNewer = activityTs > params.postTs
+    return {
+        kind: params.kind,
+        id: params.id,
+        title: params.title,
+        subtitle: params.subtitle,
+        date: activeNewer ? params.lastActivityAt : params.postDate,
+        postDate: params.postDate,
+        lastActivityAt: params.lastActivityAt,
+        commentCount: params.commentCount,
+        reactionCount: params.reactionCount,
+        ts: Math.max(params.postTs, activityTs),
+        tieTs: params.tieTs,
+    }
+}
+
+/**
  * Merge the latest announcements, trips and stickers into a single "news" feed, newest first,
- * capped at `limit`. Ordered by when they were posted (`created_at`). `kind` narrows the feed to
- * one post type (filter is applied before the cap).
+ * capped at `limit`. Stickers order by when they were stickered (`stuck_on`, falling back to
+ * `updated_at ?? created_at`); announcements and trips order by last added/edited
+ * (`updated_at ?? created_at`). Newer comment or item-reaction activity (`last_activity_at`)
+ * bubbles an item up so active threads stay visible. `kind` narrows the feed before the cap.
  */
 export function recentCommunity(
     announcements: ClubAnnouncement[],
@@ -58,29 +115,65 @@ export function recentCommunity(
     kind?: CommunityKind,
 ): CommunityItem[] {
     const items: CommunityItem[] = [
-        ...announcements.map(a => ({
-            kind: 'announcement' as const,
-            id: a.id,
-            title: a.title,
-            subtitle: a.text ?? null,
-            ts: tsOf(a.updated_at ?? a.created_at),
-        })),
-        ...trips.map(t => ({
-            kind: 'trip' as const,
-            id: t.id,
-            title: t.destination,
-            subtitle: t.note ?? null,
-            ts: tsOf(t.updated_at ?? t.created_at),
-        })),
-        ...stickers.map(st => ({
-            kind: 'sticker' as const,
-            id: st.id,
-            title: st.place_name,
-            subtitle: st.caption ?? null,
-            ts: tsOf(st.created_at),
-        })),
+        ...announcements.map(a => {
+            const postDate = a.updated_at ?? a.created_at
+            const postTs = tsOf(postDate)
+            return buildCommunityItem({
+                kind: 'announcement',
+                id: a.id,
+                title: a.title,
+                subtitle: a.text ?? null,
+                postDate,
+                postTs,
+                tieTs: postTs,
+                lastActivityAt: a.last_activity_at ?? null,
+                commentCount: a.comment_count ?? 0,
+                reactionCount: a.reaction_count ?? 0,
+            })
+        }),
+        ...trips.map(t => {
+            const postDate = t.updated_at ?? t.created_at
+            const postTs = tsOf(postDate)
+            return buildCommunityItem({
+                kind: 'trip',
+                id: t.id,
+                title: t.destination,
+                subtitle: t.note ?? null,
+                postDate,
+                postTs,
+                tieTs: postTs,
+                lastActivityAt: t.last_activity_at ?? null,
+                commentCount: t.comment_count ?? 0,
+                reactionCount: t.reaction_count ?? 0,
+            })
+        }),
+        ...stickers.map(st => {
+            const fallbackDate = st.updated_at ?? st.created_at
+            const postDate = st.stuck_on ?? fallbackDate
+            // When stuck_on matches the upload day, keep created_at's time-of-day for exact ordering.
+            const postTs = st.stuck_on
+                ? (st.created_at && st.created_at.slice(0, 10) === st.stuck_on
+                    ? tsOf(st.created_at)
+                    : tsOf(st.stuck_on))
+                : tsOf(fallbackDate)
+            return buildCommunityItem({
+                kind: 'sticker',
+                id: st.id,
+                title: st.place_name,
+                subtitle: st.caption ?? null,
+                postDate,
+                postTs,
+                tieTs: tsOf(st.created_at),
+                lastActivityAt: st.last_activity_at ?? null,
+                commentCount: st.comment_count ?? 0,
+                reactionCount: st.reaction_count ?? 0,
+            })
+        }),
     ]
-    return items.filter(i => !kind || i.kind === kind).sort((a, b) => b.ts - a.ts).slice(0, limit)
+    return items
+        .filter(i => !kind || i.kind === kind)
+        .sort((a, b) => (b.ts - a.ts) || (b.tieTs - a.tieTs) || (b.id - a.id))
+        .slice(0, limit)
 }
 
 export type BalanceState = 'owed' | 'credit' | 'settled'

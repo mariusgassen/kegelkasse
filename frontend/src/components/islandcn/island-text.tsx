@@ -132,8 +132,11 @@ export const ExpandedValue = ({ children, unit, color = islandInk.primary, style
 );
 
 /** 17 pt semibold, the expanded view's title. */
-export const ExpandedTitle = ({ children, color = islandInk.primary, style }: TextProps) => (
-  <span style={{ ...base, ...oneLine, fontSize: islandSize.title, fontWeight: 600, lineHeight: `${islandLine.title}px`, letterSpacing: trackingFor(islandSize.title), color, ...style }}>
+export const ExpandedTitle = ({ children, color = islandInk.primary, lines = 1, style }: TextProps & {
+  /** Lines the title may wrap to before it truncates. Defaults to 1. */
+  lines?: number;
+}) => (
+  <span style={{ ...base, ...oneLine, WebkitLineClamp: lines, fontSize: islandSize.title, fontWeight: 600, lineHeight: `${islandLine.title}px`, letterSpacing: trackingFor(islandSize.title), color, ...style }}>
     {children}
   </span>
 );
@@ -149,8 +152,11 @@ export const ContextLabel = ({ children, color = islandInk.secondary, style }: T
 );
 
 /** 15 pt regular in secondary grey, under the title. */
-export const ExpandedSubtitle = ({ children, color = islandInk.secondary, style }: TextProps) => (
-  <span style={{ ...base, ...oneLine, fontSize: islandSize.subtitle, fontWeight: 400, lineHeight: `${islandLine.subtitle}px`, color, ...style }}>
+export const ExpandedSubtitle = ({ children, color = islandInk.secondary, lines = 1, style }: TextProps & {
+  /** Lines the subtitle may wrap to before it truncates. Defaults to 1. */
+  lines?: number;
+}) => (
+  <span style={{ ...base, ...oneLine, WebkitLineClamp: lines, fontSize: islandSize.subtitle, fontWeight: 400, lineHeight: `${islandLine.subtitle}px`, color, ...style }}>
     {children}
   </span>
 );
@@ -167,6 +173,7 @@ export const TitleStack = ({
   title,
   subtitle,
   align = "start",
+  titleLines = 1,
   subtitleLines = 1,
   style,
 }: {
@@ -176,17 +183,17 @@ export const TitleStack = ({
   subtitle?: ReactNode;
   /** Horizontal alignment. Defaults to "start". */
   align?: "start" | "center";
+  /** Lines the title may wrap to before it truncates. Defaults to 1. */
+  titleLines?: number;
   /** Lines the subtitle may wrap to before it truncates. Defaults to 1. */
   subtitleLines?: number;
   /** Extra styles. Defaults to none. */
   style?: CSSProperties;
 }) => (
   <div style={{ display: "grid", gap: islandLine.stackGap, minWidth: 0, textAlign: align === "center" ? "center" : "left", ...style }}>
-    <ExpandedTitle>{title}</ExpandedTitle>
+    <ExpandedTitle lines={titleLines}>{title}</ExpandedTitle>
     {subtitle === undefined ? null : (
-      <ExpandedSubtitle
-        style={subtitleLines > 1 ? { WebkitLineClamp: subtitleLines } : undefined}
-      >
+      <ExpandedSubtitle lines={subtitleLines}>
         {subtitle}
       </ExpandedSubtitle>
     )}

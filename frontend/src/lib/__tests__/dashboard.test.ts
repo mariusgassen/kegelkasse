@@ -2,6 +2,7 @@ import {describe, it, expect} from 'vitest'
 import {
     nextAppointment,
     recentCommunity,
+    formatNewsDate,
     balanceState,
     recentThrowAvgs,
     recentPenaltyEvenings,
@@ -56,11 +57,32 @@ describe('nextAppointment', () => {
 })
 
 describe('recentCommunity', () => {
-    const ann = (id: number, title: string, created_at: string | null, text: string | null = null): ClubAnnouncement => ({
-        id, title, text, media_url: null, created_by_name: null, created_at,
+    const ann = (
+        id: number,
+        title: string,
+        created_at: string | null,
+        text: string | null = null,
+        extra: Partial<ClubAnnouncement> = {},
+    ): ClubAnnouncement => ({
+        id, title, text, media_url: null, created_by_name: null, created_at, ...extra,
     })
-    const trip = (id: number, destination: string, created_at: string | null, note: string | null = null): ClubTrip => ({
-        id, date: '2026-09-01T10:00', end_date: null, destination, note, created_by_name: null, created_at,
+    const trip = (
+        id: number,
+        destination: string,
+        created_at: string | null,
+        note: string | null = null,
+        extra: Partial<ClubTrip> = {},
+    ): ClubTrip => ({
+        id, date: '2026-09-01T10:00', end_date: null, destination, note, created_by_name: null, created_at, ...extra,
+    })
+    const sticker = (
+        id: number,
+        place: string,
+        created_at: string | null,
+        extra: Partial<Sticker> = {},
+    ): Sticker => ({
+        id, media_url: '', media_urls: [], place_name: place, latitude: 0, longitude: 0,
+        caption: null, stuck_on: null, created_by_name: null, created_at, can_edit: false, ...extra,
     })
 
     it('merges announcements and trips newest-first', () => {
@@ -73,6 +95,17 @@ describe('recentCommunity', () => {
         expect(out.map(i => i.id)).toEqual([2, 3, 1])
         expect(out[0].kind).toBe('announcement')
         expect(out[1].kind).toBe('trip')
+    })
+
+    it('uses updated_at over created_at for announcements and trips', () => {
+        const out = recentCommunity(
+            [ann(1, 'A', '2026-07-01T10:00')],
+            [trip(2, 'Berlin', '2026-06-01T10:00', null, {updated_at: '2026-07-15T10:00'})],
+            [],
+            5,
+        )
+        expect(out.map(i => [i.kind, i.id])).toEqual([['trip', 2], ['announcement', 1]])
+        expect(out[0].date).toBe('2026-07-15T10:00')
     })
 
     it('caps the result at the given limit', () => {
@@ -91,15 +124,82 @@ describe('recentCommunity', () => {
         expect(out[0]).toMatchObject({title: 'Kegelfahrt Harz', subtitle: 'Bus ab 8 Uhr', kind: 'trip'})
     })
 
-    const sticker = (id: number, place: string, created_at: string | null): Sticker => ({
-        id, media_url: '', media_urls: [], place_name: place, latitude: 0, longitude: 0,
-        caption: null, stuck_on: null, created_by_name: null, created_at, can_edit: false,
+    it('orders stickers by stuck_on (EXIF date) rather than upload created_at', () => {
+        const out = recentCommunity(
+            [ann(1, 'A', '2026-07-01T10:00')],
+            [],
+            [
+                sticker(7, 'Hamburg', '2026-07-05T10:00', {stuck_on: '2026-06-15'}),
+                sticker(8, 'Mallorca', '2026-07-06T10:00', {stuck_on: '2026-07-04'}),
+            ],
+            5,
+        )
+        expect(out.map(i => [i.kind, i.id])).toEqual([
+            ['sticker', 8],
+            ['announcement', 1],
+            ['sticker', 7],
+        ])
+        expect(out[0].date).toBe('2026-07-04')
+        expect(out[2].date).toBe('2026-06-15')
     })
 
-    it('includes stickers in the merged feed', () => {
-        const out = recentCommunity([ann(1, 'A', '2026-07-01T10:00')], [], [sticker(7, 'Hamburg', '2026-07-05T10:00')], 5)
+    it('falls back to updated_at/created_at when a sticker has no stuck_on', () => {
+        const out = recentCommunity(
+            [ann(1, 'A', '2026-07-02T10:00')],
+            [],
+            [sticker(7, 'Hamburg', '2026-07-01T10:00', {updated_at: '2026-07-05T10:00'})],
+            5,
+        )
         expect(out.map(i => [i.kind, i.id])).toEqual([['sticker', 7], ['announcement', 1]])
-        expect(out[0].title).toBe('Hamburg')
+        expect(out[0].date).toBe('2026-07-05T10:00')
+    })
+
+    it('keeps created_at time-of-day when stuck_on matches the upload date and breaks ties', () => {
+        const out = recentCommunity(
+            [ann(1, 'Midday', '2026-07-10T12:00:00Z')],
+            [],
+            [
+                sticker(2, 'Afternoon', '2026-07-10T15:00:00Z', {stuck_on: '2026-07-10'}),
+                sticker(3, 'Earlier', '2026-07-12T08:00:00Z', {stuck_on: '2026-07-09'}),
+                sticker(4, 'Earlier2', '2026-07-12T10:00:00Z', {stuck_on: '2026-07-09'}),
+            ],
+            5,
+        )
+        expect(out.map(i => i.id)).toEqual([2, 1, 4, 3])
+    })
+
+    it('bubbles posts with newer comment/reaction activity to the top and surfaces counts', () => {
+        const out = recentCommunity(
+            [
+                ann(1, 'Quiet', '2026-07-10T10:00:00Z'),
+                ann(2, 'Active', '2026-07-01T10:00:00Z', null, {
+                    comment_count: 3,
+                    reaction_count: 2,
+                    last_activity_at: '2026-07-15T12:00:00Z',
+                }),
+            ],
+            [],
+            [
+                sticker(3, 'Throwback', '2026-07-02T10:00:00Z', {
+                    stuck_on: '2024-05-01',
+                    reaction_count: 1,
+                    last_activity_at: '2026-07-14T08:00:00Z',
+                }),
+            ],
+            5,
+        )
+        expect(out.map(i => i.id)).toEqual([2, 3, 1])
+        expect(out[0]).toMatchObject({
+            commentCount: 3,
+            reactionCount: 2,
+            date: '2026-07-15T12:00:00Z',
+            postDate: '2026-07-01T10:00:00Z',
+        })
+        expect(out[1]).toMatchObject({
+            reactionCount: 1,
+            date: '2026-07-14T08:00:00Z',
+            postDate: '2024-05-01',
+        })
     })
 
     it('filters by kind before applying the cap', () => {
@@ -116,6 +216,20 @@ describe('recentCommunity', () => {
     it('treats a null created_at as oldest (ts 0)', () => {
         const out = recentCommunity([ann(1, 'A', null), ann(2, 'B', '2026-07-01T10:00')], [], [], 5)
         expect(out.map(i => i.id)).toEqual([2, 1])
+    })
+})
+
+describe('formatNewsDate', () => {
+    it('omits year for current-year dates and includes year for older dates', () => {
+        expect(formatNewsDate('2026-07-15', 'de', 2026)).toMatch(/15\.\s*Jul/i)
+        expect(formatNewsDate('2026-07-15', 'de', 2026)).not.toContain('2026')
+        expect(formatNewsDate('2024-07-15', 'de', 2026)).toContain('2024')
+        expect(formatNewsDate('2024-07-15', 'en', 2026)).toContain('2024')
+    })
+
+    it('returns empty string for null or invalid input', () => {
+        expect(formatNewsDate(null, 'de', 2026)).toBe('')
+        expect(formatNewsDate('not-a-date', 'de', 2026)).toBe('')
     })
 })
 

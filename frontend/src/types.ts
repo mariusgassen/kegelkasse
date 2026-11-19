@@ -8,6 +8,8 @@ export interface NotificationItem {
     receivedAt: string  // ISO timestamp
     read: boolean
     serverLogId?: number  // set when loaded from the server notification log (for deduplication)
+    category?: string | null
+    tag?: string
 }
 
 
@@ -252,6 +254,9 @@ export interface ClubAnnouncement {
     updated_at?: string | null
     /** Author, committee member or admin. */
     can_edit?: boolean
+    comment_count?: number
+    reaction_count?: number
+    last_activity_at?: string | null
 }
 
 // Vereinsdokumente — one row per uploaded version, grouped by group_id.
@@ -343,7 +348,11 @@ export interface Sticker {
     stuck_on: string | null
     created_by_name: string | null
     created_at: string | null
+    updated_at?: string | null
     can_edit: boolean
+    comment_count?: number
+    reaction_count?: number
+    last_activity_at?: string | null
 }
 
 export interface StickerInput {
@@ -366,6 +375,9 @@ export interface ClubTrip {
     updated_at?: string | null
     expense_count?: number  // club expenses booked against this trip
     expense_total?: number
+    comment_count?: number
+    reaction_count?: number
+    last_activity_at?: string | null
 }
 
 export interface TripExpenses {

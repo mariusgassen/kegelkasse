@@ -10,6 +10,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_committee_or_admin
+from api.v1.comments import activity_rollup
 from core.database import get_db
 from core.push import push_to_club
 from models.committee import ClubAnnouncement, ClubTrip, ClubPoll, PollOption, PollVote
@@ -34,7 +35,12 @@ def _require_manage(user: User, created_by: Optional[int], db: Session) -> None:
         raise HTTPException(403, "Only the author, the committee or an admin may change this")
 
 
-def _serialize_announcement(a: ClubAnnouncement, creator_name: Optional[str], can_edit: bool = False) -> dict:
+def _serialize_announcement(
+    a: ClubAnnouncement,
+    creator_name: Optional[str],
+    can_edit: bool = False,
+    activity: tuple[int, int, Optional[str]] = (0, 0, None),
+) -> dict:
     return {
         "id": a.id,
         "title": a.title,
@@ -44,6 +50,9 @@ def _serialize_announcement(a: ClubAnnouncement, creator_name: Optional[str], ca
         "created_at": a.created_at.isoformat() if a.created_at else None,
         "updated_at": a.updated_at.isoformat() if a.updated_at else None,
         "can_edit": can_edit,
+        "comment_count": activity[0],
+        "reaction_count": activity[1],
+        "last_activity_at": activity[2],
     }
 
 
@@ -54,7 +63,12 @@ def _utc_str(dt: Optional[datetime]) -> Optional[str]:
     return dt_utc.strftime('%Y-%m-%dT%H:%M')
 
 
-def _serialize_trip(t: ClubTrip, creator_name: Optional[str], expenses: tuple[int, float] = (0, 0.0)) -> dict:
+def _serialize_trip(
+    t: ClubTrip,
+    creator_name: Optional[str],
+    expenses: tuple[int, float] = (0, 0.0),
+    activity: tuple[int, int, Optional[str]] = (0, 0, None),
+) -> dict:
     dt_utc = t.date.astimezone(UTC) if t.date.tzinfo else t.date.replace(tzinfo=UTC)
     return {
         "id": t.id,
@@ -67,6 +81,9 @@ def _serialize_trip(t: ClubTrip, creator_name: Optional[str], expenses: tuple[in
         "updated_at": t.updated_at.isoformat() if t.updated_at else None,
         "expense_count": expenses[0],
         "expense_total": round(expenses[1], 2),
+        "comment_count": activity[0],
+        "reaction_count": activity[1],
+        "last_activity_at": activity[2],
     }
 
 
@@ -105,8 +122,14 @@ def list_announcements(
         ClubAnnouncement.club_id == user.club_id,
         ClubAnnouncement.is_deleted == False,
     ).order_by(func.coalesce(ClubAnnouncement.updated_at, ClubAnnouncement.created_at).desc()).all()
-    return [_serialize_announcement(a, _creator_name(a.created_by, db), _can_manage(user, a.created_by, db))
-            for a in items]
+    activity = activity_rollup("announcement", [a.id for a in items], db)
+    return [
+        _serialize_announcement(
+            a, _creator_name(a.created_by, db), _can_manage(user, a.created_by, db),
+            activity.get(a.id, (0, 0, None)),
+        )
+        for a in items
+    ]
 
 
 class AnnouncementCreate(TrimmedModel):
@@ -178,7 +201,14 @@ def list_trips(
         ClubTrip.is_deleted == False,
     ).order_by(ClubTrip.date).all()
     rollup = _trip_expense_rollup(db, user.club_id)
-    return [_serialize_trip(t, _creator_name(t.created_by, db), rollup.get(t.id, (0, 0.0))) for t in items]
+    activity = activity_rollup("trip", [t.id for t in items], db)
+    return [
+        _serialize_trip(
+            t, _creator_name(t.created_by, db), rollup.get(t.id, (0, 0.0)),
+            activity.get(t.id, (0, 0, None)),
+        )
+        for t in items
+    ]
 
 
 def _expense_day(e: ClubExpense) -> Optional[str]:
@@ -455,8 +485,11 @@ def update_trip(
         trip.note = data.note.strip() or None
     db.commit()
     db.refresh(trip)
-    return _serialize_trip(trip, _creator_name(trip.created_by, db),
-                           _trip_expense_rollup(db, user.club_id).get(trip.id, (0, 0.0)))
+    return _serialize_trip(
+        trip, _creator_name(trip.created_by, db),
+        _trip_expense_rollup(db, user.club_id).get(trip.id, (0, 0.0)),
+        activity_rollup("trip", [trip.id], db).get(trip.id, (0, 0, None)),
+    )
 
 
 @router.delete("/trips/{tid}", status_code=204)

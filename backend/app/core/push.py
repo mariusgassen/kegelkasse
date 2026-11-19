@@ -166,10 +166,11 @@ def _club_telegram_config(db: Session, club_id: int | None, cache: dict) -> dict
     return cfg
 
 
-def _log_notification(db: Session, user_id: int, title: str, body: str, url: str) -> None:
+def _log_notification(db: Session, user_id: int, title: str, body: str, url: str,
+                      category: str | None = None) -> None:
     """Persist a notification to the server-side log (best-effort, never raises)."""
     try:
-        db.add(NotificationLog(user_id=user_id, title=title, body=body, url=url))
+        db.add(NotificationLog(user_id=user_id, title=title, body=body, url=url, category=category or None))
         db.commit()
     except Exception as exc:
         logger.warning("Failed to save notification log for user %s: %s", user_id, exc)
@@ -194,7 +195,7 @@ def notify_user(db: Session, user: User, title: str, body: str, url: str = '/',
     if not channels:
         return False
     # Always log so the in-app bell shows it, regardless of channel(s).
-    _log_notification(db, user.id, title, body, url)
+    _log_notification(db, user.id, title, body, url, category=category)
     if "email" in channels:
         from core.email import email_theme, send_notification_email
         cfg = _club_email_config(db, user.club_id, email_cache if email_cache is not None else {})
@@ -262,7 +263,7 @@ def push_to_club(db: Session, club_id: int, title: str, body: str,
         if not channels:
             continue
         # Always log for hybrid loading / in-app bell
-        _log_notification(db, user.id, title, body, url)
+        _log_notification(db, user.id, title, body, url, category=category)
         if "email" in channels:
             from core.email import email_theme, send_notification_email
             cfg = _club_email_config(db, user.club_id, email_cache)

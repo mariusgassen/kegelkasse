@@ -102,7 +102,7 @@ function getStoredToken(): Promise<string | null> {
 }
 
 /** Store a missed push notification in IndexedDB so the app can pick it up on next boot. */
-function storeMissedPush(title: string, body: string, url: string): Promise<void> {
+function storeMissedPush(title: string, body: string, url: string, tag?: string, category?: string): Promise<void> {
     return new Promise((resolve) => {
         const req = indexedDB.open('kegelkasse_notifications', 1)
         req.onupgradeneeded = (e) => {
@@ -111,7 +111,7 @@ function storeMissedPush(title: string, body: string, url: string): Promise<void
         req.onsuccess = () => {
             const db = req.result
             const tx = db.transaction('missed', 'readwrite')
-            tx.objectStore('missed').add({title, body, url, receivedAt: new Date().toISOString()})
+            tx.objectStore('missed').add({title, body, url, tag, category, receivedAt: new Date().toISOString()})
             tx.oncomplete = () => { db.close(); resolve() }
             tx.onerror = () => { db.close(); resolve() }
         }
@@ -128,13 +128,14 @@ self.addEventListener('push', (event) => {
     const actions = (data.actions as {action: string; title: string}[]) ?? []
     const rid = data.rid as number | undefined
     const update = data.update === true
+    const category = update || tag === 'kegelkasse-release' ? 'app_updates' : undefined
 
     // Always store in IndexedDB (for when app boots later) AND broadcast to open windows
     const broadcastAndStore = Promise.all([
-        storeMissedPush(title, body, url),
+        storeMissedPush(title, body, url, tag, category),
         self.clients
             .matchAll({ type: 'window', includeUncontrolled: true })
-            .then((clients) => clients.forEach((c) => c.postMessage({ type: 'push-received', title, body, url, tag }))),
+            .then((clients) => clients.forEach((c) => c.postMessage({ type: 'push-received', title, body, url, tag, category }))),
     ])
 
     event.waitUntil(

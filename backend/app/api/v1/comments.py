@@ -4,6 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from core.schemas import TrimmedModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member
@@ -222,6 +223,57 @@ def _parent_url(parent_type: str, parent_id: int, comment_id: Optional[int] = No
     if comment_id:
         base += f'&comment={comment_id}'
     return base
+
+
+def _as_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    """Normalize SQLite-naive or tz-aware datetimes to UTC for safe comparison."""
+    if dt is None:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+
+
+def activity_rollup(
+    parent_type: str, item_ids: list[int], db: Session,
+) -> dict[int, tuple[int, int, Optional[str]]]:
+    """Return ``{item_id: (comment_count, reaction_count, last_activity_at_iso)}`` in two queries."""
+    if not item_ids:
+        return {}
+    c_rows = (
+        db.query(
+            Comment.parent_id,
+            func.count(Comment.id),
+            func.max(func.coalesce(Comment.edited_at, Comment.created_at)),
+        )
+        .filter(
+            Comment.parent_type == parent_type,
+            Comment.parent_id.in_(item_ids),
+            Comment.is_deleted == False,  # noqa: E712
+        )
+        .group_by(Comment.parent_id)
+        .all()
+    )
+    r_rows = (
+        db.query(
+            ItemReaction.parent_id,
+            func.count(ItemReaction.id),
+            func.max(ItemReaction.created_at),
+        )
+        .filter(
+            ItemReaction.parent_type == parent_type,
+            ItemReaction.parent_id.in_(item_ids),
+        )
+        .group_by(ItemReaction.parent_id)
+        .all()
+    )
+    comments_by_id = {pid: (cnt, _as_utc(dt)) for pid, cnt, dt in c_rows}
+    reactions_by_id = {pid: (cnt, _as_utc(dt)) for pid, cnt, dt in r_rows}
+    out: dict[int, tuple[int, int, Optional[str]]] = {}
+    for pid in set(comments_by_id) | set(reactions_by_id):
+        c_cnt, c_dt = comments_by_id.get(pid, (0, None))
+        r_cnt, r_dt = reactions_by_id.get(pid, (0, None))
+        latest = max((d for d in (c_dt, r_dt) if d is not None), default=None)
+        out[pid] = (c_cnt, r_cnt, latest.isoformat() if latest else None)
+    return out
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────

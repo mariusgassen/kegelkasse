@@ -3,6 +3,7 @@ import {Sheet} from '@/components/ui/Sheet'
 import {useI18n, useT} from '@/i18n'
 import {compareVersions, itemText, latestVersion, visibleReleases, type Release} from '@/lib/changelog'
 import {useWhatsNewStore} from '@/store/whatsNew'
+import {markUpdateNotificationsRead} from '@/lib/releaseNotifications'
 import releasesData from '@/whatsNew/releases.json'
 import {Empty} from '@/components/ui/Empty.tsx'
 
@@ -32,7 +33,10 @@ export function WhatsNewSheet({open, onClose, releases = ALL_RELEASES}: {
     const seenAtOpen = useMemo(() => lastSeen, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
-        if (open && latest) markSeen(latest)
+        if (open && latest) {
+            markSeen(latest)
+            markUpdateNotificationsRead()
+        }
     }, [open, latest, markSeen])
 
     const isNew = (v: string) => !seenAtOpen || compareVersions(v, seenAtOpen) > 0

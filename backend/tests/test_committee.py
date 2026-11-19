@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from core.security import create_access_token, get_password_hash
 from models.user import User, UserRole
 from models.evening import RegularMember
+from models.comment import Comment, ItemReaction
 from models.committee import ClubAnnouncement, ClubTrip, ClubPoll, PollOption, PollVote
 
 
@@ -45,6 +46,8 @@ def cleanup(db, club):
     if poll_ids:
         db.query(PollVote).filter(PollVote.poll_id.in_(poll_ids)).delete(synchronize_session=False)
         db.query(PollOption).filter(PollOption.poll_id.in_(poll_ids)).delete(synchronize_session=False)
+    db.query(Comment).filter(Comment.parent_type.in_(("announcement", "trip"))).delete(synchronize_session=False)
+    db.query(ItemReaction).filter(ItemReaction.parent_type.in_(("announcement", "trip"))).delete(synchronize_session=False)
     db.query(ClubPoll).filter(ClubPoll.club_id == club.id).delete(synchronize_session=False)
     db.query(ClubAnnouncement).filter(ClubAnnouncement.club_id == club.id).delete(synchronize_session=False)
     db.query(ClubTrip).filter(ClubTrip.club_id == club.id).delete(synchronize_session=False)
@@ -120,6 +123,22 @@ class TestCreateAnnouncement:
         }, headers=admin_headers)
         assert resp.status_code == 200
         assert resp.json()["text"] is None
+
+    def test_list_includes_activity_counts(self, client: TestClient, auth_headers, admin_headers):
+        aid = client.post("/api/v1/committee/announcements", json={"title": "Aktiv"}, headers=admin_headers).json()["id"]
+        tid = client.post("/api/v1/committee/trips", json={"date": "2030-05-01T10:00", "destination": "Harz"}, headers=admin_headers).json()["id"]
+        client.post(f"/api/v1/comments/announcement/{aid}", json={"text": "Bin dabei"}, headers=auth_headers)
+        client.post(f"/api/v1/comments/item-reaction/trip/{tid}", json={"emoji": "❤️"}, headers=auth_headers)
+
+        anns = client.get("/api/v1/committee/announcements", headers=auth_headers).json()
+        assert anns[0]["comment_count"] == 1
+        assert anns[0]["reaction_count"] == 0
+        assert anns[0]["last_activity_at"] is not None
+
+        trips = client.get("/api/v1/committee/trips", headers=auth_headers).json()
+        assert trips[0]["comment_count"] == 0
+        assert trips[0]["reaction_count"] == 1
+        assert trips[0]["last_activity_at"] is not None
 
 
 # ---------------------------------------------------------------------------

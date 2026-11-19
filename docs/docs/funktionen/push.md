@@ -50,7 +50,7 @@ Push-Benachrichtigungen sind gerätegebunden. Wer auf mehreren Geräten empfange
 | **Broadcast** | Alle Mitglieder (Admin-Versand) |
 | **Neue Gastanfrage** (über die Vereins-Homepage) | Alle Mitglieder — Kategorie „Gastanfragen", standardmäßig **per E-Mail** statt Push |
 | **Roadmap-Idee bearbeitet** (Status geändert oder neue Notiz) | Der Einreicher der Idee — Kategorie „Meine Roadmap-Ideen", standardmäßig Push |
-| **Neue App-Version** (nur bei einem Release, nicht bei jeder Änderung) | Mitglieder, die die Kategorie „Neue App-Versionen" eingeschaltet haben — standardmäßig **aus**. Ein Tipp auf die Push-Nachricht lädt die neue Version sofort, ohne auf den „Aktualisieren"-Hinweis zu warten |
+| **Neue App-Version** (nur bei einem Release, nicht bei jeder Änderung) | Mitglieder, die die Kategorie „Neue App-Versionen" eingeschaltet haben — standardmäßig **aus**. Ein Tipp auf die Push-Nachricht lädt die neue Version sofort, ohne auf den „Aktualisieren"-Hinweis zu warten; werden die Release-Notes bzw. der Update-Hinweis über die Island angesehen oder geschlossen, wird die Benachrichtigung in der Glocke automatisch als gelesen markiert |
 
 ## Einstellungen im Profil
 

@@ -6,6 +6,7 @@ from typing import Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException
 from core.schemas import TrimmedModel
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_it_admin
@@ -274,6 +275,7 @@ def get_recent_notifications(db: Session = Depends(get_db), user: User = Depends
             "title": log.title,
             "body": log.body,
             "url": log.url,
+            "category": log.category,
             "created_at": log.created_at.isoformat() if log.created_at else None,
         }
         for log in logs
@@ -281,20 +283,44 @@ def get_recent_notifications(db: Session = Depends(get_db), user: User = Depends
 
 
 class MarkReadRequest(TrimmedModel):
-    ids: Optional[list[int]] = None  # None = mark all unread as read
+    ids: Optional[list[int]] = None  # None = mark all unread as read (unless category is given)
+    category: Optional[str] = None
 
 
 @router.post("/notifications/read", status_code=204)
 def mark_notifications_read(data: MarkReadRequest = MarkReadRequest(),
                              db: Session = Depends(get_db),
                              user: User = Depends(require_club_member)):
-    """Mark notifications as read server-side. Pass ids to mark specific ones, omit to mark all."""
+    """Mark notifications as read server-side.
+
+    Pass ``ids`` to mark specific ones, ``category`` to mark all unread rows in
+    that category, or omit both to mark all unread notifications read.
+    """
     q = db.query(NotificationLog).filter(
         NotificationLog.user_id == user.id,
         NotificationLog.is_read == False,  # noqa: E712
     )
-    if data.ids:
+    if data.ids is not None:
+        if not data.ids:
+            return
         q = q.filter(NotificationLog.id.in_(data.ids))
+    elif data.category:
+        if data.category == "app_updates":
+            q = q.filter(
+                or_(
+                    NotificationLog.category == data.category,
+                    and_(
+                        NotificationLog.category.is_(None),
+                        NotificationLog.url == "/",
+                        or_(
+                            NotificationLog.title.like("Neue Version %"),
+                            NotificationLog.title.like("New version %"),
+                        ),
+                    ),
+                )
+            )
+        else:
+            q = q.filter(NotificationLog.category == data.category)
     q.update({"is_read": True}, synchronize_session=False)
     db.commit()
 

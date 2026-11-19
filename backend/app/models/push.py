@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Integer, Text, DateTime, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.sql import func
 
 from core.database import Base
@@ -27,5 +27,6 @@ class NotificationLog(Base):
     title = Column(Text, nullable=False)
     body = Column(Text, nullable=False, default='')
     url = Column(Text, nullable=False, default='/')
+    category = Column(String(64), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_read = Column(Boolean, nullable=False, default=False)

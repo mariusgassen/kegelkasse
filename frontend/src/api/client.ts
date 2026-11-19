@@ -952,9 +952,11 @@ export const api = {
     updatePushPreferences: (d: Partial<PushPreferences>) =>
         request<PushPreferences>('PATCH', '/push/preferences', d),
     getRecentNotifications: () =>
-        request<{id: number; title: string; body: string; url: string; created_at: string}[]>('GET', '/push/recent'),
-    markNotificationsRead: (ids?: number[]) =>
-        request<void>('POST', '/push/notifications/read', ids ? {ids} : {}),
+        request<{id: number; title: string; body: string; url: string; category?: string | null; created_at: string}[]>('GET', '/push/recent'),
+    markNotificationsRead: (arg?: number[] | {ids?: number[]; category?: string}) => {
+        const body = Array.isArray(arg) ? {ids: arg} : (arg ?? {})
+        return request<void>('POST', '/push/notifications/read', body)
+    },
     remindDebtors: () => request<{ reminded_count: number }>('POST', '/club/remind-debtors'),
     getIcalToken: () => request<{ ical_token: string }>('GET', '/schedule/ical-token'),
     regenerateMyIcalToken: () => request<{ ical_token: string }>('POST', '/schedule/ical-token/regenerate'),
