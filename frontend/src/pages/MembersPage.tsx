@@ -27,20 +27,19 @@ import {Field} from '@/components/ui/Field.tsx'
 
 type MemberAction = SheetAction
 
-const CLUB_ROLES: { role: UserRole; labelKey: string }[] = [
-    {role: 'admin', labelKey: 'role.admin'},
-    {role: 'it_admin', labelKey: 'role.it_admin'},
-    {role: 'treasurer', labelKey: 'role.treasurer'},
-    {role: 'auditor', labelKey: 'role.auditor'},
-    {role: 'committee', labelKey: 'role.committee'},
-    {role: 'zeugwart', labelKey: 'role.zeugwart'},
+const CLUB_ROLES: { role: UserRole; labelKey: string; descKey: string }[] = [
+    {role: 'admin', labelKey: 'role.admin', descKey: 'member.roles.desc.admin'},
+    {role: 'treasurer', labelKey: 'role.treasurer', descKey: 'member.roles.desc.treasurer'},
+    {role: 'auditor', labelKey: 'role.auditor', descKey: 'member.roles.desc.auditor'},
+    {role: 'committee', labelKey: 'role.committee', descKey: 'member.roles.desc.committee'},
+    {role: 'zeugwart', labelKey: 'role.zeugwart', descKey: 'member.roles.desc.zeugwart'},
 ]
 
 export function MembersPage() {
     const t = useT()
     const isOnline = useOnline()
     const qc = useQueryClient()
-    const {regularMembers, setRegularMembers, user} = useAppStore()
+    const {regularMembers, setRegularMembers, user, setUser} = useAppStore()
     const {evening, invalidate: invalidateEvening} = useActiveEvening()
     const admin = isAdmin(user)
 
@@ -101,6 +100,8 @@ export function MembersPage() {
     // Row action sheet — tap a member/user row to see its available actions
     const [actionSheet, setActionSheet] = useState<{ title: string; actions: MemberAction[] } | null>(null)
     const [rolesUser, setRolesUser] = useState<(typeof appUsers)[number] | null>(null)
+    const [rolesMenuOpen, setRolesMenuOpen] = useState(false)
+    const [selectedMenuRole, setSelectedMenuRole] = useState<UserRole>('admin')
     const [updatingRoles, setUpdatingRoles] = useState(false)
 
     function getUserRoles(u: { role: string; roles?: string[] }): UserRole[] {
@@ -124,7 +125,18 @@ export function MembersPage() {
         try {
             const res = await api.updateMemberRoles(targetUser.id, nextRoles)
             setRolesUser(prev => prev && prev.id === targetUser.id ? {...prev, role: res.role, roles: res.roles} : prev)
-            await Promise.all([refetchUsers(), refetchRoster()])
+            if (user && targetUser.id === user.id && typeof setUser === 'function') {
+                setUser({...user, role: res.role as UserRole, roles: res.roles as UserRole[]})
+            }
+            await Promise.all([
+                refetchUsers(),
+                refetchRoster(),
+                qc.invalidateQueries({queryKey: ['inventory-keepers']}),
+                qc.invalidateQueries({queryKey: ['inventory']}),
+                qc.invalidateQueries({queryKey: ['treasury-auditors']}),
+                qc.invalidateQueries({queryKey: ['treasury-audits']}),
+                qc.invalidateQueries({queryKey: ['committee-members']}),
+            ])
         } catch (e: unknown) {
             toastError(e)
         } finally {
@@ -462,9 +474,15 @@ export function MembersPage() {
             />
 
             {/* ── App-Nutzer ── */}
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="sec-heading mb-0">{t('member.appUsers')}</div>
-                <div className="flex gap-1">
+                <div className="flex flex-wrap justify-end gap-1">
+                    {admin && (
+                        <Button variant="secondary" size="xs" data-testid="members-roles-menu-btn"
+                                onClick={() => setRolesMenuOpen(true)}>
+                            🛡️ {t('member.roles.menu')}
+                        </Button>
+                    )}
                     {admin && (
                         <Button variant="secondary" size="xs" disabled={!isOnline} onClick={openGeneralInvite}>
                             📨 {t('club.tab.invites')}
@@ -953,12 +971,12 @@ export function MembersPage() {
                 </div>
             </Sheet>
 
-            {/* Manage club roles sheet */}
+            {/* Manage club roles sheet (per member) */}
             <Sheet open={!!rolesUser} onClose={() => setRolesUser(null)}
                    title={`🛡️ ${rolesUser?.name ?? ''} — ${t('member.action.manageRoles')}`}>
                 {rolesUser && (
                     <div className="flex flex-col gap-2">
-                        {CLUB_ROLES.map(({role, labelKey}) => {
+                        {CLUB_ROLES.map(({role, labelKey, descKey}) => {
                             const currentRoles = getUserRoles(rolesUser)
                             const isActive = currentRoles.includes(role)
                             const isSelfAdmin = role === 'admin' && rolesUser.id === user?.id && isActive
@@ -972,10 +990,15 @@ export function MembersPage() {
                                         isActive ? 'border-accent bg-accent-tint' : 'border-line'
                                     } ${updatingRoles || isSelfAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
-                                    <span className="text-sm font-bold text-ink">
-                                        {t(labelKey as Parameters<typeof t>[0])}
-                                    </span>
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                                    <div className="min-w-0">
+                                        <div className="text-sm font-bold text-ink">
+                                            {t(labelKey as Parameters<typeof t>[0])}
+                                        </div>
+                                        <div className="text-xs text-muted">
+                                            {t(descKey as Parameters<typeof t>[0])}
+                                        </div>
+                                    </div>
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded flex-shrink-0 ${
                                         isActive ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'
                                     }`}>
                                         {isActive ? '✓' : '+'}
@@ -985,6 +1008,89 @@ export function MembersPage() {
                         })}
                     </div>
                 )}
+            </Sheet>
+
+            {/* Club Role Assignment Menu Sheet (by role across all active members) */}
+            <Sheet open={rolesMenuOpen} onClose={() => setRolesMenuOpen(false)}
+                   title={`🛡️ ${t('member.roles.menuTitle')}`}>
+                {(() => {
+                    const allActiveUsers = appUsers.filter(u => u.is_active)
+                    const activeRoleDef = CLUB_ROLES.find(r => r.role === selectedMenuRole) ?? CLUB_ROLES[0]
+                    const actorIsSuper = user ? getUserRoles(user).includes('superadmin') : false
+                    return (
+                        <div className="flex flex-col gap-3">
+                            <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t('member.roles.menuTitle')}>
+                                {CLUB_ROLES.map(({role, labelKey}) => {
+                                    const count = allActiveUsers.filter(u => getUserRoles(u).includes(role)).length
+                                    const selected = selectedMenuRole === role
+                                    return (
+                                        <button
+                                            key={role}
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={selected}
+                                            onClick={() => setSelectedMenuRole(role)}
+                                            className={`chip flex items-center gap-1.5 ${selected ? 'active' : ''}`}
+                                        >
+                                            <span>{t(labelKey as Parameters<typeof t>[0])}</span>
+                                            <span className={`text-xs font-extrabold px-1.5 rounded-full ${
+                                                selected ? 'bg-on-accent/20 text-on-accent' : 'bg-surface text-muted'
+                                            }`}>
+                                                {count}
+                                            </span>
+                                        </button>
+                                    )
+                                })}
+                            </div>
+
+                            <p className="text-xs text-muted">
+                                {t(activeRoleDef.descKey as Parameters<typeof t>[0])}
+                            </p>
+
+                            {allActiveUsers.length === 0 ? (
+                                <Empty icon="👥" text={t('member.noAppUsers')}/>
+                            ) : (
+                                <div className="flex flex-col gap-2">
+                                    {allActiveUsers.map(u => {
+                                        const linked = regularMembers.find(m => m.id === u.regular_member_id)
+                                        const displayName = linked?.nickname || u.name
+                                        const uRoles = getUserRoles(u)
+                                        const isActive = uRoles.includes(selectedMenuRole)
+                                        const isSuperTarget = uRoles.includes('superadmin')
+                                        const isSelfAdmin = selectedMenuRole === 'admin' && u.id === user?.id && isActive
+                                        const disabled = updatingRoles || isSelfAdmin || (isSuperTarget && !actorIsSuper)
+                                        return (
+                                            <button
+                                                key={u.id}
+                                                type="button"
+                                                disabled={disabled}
+                                                onClick={() => handleToggleUserRole(u, selectedMenuRole)}
+                                                className={`kce-card p-3 flex items-center justify-between gap-3 text-left transition-all ${
+                                                    isActive ? 'border-accent bg-accent-tint' : 'border-line'
+                                                } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            >
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <Avatar name={displayName} src={u.avatar} size="sm"/>
+                                                    <div className="min-w-0">
+                                                        <div className="text-sm font-bold text-ink truncate">{displayName}</div>
+                                                        {linked?.nickname && (
+                                                            <div className="text-xs text-muted truncate">{u.name}</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <span className={`text-xs font-bold px-2 py-0.5 rounded flex-shrink-0 ${
+                                                    isActive ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'
+                                                }`}>
+                                                    {isActive ? '✓' : '+'}
+                                                </span>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )
+                })()}
             </Sheet>
         </div>
     )

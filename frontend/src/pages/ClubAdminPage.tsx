@@ -48,7 +48,7 @@ export function ClubAdminPage() {
     const t = useT()
     const user = useAppStore(s => s.user)
     const {setPenaltyTypes, setRegularMembers, setGameTemplates} = useAppStore()
-    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'roles' | 'members' | 'pins' | 'committee' | 'season' | 'backups'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'roles', 'members', 'pins', 'committee', 'season', 'backups'])
+    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'roles' | 'members' | 'pins' | 'season' | 'backups'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'roles', 'members', 'pins', 'season', 'backups'])
 
     const qc = useQueryClient()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
@@ -66,7 +66,7 @@ export function ClubAdminPage() {
             return d
         }
     })
-    const {data: regularMembers = [], refetch: refetchRM} = useQuery({
+    const {data: regularMembers = []} = useQuery({
         queryKey: ['regular-members'], queryFn: async () => {
             const d = await api.listRegularMembers();
             setRegularMembers(d);
@@ -81,7 +81,6 @@ export function ClubAdminPage() {
         {id: 'templates', label: t('club.tab.templates'), icon: '🏆'},
         {id: 'teams', label: t('club.tab.teams'), icon: '🤝'},
         {id: 'pins', label: t('club.tab.pins'), icon: '📌'},
-        {id: 'committee', label: t('club.tab.committee'), icon: '🛠️'},
         {id: 'season', label: `📆 ${t('season.tab')}`},
         ...(isSuperadmin(user) ? [
             {id: 'clubs', label: t('club.tab.clubs'), icon: '🏛️'},
@@ -135,11 +134,6 @@ export function ClubAdminPage() {
                     {tab === 'pins' && (
                         <AdminGuard>
                             <PinsTab regularMembers={regularMembers}/>
-                        </AdminGuard>
-                    )}
-                    {tab === 'committee' && (
-                        <AdminGuard>
-                            <CommitteeAdminTab regularMembers={regularMembers} onChanged={refetchRM}/>
                         </AdminGuard>
                     )}
                     {tab === 'season' && (
@@ -2049,84 +2043,6 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
 }
 
 // ── Invites ──
-
-// ── Committee Admin Tab ───────────────────────────────────────────────────────
-
-function CommitteeAdminTab({regularMembers, onChanged}: {
-    regularMembers: RegularMemberType[]
-    onChanged: () => void
-}) {
-    const t = useT()
-    const [busy, setBusy] = useState<number | null>(null)
-    const activeNonGuests = regularMembers.filter(m => m.is_active && !m.is_guest)
-
-    async function toggle(member: RegularMemberType) {
-        setBusy(member.id)
-        try {
-            await api.setCommitteeMember(member.id, !member.is_committee)
-            await onChanged()
-        } catch (e) {
-            showToast(String(e))
-        } finally {
-            setBusy(null)
-        }
-    }
-
-    const committeeMembers = activeNonGuests.filter(m => m.is_committee)
-    const otherMembers = activeNonGuests.filter(m => !m.is_committee)
-
-    return (
-        <div>
-            <p className="text-muted text-xs mb-4">{t('committee.membersHint')}</p>
-
-            {committeeMembers.length === 0 && (
-                <p className="text-muted text-sm mb-4">{t('committee.noMembers')}</p>
-            )}
-
-            {committeeMembers.length > 0 && (
-                <div className="mb-4">
-                    <p className="sec-heading mb-2">{t('committee.members')}</p>
-                    <div className="flex flex-col gap-2">
-                        {committeeMembers.map(m => (
-                            <div key={m.id}
-                                 className="card p-3 flex items-center justify-between gap-2">
-                                <div>
-                                    <p className="text-sm font-bold text-ink">{m.nickname || m.name}</p>
-                                    {m.nickname && <p className="text-xs text-muted">{m.name}</p>}
-                                </div>
-                                <button
-                                    // disabled={busy === m.id}
-                                    onClick={() => toggle(m)}
-                                    className="text-xs px-3 py-1 rounded-full font-bold transition-all"
-                                    style={{background: 'var(--accent-tint)', color: 'var(--accent-tint-fg)', border: '1px solid var(--accent-deep)'}}>
-                                    VGA ✓
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            <p className="sec-heading mb-2">{t('member.roster')}</p>
-            <div className="flex flex-col gap-2">
-                {otherMembers.map(m => (
-                    <div key={m.id} className="card p-3 flex items-center justify-between gap-2">
-                        <div>
-                            <p className="text-sm font-bold text-ink">{m.nickname || m.name}</p>
-                            {m.nickname && <p className="text-xs text-muted">{m.name}</p>}
-                        </div>
-                        <button
-                            disabled={busy === m.id}
-                            onClick={() => toggle(m)}
-                            className="text-xs px-3 py-1 rounded-full font-bold bg-surface-2 text-muted border border-line transition-all">
-                            {t('committee.isCommittee')}
-                        </button>
-                    </div>
-                ))}
-            </div>
-        </div>
-    )
-}
 
 // ── Superadmin: Database Backups (pgbackrest) ──
 function fmtBytes(bytes: number): string {

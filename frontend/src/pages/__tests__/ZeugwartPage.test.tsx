@@ -151,15 +151,11 @@ describe('ZeugwartPage', () => {
         await waitFor(() => expect(api.deleteInventoryItem).toHaveBeenCalledWith(1))
     })
 
-    it('lets admins appoint a keeper, excluding guests', async () => {
+    it('does not render keeper assignment card for admins (moved to MembersPage)', async () => {
         storeState.user = {id: 1, role: 'admin'}
-        vi.mocked(api.setZeugwart).mockResolvedValue({id: 1, is_zeugwart: true})
         renderPage()
-        const manage = await screen.findByTestId('zeugwart-manage')
-        fireEvent.click(manage.querySelector('button')!)
-        expect(screen.queryByText('Gast')).not.toBeInTheDocument()
-        fireEvent.click(await screen.findByText('Anna'))
-        await waitFor(() => expect(api.setZeugwart).toHaveBeenCalledWith(1, true))
+        await screen.findByTestId('zeugwart-list')
+        expect(screen.queryByTestId('zeugwart-manage')).not.toBeInTheDocument()
     })
 
     it('names the current keepers', async () => {

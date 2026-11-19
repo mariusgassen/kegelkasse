@@ -307,9 +307,9 @@ describe('ClubAdminPage — tab navigation', () => {
         expect(screen.getByText('club.tab.pins')).toBeInTheDocument()
     })
 
-    it('shows committee tab button', async () => {
+    it('does not show committee tab button', async () => {
         await renderClubAdminPage()
-        expect(screen.getByText('club.tab.committee')).toBeInTheDocument()
+        expect(screen.queryByText('club.tab.committee')).not.toBeInTheDocument()
     })
 
     it('does not show clubs tab for non-superadmin', async () => {
@@ -933,35 +933,6 @@ describe('ClubAdminPage — members tab', () => {
     it('renders MembersPage inside members tab', async () => {
         await renderClubAdminPage()
         expect(screen.getByTestId('members-page')).toBeInTheDocument()
-    })
-})
-
-describe('ClubAdminPage — committee admin tab', () => {
-    beforeEach(async () => {
-        vi.clearAllMocks()
-        const { useHashTab } = await import('@/hooks/usePage.ts')
-        vi.mocked(useHashTab).mockReturnValue(['committee', vi.fn()] as any)
-        await setupDefaultApiMocks()
-        await setupAsAdmin()
-    })
-
-    it('shows committee members hint text', async () => {
-        const { api } = await import('@/api/client.ts')
-        vi.mocked(api.listRegularMembers).mockResolvedValue(REGULAR_MEMBERS as any)
-        await renderClubAdminPage()
-        await waitFor(() => {
-            expect(screen.getByText('committee.membersHint')).toBeInTheDocument()
-        })
-    })
-
-    it('shows non-committee members in the list', async () => {
-        const { api } = await import('@/api/client.ts')
-        vi.mocked(api.listRegularMembers).mockResolvedValue(REGULAR_MEMBERS as any)
-        await renderClubAdminPage()
-        await waitFor(() => {
-            // non-committee members shown as candidates (nickname takes priority)
-            expect(screen.getAllByText(/Hansi|Hans/).length).toBeGreaterThan(0)
-        })
     })
 })
 
@@ -2005,56 +1976,6 @@ describe('ClubAdminPage — pins holder select', () => {
         const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement
         fireEvent.change(dateInput, { target: { value: '2026-01-01' } })
         expect(dateInput.value).toBe('2026-01-01')
-    })
-})
-
-describe('ClubAdminPage — committee toggle', () => {
-    beforeEach(async () => {
-        vi.clearAllMocks()
-        const { useHashTab } = await import('@/hooks/usePage.ts')
-        vi.mocked(useHashTab).mockReturnValue(['committee', vi.fn()] as any)
-        await setupDefaultApiMocks()
-        await setupAsAdmin()
-    })
-
-    it('calls api.setCommitteeMember true when toggle clicked', async () => {
-        const { api } = await import('@/api/client.ts')
-        vi.mocked(api.listRegularMembers).mockResolvedValue(REGULAR_MEMBERS as any)
-        vi.mocked(api.setCommitteeMember).mockResolvedValueOnce(undefined as any)
-        await renderClubAdminPage()
-        await waitFor(() => screen.getByText('committee.membersHint'))
-        const toggleBtns = screen.getAllByText('committee.isCommittee')
-        fireEvent.click(toggleBtns[0])
-        await waitFor(() => {
-            expect(api.setCommitteeMember).toHaveBeenCalledWith(expect.any(Number), true)
-        })
-    })
-
-    it('shows committee member in committee section with VGA button', async () => {
-        const { api } = await import('@/api/client.ts')
-        vi.mocked(api.listRegularMembers).mockResolvedValue([
-            { id: 1, name: 'Admin', nickname: null, is_guest: false, is_deleted: false, is_committee: true, is_active: true, avatar: null },
-            { id: 2, name: 'Hans', nickname: 'Hansi', is_guest: false, is_deleted: false, is_committee: false, is_active: true, avatar: null },
-        ] as any)
-        await renderClubAdminPage()
-        await waitFor(() => {
-            expect(screen.getByText('committee.members')).toBeInTheDocument()
-            expect(screen.getByText('VGA ✓')).toBeInTheDocument()
-        })
-    })
-
-    it('calls api.setCommitteeMember false when VGA button clicked', async () => {
-        const { api } = await import('@/api/client.ts')
-        vi.mocked(api.listRegularMembers).mockResolvedValue([
-            { id: 1, name: 'Admin', nickname: null, is_guest: false, is_deleted: false, is_committee: true, is_active: true, avatar: null },
-        ] as any)
-        vi.mocked(api.setCommitteeMember).mockResolvedValueOnce(undefined as any)
-        await renderClubAdminPage()
-        await waitFor(() => screen.getByText('VGA ✓'))
-        fireEvent.click(screen.getByText('VGA ✓'))
-        await waitFor(() => {
-            expect(api.setCommitteeMember).toHaveBeenCalledWith(1, false)
-        })
     })
 })
 

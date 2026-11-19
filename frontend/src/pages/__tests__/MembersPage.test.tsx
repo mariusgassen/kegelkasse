@@ -28,6 +28,7 @@ vi.mock('@/store/app.ts', () => ({
         user: null,
         regularMembers: [],
         setRegularMembers: vi.fn(),
+        setUser: vi.fn(),
     })),
 }))
 
@@ -45,6 +46,7 @@ vi.mock('@/api/client.ts', () => ({
         mergeRegularMembers: vi.fn(),
         addPlayer: vi.fn(),
         updateMemberRole: vi.fn(),
+        updateMemberRoles: vi.fn(),
         deactivateMember: vi.fn(),
         reactivateMember: vi.fn(),
         reactivateRegularMember: vi.fn(),
@@ -1625,3 +1627,54 @@ describe('MembersPage — member add sheet nickname input', () => {
         expect(nicknameInput.value).toBe('Bobo')
     })
 })
+
+describe('MembersPage — club role assignment menu', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+    })
+
+    it('shows role assignment menu button for admin and hides for member', async () => {
+        await setupAdmin()
+        const { unmount } = await renderMembersPage()
+        await waitFor(() => {
+            expect(screen.getByTestId('members-roles-menu-btn')).toBeInTheDocument()
+        })
+        unmount()
+
+        await setupMember()
+        await renderMembersPage()
+        await waitFor(() => {
+            expect(screen.getByText('member.appUsers')).toBeInTheDocument()
+        })
+        expect(screen.queryByTestId('members-roles-menu-btn')).not.toBeInTheDocument()
+    })
+
+    it('opens role assignment menu with the 5 club roles (no it_admin or superadmin) and toggles a role', async () => {
+        await setupAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateMemberRoles).mockResolvedValueOnce({ id: 11, role: 'committee', roles: ['committee'] } as any)
+        await renderMembersPage()
+
+        fireEvent.click(await screen.findByTestId('members-roles-menu-btn'))
+        const sheet = await screen.findByTestId('sheet')
+
+        // Check all 5 club roles are present, while platform roles (it_admin, superadmin) are not
+        expect(within(sheet).getByRole('tab', { name: /role\.admin/ })).toBeInTheDocument()
+        expect(within(sheet).getByRole('tab', { name: /role\.treasurer/ })).toBeInTheDocument()
+        expect(within(sheet).getByRole('tab', { name: /role\.auditor/ })).toBeInTheDocument()
+        expect(within(sheet).getByRole('tab', { name: /role\.committee/ })).toBeInTheDocument()
+        expect(within(sheet).getByRole('tab', { name: /role\.zeugwart/ })).toBeInTheDocument()
+        expect(within(sheet).queryByRole('tab', { name: /role\.it_admin/ })).not.toBeInTheDocument()
+        expect(within(sheet).queryByRole('tab', { name: /role\.superadmin/ })).not.toBeInTheDocument()
+
+        // Switch to committee tab and assign Franz Schmidt
+        fireEvent.click(within(sheet).getByRole('tab', { name: /role\.committee/ }))
+        expect(within(sheet).getByText('member.roles.desc.committee')).toBeInTheDocument()
+        fireEvent.click(within(sheet).getByText('Franz Schmidt'))
+
+        await waitFor(() => {
+            expect(api.updateMemberRoles).toHaveBeenCalledWith(11, ['committee'])
+        })
+    })
+})
+
