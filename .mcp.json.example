@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "kegelkasse-roadmap": {
+      "type": "http",
+      "url": "https://your-kegelkasse-domain.example/mcp",
+      "headers": {
+        "Authorization": "Bearer ${KEGELKASSE_MCP_TOKEN}"
+      }
+    },
+    "kegelkasse-roadmap-stdio": {
+      "command": "uv",
+      "args": ["run", "backend/app/mcp_roadmap_stdio.py"],
+      "env": {
+        "KEGELKASSE_URL": "https://your-kegelkasse-domain.example",
+        "KEGELKASSE_MCP_TOKEN": "${KEGELKASSE_MCP_TOKEN}"
+      }
+    }
+  }
+}

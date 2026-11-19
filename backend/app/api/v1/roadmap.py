@@ -60,6 +60,11 @@ class RoadmapItemCreate(TrimmedModel):
     description: Optional[str] = None
     category: Optional[str] = "feature"
     tags: Optional[str] = None
+    status: Optional[str] = None
+    is_pinned: Optional[bool] = None
+    is_official: Optional[bool] = None
+    admin_notes: Optional[str] = None
+    target_version: Optional[str] = None
 
 
 class RoadmapItemUpdate(TrimmedModel):
@@ -72,6 +77,7 @@ class RoadmapItemUpdate(TrimmedModel):
     duplicate_of_id: Optional[int] = None
     admin_notes: Optional[str] = None
     target_version: Optional[str] = None
+    is_official: Optional[bool] = None
 
 
 def _parse_tags(tags_str: Optional[str]) -> List[str]:
@@ -193,23 +199,33 @@ def _serialize_item(
     }
 
 
-@router.get("", response_model=List[dict])
-def list_roadmap(
-    status_filter: Optional[str] = Query(None, alias="status"),
-    category_filter: Optional[str] = Query(None, alias="category"),
-    tag_filter: Optional[str] = Query(None, alias="tag"),
-    limit: int = Query(DEFAULT_PAGE, ge=1, le=MAX_PAGE),
-    offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    """List roadmap items. The roadmap is global: all clubs see all ideas (managing stays per club)."""
+def query_roadmap_items(
+    db: Session,
+    user: User,
+    *,
+    status_filter: Optional[str] = None,
+    category_filter: Optional[str] = None,
+    tag_filter: Optional[str] = None,
+    search: Optional[str] = None,
+    is_official: Optional[bool] = None,
+    is_pinned: Optional[bool] = None,
+    target_version: Optional[str] = None,
+    limit: int = DEFAULT_PAGE,
+    offset: int = 0,
+) -> List[dict]:
+    """Query and serialize roadmap items with optional filters."""
     query = db.query(RoadmapItem)
 
     if status_filter:
         query = query.filter(RoadmapItem.status == status_filter)
     if category_filter:
         query = query.filter(RoadmapItem.category == category_filter)
+    if is_official is not None:
+        query = query.filter(RoadmapItem.is_official == is_official)
+    if is_pinned is not None:
+        query = query.filter(RoadmapItem.is_pinned == is_pinned)
+    if target_version:
+        query = query.filter(RoadmapItem.target_version == target_version.strip())
     if tag_filter:
         # Cheap SQL prefilter, then an exact tag match ("ui" must not find "build").
         query = query.filter(RoadmapItem.tags.ilike(f"%{tag_filter}%"))
@@ -218,6 +234,16 @@ def list_roadmap(
     if tag_filter:
         wanted = tag_filter.strip().lstrip("#").lower()
         items = [it for it in items if wanted in {t.lower() for t in _parse_tags(it.tags)}]
+    if search:
+        needle = search.strip().lower()
+        if needle:
+            items = [
+                it for it in items
+                if needle in (it.title or "").lower()
+                or needle in (it.description or "").lower()
+                or needle in (it.admin_notes or "").lower()
+                or needle in (it.tags or "").lower()
+            ]
 
     item_ids = [it.id for it in items]
     vote_counts = _vote_counts(db, items)
@@ -267,6 +293,36 @@ def list_roadmap(
     return result[offset:offset + limit]
 
 
+@router.get("", response_model=List[dict])
+def list_roadmap(
+    status_filter: Optional[str] = Query(None, alias="status"),
+    category_filter: Optional[str] = Query(None, alias="category"),
+    tag_filter: Optional[str] = Query(None, alias="tag"),
+    search: Optional[str] = Query(None),
+    is_official: Optional[bool] = Query(None),
+    is_pinned: Optional[bool] = Query(None),
+    target_version: Optional[str] = Query(None),
+    limit: int = Query(DEFAULT_PAGE, ge=1, le=MAX_PAGE),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """List roadmap items. The roadmap is global: all clubs see all ideas (managing stays per club)."""
+    return query_roadmap_items(
+        db,
+        user,
+        status_filter=status_filter,
+        category_filter=category_filter,
+        tag_filter=tag_filter,
+        search=search,
+        is_official=is_official,
+        is_pinned=is_pinned,
+        target_version=target_version,
+        limit=limit,
+        offset=offset,
+    )
+
+
 def _full_item(db: Session, item: RoadmapItem, user: User) -> dict:
     """Serialize one item with its vote/comment counts and duplicate title."""
     has_voted = (
@@ -294,13 +350,26 @@ def _full_item(db: Session, item: RoadmapItem, user: User) -> dict:
     )
 
 
+@router.get("/items/{item_id}", response_model=dict)
+def get_roadmap_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Fetch a single roadmap item by ID."""
+    item = db.query(RoadmapItem).filter(RoadmapItem.id == item_id).first()
+    if not item or not _can_see(item, user):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Roadmap item not found")
+    return _full_item(db, item, user)
+
+
 @router.post("/items", response_model=dict, status_code=status.HTTP_201_CREATED)
 def create_roadmap_item(
     payload: RoadmapItemCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Propose a new idea for the community roadmap."""
+    """Propose a new idea (or official milestone as superadmin) for the community roadmap."""
     title = (payload.title or "").strip()
     if len(title) < 2:
         raise _bad("Title must be at least 2 characters")
@@ -310,22 +379,52 @@ def create_roadmap_item(
     category = _clean_category(payload.category)
     tags = _clean_tags(payload.tags)
 
-    if _create_limiter.hit(f"user:{user.id}", CREATE_LIMIT_PER_HOUR):
+    wants_official = bool(payload.is_official)
+    if wants_official and not user.is_superadmin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only superadmins can create official roadmap items")
+
+    item_status = (payload.status or "idea").strip()
+    if item_status not in ALLOWED_STATUSES:
+        raise _bad(f"Invalid status: {item_status}")
+
+    admin_notes = _clean_text(payload.admin_notes, MAX_NOTES, "Admin notes") if payload.admin_notes is not None else None
+    target_version = _clean_text(payload.target_version, MAX_VERSION, "Target version") if payload.target_version is not None else None
+    wants_pinned = bool(payload.is_pinned)
+    uses_manager_fields = (
+        item_status != "idea"
+        or wants_pinned
+        or admin_notes is not None
+        or target_version is not None
+    )
+    if uses_manager_fields and not (user.is_superadmin or _is_admin(user)):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only admins and superadmins can set roadmap moderation fields")
+
+    if not user.is_superadmin and _create_limiter.hit(f"user:{user.id}", CREATE_LIMIT_PER_HOUR):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Too many ideas, try again later")
 
-    author = _display_name(db, user) if user.club_id else user.name
+    if item_status == "completed" and target_version is None:
+        target_version = _deployed_version()
+
+    if wants_official:
+        club_id = None
+        author = "Kegelkasse Team"
+    else:
+        club_id = user.club_id
+        author = _display_name(db, user) if user.club_id else user.name
 
     item = RoadmapItem(
-        club_id=user.club_id,
+        club_id=club_id,
         created_by_user_id=user.id,
         author_name=author,
         title=title,
         description=description,
-        status="idea",
+        status=item_status,
         category=category,
         tags=tags,
-        is_pinned=False,
-        is_official=False,
+        is_pinned=wants_pinned,
+        is_official=wants_official,
+        admin_notes=admin_notes,
+        target_version=target_version,
     )
     db.add(item)
     db.flush()
@@ -422,6 +521,9 @@ def update_roadmap_item(
         if item.status != "idea":
             raise HTTPException(status.HTTP_403_FORBIDDEN, "This idea is already being handled and can no longer be edited")
 
+    if payload.is_official is not None and not user.is_superadmin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only superadmins can change official status")
+
     old_status = item.status
     old_version = item.target_version
     old_notes = item.admin_notes
@@ -458,6 +560,12 @@ def update_roadmap_item(
             item.duplicate_of_id = None
     if payload.is_pinned is not None:
         item.is_pinned = payload.is_pinned
+    if payload.is_official is not None:
+        item.is_official = payload.is_official
+        if payload.is_official:
+            item.club_id = None
+            if not item.author_name or item.author_name == "Mitglied":
+                item.author_name = "Kegelkasse Team"
     if payload.duplicate_of_id is not None:
         if payload.duplicate_of_id > 0:
             item.duplicate_of_id = payload.duplicate_of_id

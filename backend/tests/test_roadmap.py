@@ -33,6 +33,7 @@ def cleanup(db: Session, club: Club):
     if item_ids:
         db.query(RoadmapVote).filter(RoadmapVote.item_id.in_(item_ids)).delete(synchronize_session=False)
         db.query(RoadmapItem).filter(RoadmapItem.id.in_(item_ids)).delete(synchronize_session=False)
+    db.query(User).filter(User.email == "pm@test.de").delete(synchronize_session=False)
     db.commit()
 
 
@@ -49,7 +50,10 @@ def admin(db: Session, club: Club):
     db.add(u)
     db.commit()
     db.refresh(u)
-    return u
+    yield u
+    db.rollback()
+    db.query(User).filter(User.id == u.id).delete(synchronize_session=False)
+    db.commit()
 
 
 @pytest.fixture()
@@ -65,7 +69,10 @@ def superadmin(db: Session):
     db.add(u)
     db.commit()
     db.refresh(u)
-    return u
+    yield u
+    db.rollback()
+    db.query(User).filter(User.id == u.id).delete(synchronize_session=False)
+    db.commit()
 
 
 def test_list_roadmap_unauthenticated(client):
@@ -575,3 +582,98 @@ def test_completing_keeps_explicit_version(client, admin, db):
     item = _item(db, club_id=admin.club_id, created_by_user_id=admin.id, status="planned", target_version="2.0")
     r = client.patch(f"/api/v1/roadmap/items/{item.id}", json={"status": "completed", "target_version": "1.50"}, headers=_headers(admin))
     assert r.json()["target_version"] == "1.50"
+
+
+def test_get_single_roadmap_item_and_filters(client, user, superadmin, auth_headers, db):
+    _item(
+        db,
+        title="Bank-Import CAMT",
+        description="Kontoauszug einlesen",
+        status="planned",
+        category="kasse",
+        tags="import, csv",
+        is_official=True,
+        is_pinned=True,
+        target_version="2.1",
+    )
+    other = _item(
+        db,
+        title="Dark Mode Tweaks",
+        description="Farben anpassen",
+        status="idea",
+        category="design",
+        club_id=user.club_id,
+    )
+
+    r_single = client.get(f"/api/v1/roadmap/items/{other.id}", headers=auth_headers)
+    assert r_single.status_code == 200
+    assert r_single.json()["title"] == "Dark Mode Tweaks"
+    assert client.get("/api/v1/roadmap/items/999999", headers=auth_headers).status_code == 404
+
+    assert [x["title"] for x in client.get("/api/v1/roadmap?search=kontoauszug", headers=auth_headers).json()] == ["Bank-Import CAMT"]
+    assert [x["title"] for x in client.get("/api/v1/roadmap?is_official=true", headers=auth_headers).json()] == ["Bank-Import CAMT"]
+    assert [x["title"] for x in client.get("/api/v1/roadmap?is_pinned=true", headers=auth_headers).json()] == ["Bank-Import CAMT"]
+    assert [x["title"] for x in client.get("/api/v1/roadmap?target_version=2.1", headers=auth_headers).json()] == ["Bank-Import CAMT"]
+
+
+def test_superadmin_creates_and_promotes_official_items_without_rate_limit(client, user, admin, superadmin, db):
+    r_member_official = client.post(
+        "/api/v1/roadmap/items",
+        json={"title": "Member Official", "is_official": True},
+        headers=_headers(user),
+    )
+    assert r_member_official.status_code == 403
+
+    r_admin_official = client.post(
+        "/api/v1/roadmap/items",
+        json={"title": "Admin Official", "is_official": True},
+        headers=_headers(admin),
+    )
+    assert r_admin_official.status_code == 403
+
+    r_member_status = client.post(
+        "/api/v1/roadmap/items",
+        json={"title": "Member Planned", "status": "planned"},
+        headers=_headers(user),
+    )
+    assert r_member_status.status_code == 403
+
+    h_super = _headers(superadmin)
+    for i in range(roadmap_api.CREATE_LIMIT_PER_HOUR + 2):
+        r = client.post(
+            "/api/v1/roadmap/items",
+            json={
+                "title": f"Official Milestone {i}",
+                "status": "planned",
+                "is_official": True,
+                "is_pinned": i == 0,
+                "target_version": "2.2",
+                "admin_notes": "Migrated from repo",
+            },
+            headers=h_super,
+        )
+        assert r.status_code == 201
+        data = r.json()
+        assert data["is_official"] is True
+        assert data["club_id"] is None
+        assert data["author_name"] == "Kegelkasse Team"
+        assert data["status"] == "planned"
+        assert data["target_version"] == "2.2"
+
+    # Promote a community item to official (superadmin only)
+    community = _item(db, title="Community Gem", club_id=user.club_id, created_by_user_id=user.id)
+    assert client.patch(
+        f"/api/v1/roadmap/items/{community.id}",
+        json={"is_official": True},
+        headers=_headers(admin),
+    ).status_code == 403
+
+    r_promo = client.patch(
+        f"/api/v1/roadmap/items/{community.id}",
+        json={"is_official": True},
+        headers=h_super,
+    )
+    assert r_promo.status_code == 200
+    assert r_promo.json()["is_official"] is True
+    assert r_promo.json()["club_id"] is None
+

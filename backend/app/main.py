@@ -16,11 +16,13 @@ with open(Path(__file__).parent.parent / "pyproject.toml", "rb") as _f:
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from starlette.routing import Route
 
 from api.v1 import ai, ai_search, app_icon, audit, auth, backups, bowling, club, comments, committee, documents, evenings, guest_requests, inventory, public, push, reports, roadmap, schedule, scoreboard, season, stats, stickers, sync, superadmin, telegram, uploads
 from core.config import settings
 from core.events import event_bus
 from core.scheduler import start_scheduler, stop_scheduler
+from mcp_roadmap import RoadmapMcpASGI, mcp_session_lifespan
 
 logging.basicConfig(
     level=settings.LOG_LEVEL.upper(),
@@ -34,8 +36,11 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     start_scheduler()
-    yield
-    stop_scheduler()
+    try:
+        async with mcp_session_lifespan():
+            yield
+    finally:
+        stop_scheduler()
 
 
 app = FastAPI(
@@ -105,6 +110,16 @@ app.include_router(roadmap.router, prefix="/api/v1")
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "version": __version__}
+
+
+# Roadmap MCP server (Streamable HTTP over Bearer auth)
+_mcp_asgi = RoadmapMcpASGI(app)
+app.router.routes.append(
+    Route("/mcp", endpoint=_mcp_asgi, methods=["GET", "POST", "DELETE"], include_in_schema=False)
+)
+app.router.routes.append(
+    Route("/mcp/", endpoint=_mcp_asgi, methods=["GET", "POST", "DELETE"], include_in_schema=False)
+)
 
 
 # Serve Docusaurus docs at /docs
