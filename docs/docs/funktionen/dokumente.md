@@ -12,7 +12,7 @@ Eine neue Fassung lädst du über das Menü (⋮) am bestehenden Dokument mit **
 
 ## Bestätigen
 
-Jedes Mitglied kann pro Version **Kenntnis genommen** oder **Zugestimmt** wählen und die Antwort später zurückziehen. Gespeichert werden Name und Zeitpunkt. Der Fortschrittsbalken zeigt, wie viele Mitglieder bereits geantwortet haben. Bei einer neuen Version beginnt die Zählung wieder bei null. Das ist ein einfacher Nachweis, keine notarielle Unterschrift.
+Jedes Mitglied bestätigt pro Version mit einem Knopf, dessen Beschriftung zur Art des Dokuments passt: bei Satzung und Geschäftsordnung **Zustimmen**, bei Protokoll und Sonstigem **Kenntnis genommen**. Die Antwort lässt sich später zurückziehen. Gespeichert werden Name und Zeitpunkt. Der Fortschrittsbalken zeigt, wie viele Mitglieder bereits geantwortet haben. Bei einer neuen Version beginnt die Zählung wieder bei null. Das ist ein einfacher Nachweis, keine notarielle Unterschrift.
 
 ## ✨ Mit KI ausfüllen
 

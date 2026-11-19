@@ -31,6 +31,8 @@ const TYPE_ICON: Record<ClubDocumentType, string> = {
     satzung: '📜', geschaeftsordnung: '📋', protokoll: '🗓️', sonstiges: '📄',
 }
 const TYPES: ClubDocumentType[] = ['satzung', 'geschaeftsordnung', 'protokoll', 'sonstiges']
+/** Decisions are agreed to; minutes and other documents are only taken note of — one button, the label follows the type. */
+const DECISION_TYPES: ClubDocumentType[] = ['satzung', 'geschaeftsordnung']
 
 function fDate(iso: string | null): string {
     if (!iso) return '–'
@@ -323,18 +325,10 @@ function DocumentCard({doc, memberCount, canEdit, busy, history, onDownload, onA
                         {t('document.withdraw')}
                     </Button>
                 ) : (
-                    <>
-                        <Button variant="secondary" className="flex-1" data-testid="document-ack"
-                                disabled={busy || !isOnline}
-                                onClick={() => onAck(doc, 'acknowledged')}>
-                            {t('document.acknowledged')}
-                        </Button>
-                        <Button variant="secondary" className="flex-1" data-testid="document-agree"
-                                disabled={busy || !isOnline}
-                                onClick={() => onAck(doc, 'agreed')}>
-                            {t('document.agreed')}
-                        </Button>
-                    </>
+                    <Button variant="secondary" className="flex-1" data-testid="document-confirm"
+                            disabled={busy || !isOnline} onClick={() => onAck(doc, DECISION_TYPES.includes(doc.document_type) ? 'agreed' : 'acknowledged')}>
+                        {t(DECISION_TYPES.includes(doc.document_type) ? 'document.action.agree' : 'document.action.acknowledge')}
+                    </Button>
                 )}
             </div>
 

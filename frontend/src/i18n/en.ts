@@ -1937,6 +1937,8 @@ export const en = {
     "document.confirm": "Confirm",
     "document.acknowledged": "Noted",
     "document.agreed": "Agreed",
+    "document.action.agree": "Agree",
+    "document.action.acknowledge": "Mark as read",
     "document.withdraw": "Withdraw confirmation",
     "document.myResponse": "Your confirmation",
     "document.none": "No confirmations yet",

@@ -1937,6 +1937,8 @@ export const de = {
     "document.confirm": "Bestätigen",
     "document.acknowledged": "Kenntnis genommen",
     "document.agreed": "Zugestimmt",
+    "document.action.agree": "Zustimmen",
+    "document.action.acknowledge": "Kenntnis genommen",
     "document.withdraw": "Bestätigung zurückziehen",
     "document.myResponse": "Deine Bestätigung",
     "document.none": "Noch keine Bestätigungen",
