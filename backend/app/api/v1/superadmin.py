@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
-from api.deps import require_superadmin, get_db
+from api.deps import ensure_club_retains_admin, require_superadmin, get_db
 from core.security import create_access_token
 from models.club import Club, ClubSettings, ClubPin
 from models.comment import Comment, CommentReaction
@@ -263,6 +263,7 @@ def _apply_user_roles(
         if superadmin_count <= 1:
             raise HTTPException(400, "Cannot demote the only active superadmin")
 
+    ensure_club_retains_admin(db, target_user, new_roles=normalized_roles)
     target_user.roles = normalized_roles
 
     db.commit()

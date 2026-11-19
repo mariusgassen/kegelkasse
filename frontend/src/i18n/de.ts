@@ -859,6 +859,7 @@ export const de = {
     "member.roles.desc.auditor": "Kassenprüfungen einsehen und im Vier-Augen-Prinzip freigeben.",
     "member.roles.desc.committee": "Kegelfahrten, Fahrtausgaben, Ankündigungen und Umfragen moderieren.",
     "member.roles.desc.zeugwart": "Vereinsinventar und Bestandsbewegungen verwalten.",
+    "member.roles.lastAdminHint": "Im Verein muss immer mindestens ein aktiver Admin vorhanden sein.",
     "member.action.deactivate": "Deaktivieren",
     "member.action.createInvite": "Einladungslink erstellen",
     "member.action.merge": "Mit anderem Eintrag zusammenlegen",

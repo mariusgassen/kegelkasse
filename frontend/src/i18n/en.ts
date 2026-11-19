@@ -859,6 +859,7 @@ export const en = {
     "member.roles.desc.auditor": "Review and sign off treasury audits (four-eyes principle).",
     "member.roles.desc.committee": "Bowling trips, trip expenses, announcements and polls moderation.",
     "member.roles.desc.zeugwart": "Manage club inventory and stock movements.",
+    "member.roles.lastAdminHint": "At least one active admin must remain in the club.",
     "member.action.deactivate": "Deactivate",
     "member.action.createInvite": "Create invite link",
     "member.action.merge": "Merge with another entry",

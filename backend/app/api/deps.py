@@ -171,3 +171,28 @@ def list_regular_members_with_role(
         if m.id in rm_ids or (m.user_id and m.user_id in user_ids)
     ]
 
+
+def ensure_club_retains_admin(
+    db: Session,
+    target: User,
+    new_roles: list[str] | set[str] | None = None,
+    will_be_active: bool = True,
+) -> None:
+    """Ensure every club keeps at least one active user holding the ``admin`` role."""
+    if not target.club_id or UserRole.admin.value not in target.all_roles:
+        return
+    loses_admin = (not will_be_active) or (new_roles is not None and UserRole.admin.value not in new_roles)
+    if not loses_admin:
+        return
+    other_users = db.query(User).filter(
+        User.club_id == target.club_id,
+        User.id != target.id,
+        User.is_active == True,  # noqa: E712
+    ).all()
+    if not any(UserRole.admin.value in u.all_roles for u in other_users):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Der Verein muss mindestens einen aktiven Admin behalten",
+        )
+
+
