@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     # so CARTO_API_KEY stays server-side.
     CARTO_API_KEY: str = ""
     CARTO_TILE_URL: str = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+    # Optional static Bearer token for authenticating the /mcp endpoint (roadmap MCP server)
+    # as platform superadmin. Empty = disabled (clients must use a user JWT).
+    MCP_API_TOKEN: str = ""
 
     @property
     def sync_database_url(self) -> str:

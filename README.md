@@ -22,6 +22,13 @@ cd frontend && npm install && npm run dev   # → http://localhost:5173
 
 Docs (German, Docusaurus): `cd docs && npm install && npm start` → http://localhost:3000
 
+## Roadmap MCP
+
+The backend exposes a Streamable-HTTP MCP server at `/mcp` for managing the in-app roadmap (`list_roadmap_items`, `create_roadmap_item`, `move_roadmap_status`, `update_roadmap_item`, `delete_roadmap_item`, comments, votes, summary).
+
+- **Remote HTTP (`.mcp.json`):** Point to `https://<host>/mcp` with `Authorization: Bearer <MCP_API_TOKEN or user JWT>` (set `MCP_API_TOKEN` on the server to act as platform superadmin).
+- **Local `stdio` wrapper:** `uv run backend/app/mcp_roadmap_stdio.py` (supports `KEGELKASSE_URL` + `KEGELKASSE_MCP_TOKEN` / `KEGELKASSE_TOKEN`, or `KEGELKASSE_EMAIL` + `KEGELKASSE_PASSWORD` with automatic JWT refresh). See `.mcp.json.example`.
+
 ## Deployment
 
 Push to Git; Coolify builds the Docker Compose stack. Migrations and admin seed run on container start.
