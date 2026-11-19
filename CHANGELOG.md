@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.81.0](https://github.com/mariusgassen/kegelkasse/compare/v1.80.1...v1.81.0) (2026-11-19)
+
+
+### Features
+
+* consolidate role model into User.roles, add IT-Admin and Treasurer, empower members ([#674](https://github.com/mariusgassen/kegelkasse/issues/674)) ([be1ce6d](https://github.com/mariusgassen/kegelkasse/commit/be1ce6d3f6ccb66ad97aae6565f9926afa688267))
+* Markdown für alle Textanzeigen, Neuigkeiten-Vorschau und Eingabefelder ([#677](https://github.com/mariusgassen/kegelkasse/issues/677)) ([2403c27](https://github.com/mariusgassen/kegelkasse/commit/2403c27241821fe3ebbb6f0aec5110ebebc9af90))
+* **roadmap:** add Roadmap MCP server (/mcp & stdio) ([#678](https://github.com/mariusgassen/kegelkasse/issues/678)) ([fb1bbf8](https://github.com/mariusgassen/kegelkasse/commit/fb1bbf8c567067593d9910b961ead28acfadd430))
+
+
+### Bug Fixes
+
+* **roles:** remove double scrollbar, revoke inactive user roles, translate member role badges ([#676](https://github.com/mariusgassen/kegelkasse/issues/676)) ([40a0ed9](https://github.com/mariusgassen/kegelkasse/commit/40a0ed9e07ee06cbfca872608b4f8ffb41aae2ef))
+
 ## [1.80.1](https://github.com/mariusgassen/kegelkasse/compare/v1.80.0...v1.80.1) (2026-11-19)
 
 
