@@ -8,6 +8,8 @@ export interface NotificationItem {
     receivedAt: string  // ISO timestamp
     read: boolean
     serverLogId?: number  // set when loaded from the server notification log (for deduplication)
+    category?: string | null
+    tag?: string
 }
 
 

@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useNotificationStore, unreadCount } from '../notifications'
+import {
+    useNotificationStore,
+    unreadCount,
+    isUpdateNotification,
+    extractReleaseVersion,
+} from '../notifications'
 
 function resetStore() {
     useNotificationStore.setState({ notifications: [] })
@@ -118,6 +123,70 @@ describe('useNotificationStore', () => {
         useNotificationStore.getState().addNotification({ title: 'C', body: 'D', url: '/2' })
         useNotificationStore.getState().clearAll()
         expect(useNotificationStore.getState().notifications).toHaveLength(0)
+    })
+
+    // ── SW + serverLogId dedup & update notifications ────────────────────────
+
+    it('merges a serverLogId onto an existing matching live SW notification', () => {
+        useNotificationStore.getState().addNotification({
+            title: 'Neue Version 1.80.0',
+            body: 'Neuigkeiten jetzt in der App ansehen.',
+            url: '/',
+            tag: 'kegelkasse-release',
+        })
+        useNotificationStore.getState().addNotification({
+            title: 'Neue Version 1.80.0',
+            body: 'Neuigkeiten jetzt in der App ansehen.',
+            url: '/',
+            category: 'app_updates',
+            serverLogId: 99,
+        })
+        const ns = useNotificationStore.getState().notifications
+        expect(ns).toHaveLength(1)
+        expect(ns[0].serverLogId).toBe(99)
+        expect(ns[0].category).toBe('app_updates')
+    })
+
+    it('markUpdateNotificationsRead marks only update/release notifications as read', () => {
+        useNotificationStore.getState().addNotification({
+            title: 'Neue Version 1.80.0',
+            body: 'Neuigkeiten',
+            url: '/',
+            category: 'app_updates',
+        })
+        useNotificationStore.getState().addNotification({
+            title: 'New version 1.79.0',
+            body: 'Legacy',
+            url: '/',
+        })
+        useNotificationStore.getState().addNotification({
+            title: 'Strafe',
+            body: '5€',
+            url: '/#evening',
+            category: 'penalties',
+        })
+        useNotificationStore.getState().markUpdateNotificationsRead()
+        const ns = useNotificationStore.getState().notifications
+        expect(ns.find(n => n.title === 'Neue Version 1.80.0')?.read).toBe(true)
+        expect(ns.find(n => n.title === 'New version 1.79.0')?.read).toBe(true)
+        expect(ns.find(n => n.title === 'Strafe')?.read).toBe(false)
+        expect(unreadCount(ns)).toBe(1)
+    })
+})
+
+describe('isUpdateNotification & extractReleaseVersion', () => {
+    it('detects update notifications by category, tag, or legacy release title', () => {
+        expect(isUpdateNotification({ title: 'Anything', url: '/x', category: 'app_updates' })).toBe(true)
+        expect(isUpdateNotification({ title: 'Anything', url: '/x', tag: 'kegelkasse-release' })).toBe(true)
+        expect(isUpdateNotification({ title: 'Neue Version 1.2.3', url: '/' })).toBe(true)
+        expect(isUpdateNotification({ title: 'New version 1.2.3', url: '/' })).toBe(true)
+        expect(isUpdateNotification({ title: 'Strafe', url: '/#evening', category: 'penalties' })).toBe(false)
+    })
+
+    it('extracts semver version from release titles', () => {
+        expect(extractReleaseVersion('Neue Version 1.80.0')).toBe('1.80.0')
+        expect(extractReleaseVersion('New version 1.2.3')).toBe('1.2.3')
+        expect(extractReleaseVersion('Strafe eingetragen')).toBeNull()
     })
 })
 

@@ -1,6 +1,7 @@
 import {useEffect} from 'react'
 import {useT} from '@/i18n'
 import {useSwUpdate} from '@/hooks/useSwUpdate'
+import {markUpdateNotificationsRead} from '@/lib/releaseNotifications'
 import {Island, IslandProvider, useIslandActions} from '@/lib/island'
 import {useIslandContext} from '@/lib/island/context'
 import {Glyph} from '@/components/islandcn/glyph'
@@ -69,7 +70,10 @@ function SwUpdateActivity() {
                             <IslandButton
                                 size="compact"
                                 tone={{kind: 'accent', color: accent}}
-                                onPress={() => { applyUpdate().catch(() => {}) }}
+                                onPress={() => {
+                                    markUpdateNotificationsRead()
+                                    applyUpdate().catch(() => {})
+                                }}
                             >
                                 {actionLabel}
                             </IslandButton>

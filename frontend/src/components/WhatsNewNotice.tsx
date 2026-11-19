@@ -2,6 +2,7 @@ import {useEffect, useState} from 'react'
 import {useT} from '@/i18n'
 import {hasUnseen, latestVersion, type Release} from '@/lib/changelog'
 import {useWhatsNewStore} from '@/store/whatsNew'
+import {markUpdateNotificationsRead} from '@/lib/releaseNotifications'
 import {ALL_RELEASES, WhatsNewSheet} from './WhatsNewSheet'
 import {Island, IslandProvider, useIslandActions} from '@/lib/island'
 import {useIslandContext} from '@/lib/island/context'
@@ -32,6 +33,10 @@ function WhatsNewActivity({releases = ALL_RELEASES}: {releases?: Release[]}) {
         const viewLabel = t('whatsNew.banner.button')
         const dismissLabel = t('whatsNew.banner.dismiss')
         const versionTag = `v${latest}`
+        const dismissRelease = () => {
+            markSeen(latest)
+            markUpdateNotificationsRead()
+        }
 
         island.start({
             id: WHATS_NEW_ID,
@@ -39,6 +44,7 @@ function WhatsNewActivity({releases = ALL_RELEASES}: {releases?: Release[]}) {
             alert: true,
             label: `${body} — ${viewLabel}`,
             onPress: () => island.expand(WHATS_NEW_ID),
+            onDismiss: dismissRelease,
             compact: {
                 leading: <Glyph icon={SparkleGlyph} color={accent}/>,
                 trailing: (
@@ -68,7 +74,7 @@ function WhatsNewActivity({releases = ALL_RELEASES}: {releases?: Release[]}) {
                             <IslandButton
                                 size="compact"
                                 label={dismissLabel}
-                                onPress={() => markSeen(latest)}
+                                onPress={dismissRelease}
                             >
                                 {dismissLabel}
                             </IslandButton>

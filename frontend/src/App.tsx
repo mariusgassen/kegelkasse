@@ -14,8 +14,10 @@ import {LoginPage} from './pages/LoginPage'
 import {AppLogoAnimated} from './components/Logo'
 import {showToast} from './components/ui/Toast'
 import {useActiveEvening} from './hooks/useEvening'
-import {useNotificationStore} from './store/notifications'
+import {useNotificationStore, extractReleaseVersion, isUpdateNotification} from './store/notifications'
+import {useWhatsNewStore} from './store/whatsNew'
 import {useBowlingStore} from './store/bowling'
+import {compareVersions} from './lib/changelog'
 import {router} from './router'
 import {WifiOff} from 'lucide-react'
 import {hexToHsl, hslToHex} from './lib/color'
@@ -100,10 +102,24 @@ export default function App() {
     // Listen for push messages broadcast from the service worker
     useEffect(() => {
         if (!('serviceWorker' in navigator)) return
+        const isAlreadySeenRelease = (item: {title: string; url: string; tag?: string; category?: string | null}) => {
+            if (!isUpdateNotification(item)) return false
+            const lastSeen = useWhatsNewStore.getState().lastSeen
+            const version = extractReleaseVersion(item.title)
+            return Boolean(lastSeen && version && compareVersions(version, lastSeen) <= 0)
+        }
         const handler = (event: MessageEvent) => {
             if (event.data?.type === 'push-received') {
-                const {title, body, url} = event.data
-                addNotification({title, body, url: url ?? '/'})
+                const {title, body, url, tag, category} = event.data
+                const normalized = {
+                    title,
+                    body,
+                    url: url ?? '/',
+                    tag,
+                    category: category ?? (tag === 'kegelkasse-release' ? 'app_updates' : undefined),
+                }
+                if (isAlreadySeenRelease(normalized)) return
+                addNotification(normalized)
             }
         }
         navigator.serviceWorker.addEventListener('message', handler)
@@ -120,8 +136,22 @@ export default function App() {
             const store = tx.objectStore('missed')
             const allReq = store.getAll()
             allReq.onsuccess = () => {
-                const items = allReq.result as {title: string; body: string; url: string}[]
-                items.forEach(n => addNotification({title: n.title, body: n.body, url: n.url ?? '/'}))
+                const items = allReq.result as {title: string; body: string; url: string; tag?: string; category?: string}[]
+                const lastSeen = useWhatsNewStore.getState().lastSeen
+                items.forEach(n => {
+                    const normalized = {
+                        title: n.title,
+                        body: n.body,
+                        url: n.url ?? '/',
+                        tag: n.tag,
+                        category: n.category ?? (n.tag === 'kegelkasse-release' ? 'app_updates' : undefined),
+                    }
+                    if (isUpdateNotification(normalized) && lastSeen) {
+                        const version = extractReleaseVersion(normalized.title)
+                        if (version && compareVersions(version, lastSeen) <= 0) return
+                    }
+                    addNotification(normalized)
+                })
                 if (items.length > 0) store.clear()
             }
             tx.oncomplete = () => db.close()
@@ -135,13 +165,29 @@ export default function App() {
         if (!user) return
         function fetchNotifications() {
             api.getRecentNotifications().then((items) => {
-                items.forEach(n => addNotification({
-                    title: n.title,
-                    body: n.body,
-                    url: n.url ?? '/',
-                    serverLogId: n.id,
-                    serverCreatedAt: n.created_at,
-                }))
+                const lastSeen = useWhatsNewStore.getState().lastSeen
+                const alreadySeenIds: number[] = []
+                items.forEach(n => {
+                    const item = {
+                        title: n.title,
+                        body: n.body,
+                        url: n.url ?? '/',
+                        category: n.category,
+                        serverLogId: n.id,
+                        serverCreatedAt: n.created_at,
+                    }
+                    if (isUpdateNotification(item) && lastSeen) {
+                        const version = extractReleaseVersion(item.title)
+                        if (version && compareVersions(version, lastSeen) <= 0) {
+                            alreadySeenIds.push(n.id)
+                            return
+                        }
+                    }
+                    addNotification(item)
+                })
+                if (alreadySeenIds.length > 0) {
+                    api.markNotificationsRead(alreadySeenIds).catch(() => {})
+                }
             }).catch(() => {})
         }
         fetchNotifications()

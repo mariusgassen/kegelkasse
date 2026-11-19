@@ -131,13 +131,17 @@ vi.mock('@/hooks/usePage.ts', () => ({
     clearAuthParams: vi.fn(),
 }))
 
-vi.mock('@/store/notifications.ts', () => ({
-    useNotificationStore: vi.fn(() => ({
-        notifications: [],
-        addNotification: vi.fn(),
-    })),
-    unreadCount: vi.fn(() => 0),
-}))
+vi.mock('@/store/notifications.ts', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/store/notifications.ts')>()
+    return {
+        ...actual,
+        useNotificationStore: vi.fn(() => ({
+            notifications: [],
+            addNotification: vi.fn(),
+        })),
+        unreadCount: vi.fn(() => 0),
+    }
+})
 
 // Mutable store state so tests can inject a user
 const storeState = {
@@ -185,6 +189,7 @@ vi.mock('@/api/client.ts', () => ({
         getClub: vi.fn().mockResolvedValue({ id: 1, name: 'TestClub', slug: 'tc', settings: null }),
         listEvenings: vi.fn().mockResolvedValue([]),
         getRecentNotifications: vi.fn().mockResolvedValue([]),
+        markNotificationsRead: vi.fn().mockResolvedValue(undefined),
     },
 }))
 

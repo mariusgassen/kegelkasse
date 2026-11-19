@@ -65,8 +65,9 @@ class TestAnnounceRelease:
         _opt_in(db, user)
         assert releases.announce_release(db, "1.1.0") == 1
         logs = db.query(NotificationLog).all()
-        assert [(log.user_id, log.url) for log in logs] == [(user.id, "/")]
+        assert [(log.user_id, log.url, log.category) for log in logs] == [(user.id, "/", "app_updates")]
         assert "1.1.0" in logs[0].title
+        assert logs[0].body == "Neuigkeiten jetzt in der App ansehen."
 
     def test_localized_text(self, db, user):
         _baseline(db)
@@ -74,7 +75,9 @@ class TestAnnounceRelease:
         user.preferred_locale = "en"
         db.commit()
         releases.announce_release(db, "1.1.0")
-        assert db.query(NotificationLog).one().title == "New version 1.1.0"
+        log = db.query(NotificationLog).one()
+        assert log.title == "New version 1.1.0"
+        assert log.body == "See what's new in the app."
 
     def test_push_payload_asks_the_service_worker_to_update(self, db, user, subscription):
         _baseline(db)
