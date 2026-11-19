@@ -127,6 +127,7 @@ function AnnouncementsTab({canWrite, search, setSearch, order, addOpen, setAddOp
         try {
             await api.createAnnouncement({title: title.trim(), text: text.trim() || undefined, media_url: mediaUrl || undefined})
             await qc.invalidateQueries({queryKey: ['committee-announcements']})
+            qc.invalidateQueries({queryKey: ['announcements']})
             setAddOpen(false)
             setTitle('')
             setText('')
@@ -143,6 +144,7 @@ function AnnouncementsTab({canWrite, search, setSearch, order, addOpen, setAddOp
         try {
             await api.deleteAnnouncement(id)
             await qc.invalidateQueries({queryKey: ['committee-announcements']})
+            qc.invalidateQueries({queryKey: ['announcements']})
             setDelId(null)
         } catch (e) {
             toastError(e)
@@ -304,6 +306,7 @@ function TripsTab({canWrite, search, setSearch, order, addOpen, setAddOpen, visi
         try {
             await api.createTrip({date, end_date: endDate || undefined, destination: destination.trim(), note: note.trim() || undefined})
             await qc.invalidateQueries({queryKey: ['committee-trips']})
+            qc.invalidateQueries({queryKey: ['trips']})
             resetForm()
             showToast('✓ Kegelfahrt eingetragen')
         } catch (e) {
@@ -319,6 +322,7 @@ function TripsTab({canWrite, search, setSearch, order, addOpen, setAddOpen, visi
         try {
             await api.updateTrip(editTrip.id, {date, end_date: endDate, destination: destination.trim(), note: note.trim() || undefined})
             await qc.invalidateQueries({queryKey: ['committee-trips']})
+            qc.invalidateQueries({queryKey: ['trips']})
             resetForm()
             showToast(t('club.savedOk'))
         } catch (e) {
@@ -332,6 +336,7 @@ function TripsTab({canWrite, search, setSearch, order, addOpen, setAddOpen, visi
         try {
             await api.deleteTrip(id)
             await qc.invalidateQueries({queryKey: ['committee-trips']})
+            qc.invalidateQueries({queryKey: ['trips']})
             setDelId(null)
         } catch (e) {
             toastError(e)

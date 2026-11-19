@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from core.security import create_access_token, get_password_hash
 from models.club import Club
-from models.comment import Comment
+from models.comment import Comment, ItemReaction
 from models.sticker import Sticker
 from models.user import User, UserRole
 
@@ -20,6 +20,7 @@ def cleanup(db: Session, club: Club):
     yield
     db.rollback()
     db.query(Comment).filter(Comment.parent_type == "sticker").delete(synchronize_session=False)
+    db.query(ItemReaction).filter(ItemReaction.parent_type == "sticker").delete(synchronize_session=False)
     db.query(Sticker).delete(synchronize_session=False)
     db.commit()
 
@@ -261,4 +262,32 @@ def test_carto_tile_proxy_rejects_invalid_coords_and_handles_upstream_error(clie
     assert client.get("/api/v1/stickers/tiles/1/5/0.png").status_code == 400
     with patch("api.v1.stickers._fetch_carto_tile", side_effect=RuntimeError("boom")):
         assert client.get("/api/v1/stickers/tiles/1/0/0.png").status_code == 502
+
+
+def test_list_includes_activity_counts_and_updated_at(client: TestClient, auth_headers, club: Club):
+    created = client.post(URL, json=_body(club, stuck_on="2025-07-01"), headers=auth_headers).json()
+    sid = created["id"]
+    assert created["comment_count"] == 0
+    assert created["reaction_count"] == 0
+    assert created["last_activity_at"] is None
+    assert created["updated_at"] is None
+
+    # Add a comment, a deleted comment (must be excluded), and a reaction
+    c1 = client.post(f"/api/v1/comments/sticker/{sid}", json={"text": "Nice!"}, headers=auth_headers).json()
+    c_del = client.post(f"/api/v1/comments/sticker/{sid}", json={"text": "Oops"}, headers=auth_headers).json()
+    assert client.delete(f"/api/v1/comments/{c_del['id']}", headers=auth_headers).status_code == 204
+    client.post(f"/api/v1/comments/item-reaction/sticker/{sid}", json={"emoji": "❤️"}, headers=auth_headers)
+
+    updated = client.patch(f"{URL}{sid}", json={"caption": "Edited"}, headers=auth_headers).json()
+    assert updated["updated_at"] is not None
+    assert updated["comment_count"] == 1
+    assert updated["reaction_count"] == 1
+    assert updated["last_activity_at"] is not None
+
+    listed = client.get(URL, headers=auth_headers).json()[0]
+    assert listed["comment_count"] == 1
+    assert listed["reaction_count"] == 1
+    assert listed["last_activity_at"] is not None
+    assert c1["id"] != c_del["id"]
+
 

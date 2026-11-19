@@ -393,8 +393,14 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
         staleTime: 30000,
     })
 
+    const feedKey = parentType === 'announcement' ? ['announcements']
+        : parentType === 'trip' ? ['trips']
+        : parentType === 'sticker' ? ['stickers']
+        : null
+
     function invalidate() {
         qc.invalidateQueries({queryKey})
+        if (feedKey) qc.invalidateQueries({queryKey: feedKey})
     }
 
     // Scroll to + flash the specific comment once thread is open and data loaded;
@@ -427,6 +433,7 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
             setMediaUrl(null)
             setReplyTo(null)
             await qc.invalidateQueries({queryKey})
+            if (feedKey) qc.invalidateQueries({queryKey: feedKey})
         } catch (e) {
             toastError(e)
         } finally {
