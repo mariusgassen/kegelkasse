@@ -39,6 +39,7 @@ const apiMock = vi.hoisted(() => ({
     listClubDocuments: vi.fn(),
     getClubDocument: vi.fn(),
     uploadClubDocument: vi.fn(),
+    updateClubDocument: vi.fn(),
     downloadClubDocument: vi.fn(),
     acknowledgeClubDocument: vi.fn(),
     withdrawClubDocumentAcknowledgement: vi.fn(),
@@ -69,6 +70,7 @@ beforeEach(() => {
         documents: [DOC, OLD], member_count: 5, can_upload: false,
     })
     apiMock.uploadClubDocument.mockResolvedValue(DOC)
+    apiMock.updateClubDocument.mockResolvedValue(DOC)
     apiMock.acknowledgeClubDocument.mockResolvedValue(DOC)
     apiMock.downloadClubDocument.mockResolvedValue(undefined)
     apiMock.deleteClubDocument.mockResolvedValue(undefined)
@@ -269,5 +271,42 @@ describe('ClubDocumentsPage', () => {
         fireEvent.click(screen.getByTestId('document-file-remove'))
         expect(screen.getByTestId('document-file-pick')).toBeTruthy()
         expect(screen.queryByTestId('document-file-chip')).toBeNull()
+    })
+
+    it('keeps the action row stable: both buttons share one non-wrapping row', async () => {
+        renderPage()
+        const download = await screen.findByTestId('document-download')
+        const confirm = screen.getByTestId('document-confirm')
+        expect(download.parentElement?.className).not.toContain('flex-wrap')
+        for (const b of [download, confirm]) {
+            expect(b.className).toContain('flex-1')
+            expect(b.className).toContain('whitespace-nowrap')
+        }
+    })
+
+    it('edits only the metadata of a document (no file, no AI) and saves it', async () => {
+        vi.mocked(isAdmin).mockReturnValue(true)
+        aiOn.value = true
+        apiMock.listClubDocuments.mockResolvedValue({
+            documents: [{...DOC, summary: '- alt', change_summary: null}], member_count: 5, can_upload: true,
+        })
+        renderPage()
+        fireEvent.click(await screen.findByLabelText('action.more'))
+        fireEvent.click(await screen.findByText('document.editAction'))
+        expect(screen.getByTestId('sheet-title').textContent).toBe('document.edit.title')
+        expect(screen.queryByTestId('document-file-input')).toBeNull()
+        expect(screen.queryByTestId('document-ai-fill')).toBeNull()
+        expect((screen.getByLabelText('document.upload.title') as HTMLInputElement).value).toBe('Satzung')
+        expect((screen.getByLabelText('document.upload.version') as HTMLInputElement).value).toBe('2.0')
+
+        fireEvent.change(screen.getByLabelText('document.upload.version'), {target: {value: '2.1'}})
+        fireEvent.change(screen.getByLabelText('document.summary'), {target: {value: '- neu'}})
+        fireEvent.click(screen.getByText('submit-sheet'))
+
+        await waitFor(() => expect(api.updateClubDocument).toHaveBeenCalledWith(7, expect.objectContaining({
+            title: 'Satzung', document_type: 'satzung', version: '2.1',
+            decision_date: '2026-11-16', effective_date: '2026-11-17', summary: '- neu', change_summary: null,
+        })))
+        expect(api.uploadClubDocument).not.toHaveBeenCalled()
     })
 })

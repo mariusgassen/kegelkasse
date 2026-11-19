@@ -296,6 +296,17 @@ export interface ClubDocumentUpload {
     change_summary?: string
 }
 
+/** Editable metadata of one document version (the PDF itself only changes via a new version). */
+export interface ClubDocumentMetadata {
+    title?: string
+    document_type?: ClubDocumentType
+    version?: string | null
+    decision_date?: string | null
+    effective_date?: string | null
+    summary?: string | null
+    change_summary?: string | null
+}
+
 /** KI suggestion for the upload form; every field may be null when the PDF doesn't say. */
 export interface ClubDocumentSuggestion {
     title: string | null

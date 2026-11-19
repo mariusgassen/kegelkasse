@@ -14,6 +14,7 @@ import {
     ClubDocument,
     ClubDocumentList,
     ClubDocumentResponse,
+    ClubDocumentMetadata,
     ClubDocumentSuggestion,
     ClubDocumentUpload,
     ClubSettings,
@@ -485,6 +486,8 @@ export const api = {
         request<ClubDocument>('POST', `/club/documents/${id}/acknowledge`, {response}),
     withdrawClubDocumentAcknowledgement: (id: number) =>
         request<void>('DELETE', `/club/documents/${id}/acknowledge`),
+    updateClubDocument: (id: number, d: ClubDocumentMetadata) =>
+        request<ClubDocument>('PATCH', `/club/documents/${id}`, d),
     deleteClubDocument: (id: number) => request<void>('DELETE', `/club/documents/${id}`),
 
     getAppIconSettings: () => request<AppIconSettings>('GET', '/club/app-icon'),

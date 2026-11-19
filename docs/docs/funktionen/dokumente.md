@@ -10,6 +10,10 @@ Hier liegen die Vereinsdokumente: Satzung, Geschäftsordnung, Protokolle und Son
 
 Eine neue Fassung lädst du über das Menü (⋮) am bestehenden Dokument mit **Neue Version hochladen** hoch. Die Versionsnummer wird automatisch vorgeschlagen (aus „1.0“ wird „1.1“) und lässt sich jederzeit überschreiben. Die aktuelle Version steht oben, ältere bleiben unter **Frühere Versionen** abrufbar. Jede Version behält ihre eigenen Angaben (Version, Beschlussdatum, Gültig ab) und ihre eigenen Bestätigungen.
 
+## Angaben nachträglich ändern
+
+Im Menü (⋮) der Karte ändert **Bearbeiten** nur die Angaben: Titel, Art, Version, Beschlussdatum, Gültig ab, Zusammenfassung und Änderungen zur Vorversion. Die PDF-Datei bleibt dabei unverändert. Soll sich die Datei ändern, lädst du eine **neue Version** hoch. Bestätigungen bleiben beim Bearbeiten erhalten.
+
 ## Bestätigen
 
 Jedes Mitglied bestätigt pro Version mit einem Knopf, dessen Beschriftung zur Art des Dokuments passt: bei Satzung und Geschäftsordnung **Zustimmen**, bei Protokoll und Sonstigem **Kenntnis genommen**. Die Antwort lässt sich später zurückziehen. Gespeichert werden Name und Zeitpunkt. Der Fortschrittsbalken zeigt, wie viele Mitglieder bereits geantwortet haben. Bei einer neuen Version beginnt die Zählung wieder bei null. Das ist ein einfacher Nachweis, keine notarielle Unterschrift.

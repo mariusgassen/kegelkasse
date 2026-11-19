@@ -83,8 +83,13 @@ function fileSize(bytes: number): string {
     return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
 }
 
-function UploadSheet({group, onClose, onUploaded}: {
+/**
+ * Upload sheet with two modes: a new document / new version (`group`), or `edit` to correct the
+ * metadata of an existing version. Editing never touches the PDF — that only changes via a new version.
+ */
+function UploadSheet({group, edit, onClose, onUploaded}: {
     group: ClubDocument | null
+    edit?: ClubDocument
     onClose: () => void
     onUploaded: () => void
 }) {
@@ -92,13 +97,13 @@ function UploadSheet({group, onClose, onUploaded}: {
     const isOnline = useOnline()
     // A new version starts from the next number after the current one; the admin can overwrite it.
     const suggestedVersion = nextVersion(group?.version)
-    const [title, setTitle] = useState(group?.title ?? '')
-    const [type, setType] = useState<ClubDocumentType>(group?.document_type ?? 'satzung')
-    const [version, setVersion] = useState(suggestedVersion)
-    const [decisionDate, setDecisionDate] = useState('')
-    const [effectiveDate, setEffectiveDate] = useState('')
-    const [summary, setSummary] = useState('')
-    const [changeSummary, setChangeSummary] = useState('')
+    const [title, setTitle] = useState(edit?.title ?? group?.title ?? '')
+    const [type, setType] = useState<ClubDocumentType>(edit?.document_type ?? group?.document_type ?? 'satzung')
+    const [version, setVersion] = useState(edit ? edit.version ?? '' : suggestedVersion)
+    const [decisionDate, setDecisionDate] = useState(edit?.decision_date ?? '')
+    const [effectiveDate, setEffectiveDate] = useState(edit?.effective_date ?? '')
+    const [summary, setSummary] = useState(edit?.summary ?? '')
+    const [changeSummary, setChangeSummary] = useState(edit?.change_summary ?? '')
     const [aiHint, setAiHint] = useState('')
     const [file, setFile] = useState<File | null>(null)
     const [busy, setBusy] = useState(false)
@@ -129,11 +134,22 @@ function UploadSheet({group, onClose, onUploaded}: {
     }
 
     async function submit() {
-        if (!file || !title.trim()) return
+        if (!title.trim() || (!edit && !file)) return
         setBusy(true)
         try {
+            if (edit) {
+                await api.updateClubDocument(edit.id, {
+                    title: title.trim(), document_type: type, version: version.trim() || null,
+                    decision_date: decisionDate || null, effective_date: effectiveDate || null,
+                    summary: summary.trim() || null, change_summary: changeSummary.trim() || null,
+                })
+                showToast(t('document.edit.saved'), 'success')
+                onUploaded()
+                onClose()
+                return
+            }
             await api.uploadClubDocument({
-                file, title: title.trim(), document_type: type,
+                file: file!, title: title.trim(), document_type: type,
                 version: version.trim() || undefined,
                 decision_date: decisionDate || undefined,
                 effective_date: effectiveDate || undefined,
@@ -152,9 +168,12 @@ function UploadSheet({group, onClose, onUploaded}: {
     }
 
     return (
-        <Sheet open onClose={onClose} title={group ? t('document.upload.newVersion') : t('document.upload')}
+        <Sheet open onClose={onClose}
+               title={edit ? t('document.edit.title') : group ? t('document.upload.newVersion') : t('document.upload')}
                onSubmit={submit}>
             <div className="flex flex-col gap-3" data-testid="document-upload-sheet">
+                {edit && <p className="text-xs text-muted">{t('document.edit.hint')}</p>}
+                {!edit && <>
                 {/* Hidden native input + our own button/chip: the native control prints its own
                     "Keine Datei ausgewählt" text next to the name and looks different on every device. */}
                 <Field label={t('document.upload.file')} htmlFor="doc-file" hint={t('document.upload.hint')}>
@@ -195,6 +214,7 @@ function UploadSheet({group, onClose, onUploaded}: {
                         <p className="text-xs text-muted">{t('document.ai.hint')}</p>
                     </div>
                 )}
+                </>}
                 <Field label={t('document.upload.title')} htmlFor="doc-title">
                     <input id="doc-title" className="kce-input w-full" value={title}
                            onChange={e => setTitle(e.target.value)} autoFocus/>
@@ -224,7 +244,7 @@ function UploadSheet({group, onClose, onUploaded}: {
                     </Field>
                 </div>
                 <MarkdownField id="doc-summary" label={t('document.summary')} value={summary} onChange={setSummary}/>
-                {group && (
+                {(group || edit) && (
                     <MarkdownField id="doc-changes" label={t('document.changeSummary')}
                                    value={changeSummary} onChange={setChangeSummary}/>
                 )}
@@ -234,8 +254,8 @@ function UploadSheet({group, onClose, onUploaded}: {
                         {t('action.cancel')}
                     </Button>
                     <Button type="submit" variant="primary" className="flex-1"
-                            disabled={busy || !isOnline || !file || !title.trim()}>
-                        {t('document.upload.submit')}
+                            disabled={busy || !isOnline || (!edit && !file) || !title.trim()}>
+                        {edit ? t('document.edit.save') : t('document.upload.submit')}
                     </Button>
                 </div>
             </div>
@@ -244,7 +264,7 @@ function UploadSheet({group, onClose, onUploaded}: {
 }
 
 function DocumentCard({doc, memberCount, canEdit, busy, history, onDownload, onAck, onWithdraw,
-                       onNewVersion, onDelete, onToggleHistory}: {
+                       onNewVersion, onEdit, onDelete, onToggleHistory}: {
     doc: ClubDocument
     memberCount: number
     canEdit: boolean
@@ -254,6 +274,7 @@ function DocumentCard({doc, memberCount, canEdit, busy, history, onDownload, onA
     onAck: (d: ClubDocument, response: ClubDocumentResponse) => void
     onWithdraw: (d: ClubDocument) => void
     onNewVersion: (d: ClubDocument) => void
+    onEdit: (d: ClubDocument) => void
     onDelete: (d: ClubDocument) => void
     onToggleHistory: () => void
 }) {
@@ -293,6 +314,7 @@ function DocumentCard({doc, memberCount, canEdit, busy, history, onDownload, onA
                 </div>
                 {canEdit && (
                     <CardActionMenu title={doc.title} actions={[
+                        {icon: '✏️', label: t('document.editAction'), disabled: busy, onClick: () => onEdit(doc)},
                         {icon: '📤', label: t('document.upload.newVersion'), disabled: busy, onClick: () => onNewVersion(doc)},
                         {icon: '🗑️', label: t('document.delete'), danger: true, disabled: busy, onClick: () => onDelete(doc)},
                     ]}/>
@@ -314,18 +336,20 @@ function DocumentCard({doc, memberCount, canEdit, busy, history, onDownload, onA
                 )}
             </div>
 
-            <div className="flex flex-wrap gap-2 mt-3">
-                <Button variant="primary" className="flex-1" data-testid="document-download"
+            {/* One fixed row: both buttons share the width equally and never wrap, so the row keeps
+                its size when the right button switches between confirm and withdraw. */}
+            <div className="flex gap-2 mt-3">
+                <Button variant="primary" className="flex-1 min-w-0 whitespace-nowrap" data-testid="document-download"
                         disabled={busy} onClick={() => onDownload(doc)}>
                     ⬇️ {t('document.download')}
                 </Button>
                 {doc.my_response ? (
-                    <Button variant="secondary" className="flex-1" data-testid="document-withdraw"
+                    <Button variant="secondary" className="flex-1 min-w-0 whitespace-nowrap" data-testid="document-withdraw"
                             disabled={busy || !isOnline} onClick={() => onWithdraw(doc)}>
                         {t('document.withdraw')}
                     </Button>
                 ) : (
-                    <Button variant="secondary" className="flex-1" data-testid="document-confirm"
+                    <Button variant="secondary" className="flex-1 min-w-0 whitespace-nowrap" data-testid="document-confirm"
                             disabled={busy || !isOnline} onClick={() => onAck(doc, DECISION_TYPES.includes(doc.document_type) ? 'agreed' : 'acknowledged')}>
                         {t(DECISION_TYPES.includes(doc.document_type) ? 'document.action.agree' : 'document.action.acknowledge')}
                     </Button>
@@ -350,6 +374,7 @@ export function ClubDocumentsPage() {
     const user = useAppStore(s => s.user)
     const canEdit = isAdmin(user)
     const [uploadGroup, setUploadGroup] = useState<ClubDocument | null | undefined>(undefined)
+    const [editDoc, setEditDoc] = useState<ClubDocument | null>(null)
     const [toDelete, setToDelete] = useState<ClubDocument | null>(null)
     const [expanded, setExpanded] = useState<string | null>(null)
     const [busyId, setBusyId] = useState<number | null>(null)
@@ -442,7 +467,7 @@ export function ClubDocumentsPage() {
                                 <DocumentCard doc={doc} memberCount={memberCount} canEdit={canEdit}
                                               busy={busyId === doc.id} history={historyOf(doc)}
                                               onDownload={download} onAck={ack} onWithdraw={withdraw}
-                                              onNewVersion={setUploadGroup} onDelete={setToDelete}
+                                              onNewVersion={setUploadGroup} onEdit={setEditDoc} onDelete={setToDelete}
                                               onToggleHistory={() => setExpanded(expanded === doc.group_id ? null : doc.group_id)}/>
                                 {expanded === doc.group_id && historyOf(doc).map(old => (
                                     <div key={old.id} id={`document-${old.id}`} className="kce-card p-2 mt-1 ml-4 flex items-center gap-2">
@@ -463,6 +488,9 @@ export function ClubDocumentsPage() {
             {uploadGroup !== undefined && (
                 <UploadSheet group={uploadGroup} onClose={() => setUploadGroup(undefined)}
                              onUploaded={invalidate}/>
+            )}
+            {editDoc && (
+                <UploadSheet group={null} edit={editDoc} onClose={() => setEditDoc(null)} onUploaded={invalidate}/>
             )}
             <ConfirmSheet open={toDelete !== null} onClose={() => setToDelete(null)}
                           title={t('document.delete')} message={t('document.deleteConfirm')}
