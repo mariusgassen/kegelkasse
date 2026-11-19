@@ -335,7 +335,7 @@ class TestUserRoleManagement:
         assert "only active superadmin" in resp.json()["detail"]
 
     def test_inactive_users_excluded_and_roles_revoked(
-        self, client, superadmin_headers, admin_headers, member_user, db
+        self, client, superadmin_headers, member_user, db
     ):
         # Give member_user multiple roles first
         member_user.roles = ["admin", "treasurer", "committee"]
@@ -344,7 +344,7 @@ class TestUserRoleManagement:
         # Deactivate via club endpoint -> should revoke roles to ["member"]
         deact_resp = client.delete(
             f"/api/v1/club/members/{member_user.id}",
-            headers=admin_headers,
+            headers=superadmin_headers,
         )
         assert deact_resp.status_code == 200
         db.refresh(member_user)
@@ -364,5 +364,6 @@ class TestUserRoleManagement:
             headers=superadmin_headers,
         )
         assert assign_resp.status_code == 400
+
 
 
