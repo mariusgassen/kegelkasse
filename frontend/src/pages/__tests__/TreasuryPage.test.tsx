@@ -12,10 +12,14 @@ vi.mock('@/hooks/usePage.ts', () => ({
     clearAuthParams: vi.fn(),
 }))
 
-vi.mock('@/store/app.ts', () => ({
-    useAppStore: vi.fn((sel: any) => sel({ user: null, regularMembers: [] })),
-    isAdmin: vi.fn(() => false),
-}))
+vi.mock('@/store/app.ts', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/store/app.ts')>()
+    return {
+        ...actual,
+        useAppStore: vi.fn((sel: any) => sel({ user: null, regularMembers: [] })),
+        isAdmin: vi.fn(() => false),
+    }
+})
 
 vi.mock('@/api/client.ts', () => ({
     api: {

@@ -18,7 +18,7 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
-from api.deps import require_club_admin
+from api.deps import require_club_member, require_treasurer
 from core.database import get_db
 from models.club import Club
 from models.evening import Evening, EveningPlayer, RegularMember
@@ -348,9 +348,9 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
 def report_data(
     year: Optional[int] = Query(None, description="Filter to a specific year; omit for all-time"),
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_club_member),
 ):
-    """JSON behind the PDF report (admin only). The app renders it into a PDF client-side."""
+    """JSON behind the PDF report. The app renders it into a PDF client-side."""
     d = _collect_report(db, user, year)
 
     def _name(m: RegularMember) -> str:
@@ -439,9 +439,9 @@ def export_report(
     year: Optional[int] = Query(None, description="Filter to a specific year; omit for all-time"),
     fmt: str = Query("xlsx", alias="format", description="Output format: xlsx (the PDF report is built in the app from GET /reports/data)"),
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_treasurer),
 ):
-    """Download the Excel report for the club (admin only)."""
+    """Download the Excel report for the club (treasurer/admin)."""
     if fmt != "xlsx":
         raise HTTPException(400, "format must be 'xlsx' (PDF is built in the app from /reports/data)")
     d = _collect_report(db, user, year)

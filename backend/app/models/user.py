@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum, Text, JSON
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -8,10 +8,55 @@ from core.database import Base
 
 
 class UserRole(str, enum.Enum):
-    superadmin = "superadmin"
-    product_manager = "product_manager"
-    admin = "admin"  # club admin — can manage club settings, invite members
+    superadmin = "superadmin"  # platform operator — all clubs, backups, all users, global roadmap
+    it_admin = "it_admin"  # technical admin — SMTP, Telegram, AI, config export/import, tokens
+    admin = "admin"  # club admin — club settings, rules catalogue, invites, role assignment
+    treasurer = "treasurer"  # Kassenwart — payments, expenses, payment requests, season, audit freeze
+    auditor = "auditor"  # Kassenprüfer — signs off treasury audits (four-eyes principle)
+    committee = "committee"  # Vergnügungsausschuss — trips, trip expenses, moderates news/polls
+    zeugwart = "zeugwart"  # Zeugwart — club inventory items and movements
     member = "member"  # regular club member
+
+
+# Roles a club admin may assign to members of their own club (never superadmin).
+CLUB_ASSIGNABLE_ROLES = (
+    UserRole.admin,
+    UserRole.it_admin,
+    UserRole.treasurer,
+    UserRole.auditor,
+    UserRole.committee,
+    UserRole.zeugwart,
+    UserRole.member,
+)
+
+_ROLE_PRIORITY = (
+    UserRole.superadmin,
+    UserRole.it_admin,
+    UserRole.admin,
+    UserRole.treasurer,
+    UserRole.auditor,
+    UserRole.committee,
+    UserRole.zeugwart,
+    UserRole.member,
+)
+
+_VALID_ROLE_VALUES = {r.value for r in UserRole}
+
+
+def normalize_roles(raw_roles: list | set | tuple | None) -> list[str]:
+    """Validate and normalize a list of roles into a canonical sorted list (default ``['member']``)."""
+    if not raw_roles:
+        return [UserRole.member.value]
+    cleaned: set[str] = set()
+    for r in raw_roles:
+        val = r.value if hasattr(r, "value") else str(r)
+        if val in _VALID_ROLE_VALUES:
+            cleaned.add(val)
+    if not cleaned:
+        return [UserRole.member.value]
+    if len(cleaned) > 1 and UserRole.member.value in cleaned:
+        cleaned.discard(UserRole.member.value)
+    return sorted(cleaned)
 
 
 class User(Base):
@@ -21,8 +66,7 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=True)
     name = Column(String, nullable=False)
     hashed_password = Column(String, nullable=False)
-    role = Column(Enum(UserRole), default=UserRole.member)
-    roles = Column(JSON, nullable=True, default=list)
+    roles = Column(JSON, nullable=False, default=lambda: [UserRole.member.value])
     club_id = Column(Integer, ForeignKey("club.id"), nullable=True)
     regular_member_id = Column(Integer, ForeignKey("regular_member.id"), nullable=True)
     avatar = Column(Text, nullable=True)  # /uploads/avatars/<key> URL (legacy rows: base64 data URI)
@@ -40,30 +84,51 @@ class User(Base):
 
     @property
     def all_roles(self) -> set[str]:
-        """Set of all role identifiers assigned to this user."""
+        """Set of all valid role identifiers assigned to this user."""
         roles_set: set[str] = set()
         if self.roles and isinstance(self.roles, list):
             for r in self.roles:
-                if isinstance(r, str):
-                    roles_set.add(r)
-                elif hasattr(r, "value"):
-                    roles_set.add(r.value)
-        if self.role:
-            val = self.role.value if hasattr(self.role, "value") else str(self.role)
-            roles_set.add(val)
+                val = r.value if hasattr(r, "value") else str(r)
+                if val in _VALID_ROLE_VALUES:
+                    roles_set.add(val)
         if not roles_set:
             roles_set.add(UserRole.member.value)
         return roles_set
 
-    def has_role(self, *roles: object) -> bool:
-        """Return True if user has ANY of the specified roles (or superadmin)."""
+    @property
+    def primary_role(self) -> UserRole:
+        """Highest-priority role for display or legacy single-role consumers."""
         assigned = self.all_roles
-        if UserRole.superadmin.value in assigned:
+        for candidate in _ROLE_PRIORITY:
+            if candidate.value in assigned:
+                return candidate
+        return UserRole.member
+
+    @property
+    def role(self) -> UserRole:
+        return self.primary_role
+
+    @role.setter
+    def role(self, value: UserRole | str | None) -> None:
+        if value is None:
+            self.roles = [UserRole.member.value]
+        else:
+            self.roles = normalize_roles([value])
+
+    def has_role(self, *roles: object) -> bool:
+        """Return True if user has ANY of the specified roles.
+
+        ``superadmin`` implies all roles except ``auditor`` (which enforces a four-eyes principle).
+        Every user implicitly holds ``member``.
+        """
+        assigned = self.all_roles
+        requested = {r.value if hasattr(r, "value") else str(r) for r in roles}
+        if UserRole.member.value in requested:
             return True
-        for r in roles:
-            val = r.value if hasattr(r, "value") else str(r)
-            if val in assigned:
-                return True
+        if requested & assigned:
+            return True
+        if UserRole.superadmin.value in assigned and bool(requested - {UserRole.auditor.value}):
+            return True
         return False
 
     @property
@@ -71,12 +136,28 @@ class User(Base):
         return UserRole.superadmin.value in self.all_roles
 
     @property
-    def is_product_manager(self) -> bool:
-        return self.has_role(UserRole.product_manager)
+    def is_it_admin(self) -> bool:
+        return self.has_role(UserRole.it_admin)
 
     @property
     def is_admin(self) -> bool:
         return self.has_role(UserRole.admin)
+
+    @property
+    def is_treasurer(self) -> bool:
+        return self.has_role(UserRole.treasurer)
+
+    @property
+    def is_auditor(self) -> bool:
+        return UserRole.auditor.value in self.all_roles
+
+    @property
+    def is_committee(self) -> bool:
+        return UserRole.committee.value in self.all_roles
+
+    @property
+    def is_zeugwart(self) -> bool:
+        return UserRole.zeugwart.value in self.all_roles
 
 
 

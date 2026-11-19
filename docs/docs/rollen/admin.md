@@ -4,29 +4,35 @@ title: Admin
 sidebar_label: Admin
 ---
 
-# Rolle: Admin
+# Rollen: Vereins-Admin, IT-Admin & Kassenwart
 
-Als **Admin** verwaltest du den Verein: Mitglieder, Strafentypen, Spielvorlagen und Vereinseinstellungen. Du hast alle Rechte eines Mitglieds und zusätzlich Zugriff auf den **Vereinsbereich** (⚙️).
+Die Vereinsverwaltung ist in Kegelkasse klar nach Verantwortlichkeiten aufgeteilt, wobei eine Person auch mehrere Rollen gleichzeitig tragen kann:
+
+- **🔑 Vereins-Admin (`admin`)**: Fachliche Vereinseinstellungen, Regelkatalog (Strafentypen, Spielvorlagen, Teams, Nadeln), Mitgliederverwaltung, Rollenvergabe sowie offizielle Beschlussdokumente (Satzung & Geschäftsordnung).
+- **🛠️ IT-Admin (`it_admin`)**: Technische Einstellungen und Integrationen (SMTP/E-Mail, Telegram-Bot, KI-Konfiguration, JSON-Konfigurations-Export/Import sowie Erneuerung von iCal- und TV-Scoreboard-Tokens).
+- **💰 Kassenwart (`treasurer`)**: Buchungen (Ein-/Auszahlungen, Vereinsausgaben), Zahlungsanfragen, Zahlungserinnerungen, Jahresabschluss, Berichtsexport und Einfrieren von Kassenprüfungen. *(Solange im Verein noch kein Kassenwart ernannt ist, übernimmt der Vereins-Admin diese Aufgaben kommissarisch.)*
 
 ---
 
 ## Vereinseinstellungen
 
-Die Einstellungen sind in drei Bereiche gegliedert: **Allgemein** (Name, Spiellokal, Erscheinungsbild, App-Icon), **Betrieb** (Sonderstrafen, Wurf-Erfassung, Audio-Ansagen, öffentliche Termine, TV-Scoreboard, Zahlungen) und **Benachrichtigungen & Integrationen** (Erinnerungen, E-Mail, Telegram, KI, Push-Nachricht, Konfigurations-Export).
+Die Einstellungen unter **Verein → Einstellungen** sind nach Rolle gegliedert:
 
-Unter **Verein → Einstellungen** kannst du:
-
-- **Vereinsname** festlegen
-- **Spiellokal** (Standardveranstaltungsort) eintragen
-- **Vereinsfarben** (Primär- und Sekundärfarbe) anpassen
-- **Gästestrafen-Limit** setzen (maximaler Strafenbetrag für Gastspieler)
-- das **Vereinslogo als App-Icon** für alle Mitglieder einschalten, mit Hintergrund aus der Vereinsfarbpalette ([App-Icon](../funktionen/app-icon))
+- **Allgemein & Betrieb (Vereins-Admin)**:
+  - **Vereinsname** und **Spiellokal** (Standardveranstaltungsort) festlegen
+  - **Vereinsfarben** (Primär-, Sekundär- und Hintergrundfarbe) sowie **Vereinslogo** anpassen
+  - **Vereinslogo als App-Icon** für alle Mitglieder einschalten ([App-Icon](../funktionen/app-icon))
+  - **Sonderstrafen & Limits** (Gästestrafen-Limit, Nicht-Absage-Strafe, Nadelstrafe), **Wurf-Erfassung**, **Audio-Ansagen**, **öffentliche Termine** und **PayPal.me-Link** konfigurieren
+- **Benachrichtigungen & Integrationen (IT-Admin)**:
+  - **E-Mail (SMTP)** und **Telegram-Bot** einrichten und per Testnachricht prüfen
+  - **KI-Assistent** (Modelle, Limits, eigene Prompts für Rückblicke) konfigurieren
+  - **Konfiguration exportieren/importieren** sowie geheime **iCal- und TV-Scoreboard-Tokens** rotieren
 
 ---
 
-## Konfiguration exportieren / importieren
+## Konfiguration exportieren / importieren (IT-Admin)
 
-Unter **Verein → Einstellungen → Benachrichtigungen & Integrationen → Konfiguration exportieren/importieren** kannst du die Grundeinrichtung
+Unter **Verein → Einstellungen → Benachrichtigungen & Integrationen → Konfiguration exportieren/importieren** kann der **IT-Admin** die Grundeinrichtung
 des Vereins als JSON-Datei sichern oder in einen anderen Verein übernehmen — praktisch, um z. B. einen
 Test- oder Staging-Verein mit derselben Einrichtung wie der Live-Verein zu starten.
 
@@ -46,14 +52,13 @@ unberührt. Vor dem Import erscheint ein Bestätigungs-Dialog mit der Anzahl der
 
 ---
 
-## Mitglieder einladen
+## Mitglieder einladen & Rollen verwalten (Vereins-Admin)
 
 ### Einladungslink erstellen
 
-1. Gehe zu **Verein → Mitglieder**
-2. Tippe auf **Einladen**
-3. Ein einmaliger Einladungslink wird generiert
-4. Teile den Link mit dem neuen Mitglied
+1. Gehe zu **Mitglieder**
+2. Tippe beim gewünschten Stammspieler auf **Einladungslink erstellen**
+3. Teile den einmaligen Registrierungslink oder QR-Code mit dem Mitglied
 
 :::info
 Der Link ist ein Einmaltoken. Nach der Registrierung ist er ungültig.
@@ -63,21 +68,21 @@ Der Link ist ein Einmaltoken. Nach der Registrierung ist er ungültig.
 
 Wenn ein Benutzeraccount zu einem bestehenden Stammspieler gehört:
 
-1. Gehe zu **Verein → Mitglieder**
+1. Gehe zu **Mitglieder**
 2. Tippe auf das Mitglied
-3. Wähle **Stammspieler verknüpfen** und wähle den passenden Eintrag
+3. Wähle **Mit Roster verknüpfen** und wähle den passenden Eintrag
 
 Das ermöglicht korrekte Statistiken über alle Abende.
 
-### Rolle ändern
+### Vereinsrollen verwalten
 
-1. Tippe auf ein Mitglied in der Liste
-2. Wähle **Rolle ändern**
-3. Wechsle zwischen **Mitglied** und **Admin**
+1. Tippe unter **Mitglieder** auf ein aktives Mitglied mit Benutzerkonto
+2. Wähle **Rollen verwalten**
+3. Aktiviere oder deaktiviere die gewünschten Vereinsrollen (**Admin**, **IT-Admin**, **Kassenwart**, **Kassenprüfer**, **Vergnügungsausschuss**, **Zeugwart**)
 
 ### Mitglied deaktivieren / reaktivieren
 
-- **Deaktivieren**: Mitglied kann sich nicht mehr anmelden
+- **Deaktivieren**: Mitglied scheidet aus dem aktiven Spielbetrieb aus; historische Statistiken bleiben erhalten
 - **Reaktivieren**: Zugang wird wiederhergestellt
 
 ---

@@ -128,9 +128,9 @@ class TestCreateScheduledEvening:
         assert data["venue"] == "Bowlingcenter"
         assert "id" in data
 
-    def test_member_cannot_create(self, client: TestClient, auth_headers, future_date):
+    def test_member_can_create(self, client: TestClient, auth_headers, future_date):
         resp = client.post("/api/v1/schedule/", json={"date": future_date}, headers=auth_headers)
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
     def test_past_date_accepted(self, client: TestClient, admin_headers):
         """Past dates are allowed so admins can backfill evenings."""
@@ -166,10 +166,11 @@ class TestUpdateScheduledEvening:
         assert resp.status_code == 200
         assert resp.json()["venue"] == "New Venue"
 
-    def test_member_cannot_update(self, client: TestClient, db, club, admin_user, auth_headers):
+    def test_member_can_update(self, client: TestClient, db, club, admin_user, auth_headers):
         se = self._create(db, club, admin_user)
-        resp = client.patch(f"/api/v1/schedule/{se.id}", json={"venue": "Hacked"}, headers=auth_headers)
-        assert resp.status_code == 403
+        resp = client.patch(f"/api/v1/schedule/{se.id}", json={"venue": "Member Venue"}, headers=auth_headers)
+        assert resp.status_code == 200
+        assert resp.json()["venue"] == "Member Venue"
 
     def test_nonexistent_returns_404(self, client: TestClient, admin_headers):
         resp = client.patch("/api/v1/schedule/99999", json={"venue": "X"}, headers=admin_headers)
@@ -199,10 +200,12 @@ class TestDeleteScheduledEvening:
         db.refresh(se)
         assert se.is_deleted is True
 
-    def test_member_cannot_delete(self, client: TestClient, db, club, admin_user, auth_headers):
+    def test_member_can_delete(self, client: TestClient, db, club, admin_user, auth_headers):
         se = self._create(db, club, admin_user)
         resp = client.delete(f"/api/v1/schedule/{se.id}", headers=auth_headers)
-        assert resp.status_code == 403
+        assert resp.status_code == 204
+        db.refresh(se)
+        assert se.is_deleted is True
 
     def test_nonexistent_returns_404(self, client: TestClient, admin_headers):
         resp = client.delete("/api/v1/schedule/99999", headers=admin_headers)

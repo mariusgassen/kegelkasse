@@ -43,7 +43,7 @@ def admin_user(db: Session, club: Club) -> User:
         email="admin@test.de",
         name="Test Admin",
         hashed_password=get_password_hash("adminpass"),
-        role=UserRole.admin,
+        roles=[UserRole.it_admin.value, UserRole.admin.value],
         club_id=club.id,
         is_active=True,
     )

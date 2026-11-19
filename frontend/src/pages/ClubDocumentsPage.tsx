@@ -95,10 +95,15 @@ function UploadSheet({group, edit, onClose, onUploaded}: {
 }) {
     const t = useT()
     const isOnline = useOnline()
+    const user = useAppStore(s => s.user)
+    const canUploadDecisions = isAdmin(user)
+    const availableTypes = canUploadDecisions ? TYPES : TYPES.filter(v => !DECISION_TYPES.includes(v))
     // A new version starts from the next number after the current one; the admin can overwrite it.
     const suggestedVersion = nextVersion(group?.version)
     const [title, setTitle] = useState(edit?.title ?? group?.title ?? '')
-    const [type, setType] = useState<ClubDocumentType>(edit?.document_type ?? group?.document_type ?? 'satzung')
+    const [type, setType] = useState<ClubDocumentType>(
+        edit?.document_type ?? group?.document_type ?? (canUploadDecisions ? 'satzung' : 'protokoll')
+    )
     const [version, setVersion] = useState(edit ? edit.version ?? '' : suggestedVersion)
     const [decisionDate, setDecisionDate] = useState(edit?.decision_date ?? '')
     const [effectiveDate, setEffectiveDate] = useState(edit?.effective_date ?? '')
@@ -118,7 +123,9 @@ function UploadSheet({group, edit, onClose, onUploaded}: {
         try {
             const s = await api.analyzeClubDocument(file, group?.group_id, aiHint.trim() || undefined)
             if (s.title && !title.trim()) setTitle(s.title)
-            if (s.document_type && !group) setType(s.document_type)
+            if (s.document_type && !group && (canUploadDecisions || !DECISION_TYPES.includes(s.document_type))) {
+                setType(s.document_type)
+            }
             if (s.version) setVersion(s.version)
             if (s.decision_date) setDecisionDate(s.decision_date)
             if (s.effective_date) setEffectiveDate(s.effective_date)
@@ -450,7 +457,7 @@ export function ClubDocumentsPage() {
                     <h1 className="sec-heading">📄 {t('document.title')}</h1>
                     <p className="text-xs text-muted">{t('document.subtitle')}</p>
                 </div>
-                {canEdit && (
+                {(data?.can_upload ?? Boolean(user)) && (
                     <Button variant="primary" className="flex-shrink-0" data-testid="document-add-button"
                             onClick={() => setUploadGroup(null)}>
                         + {t('document.upload')}
@@ -464,7 +471,7 @@ export function ClubDocumentsPage() {
                     <div className="space-y-2" data-testid="document-list">
                         {current.map(doc => (
                             <div key={doc.id} id={`document-${doc.id}`}>
-                                <DocumentCard doc={doc} memberCount={memberCount} canEdit={canEdit}
+                                <DocumentCard doc={doc} memberCount={memberCount} canEdit={doc.can_edit ?? canEdit}
                                               busy={busyId === doc.id} history={historyOf(doc)}
                                               onDownload={download} onAck={ack} onWithdraw={withdraw}
                                               onNewVersion={setUploadGroup} onEdit={setEditDoc} onDelete={setToDelete}

@@ -723,12 +723,13 @@ describe('GamesPage — retroactive time edit sheet', () => {
         vi.mocked(useActiveEvening).mockReturnValue({ evening: ACTIVE_EVENING as any, invalidate: vi.fn() } as any)
     })
 
-    it('hides the time-edit button for non-admins', async () => {
+    it('shows the time-edit button for non-admins on running/finished games when evening is open', async () => {
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(false)
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, gameTemplates: [], regularMembers: [] }))
         await renderGamesPage()
-        expect(await cardActionLabels(1)).not.toContain('game.editTimes')
+        expect(await cardActionLabels(0)).not.toContain('game.editTimes')
+        expect(await cardActionLabels(1)).toContain('game.editTimes')
     })
 
     it('shows the time-edit button for admins on running/finished games only', async () => {

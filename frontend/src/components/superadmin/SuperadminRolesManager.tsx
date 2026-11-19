@@ -11,27 +11,51 @@ import type {UserRole} from '@/types'
 
 const ROLE_CONFIG: {
     role: UserRole
-    label: string
+    labelKey: string
     activeClass: string
     inactiveClass: string
 }[] = [
     {
         role: 'superadmin',
-        label: 'Superadmin',
-        activeClass: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
-        inactiveClass: 'text-muted border-line hover:text-purple-300 hover:border-purple-500/30',
+        labelKey: 'role.superadmin',
+        activeClass: 'bg-danger-tint text-danger border-danger/40',
+        inactiveClass: 'text-muted border-line hover:text-danger hover:border-danger/30',
     },
     {
-        role: 'product_manager',
-        label: 'Product Manager',
+        role: 'it_admin',
+        labelKey: 'role.it_admin',
         activeClass: 'bg-accent-tint text-accent-tint-fg border-accent/40',
         inactiveClass: 'text-muted border-line hover:text-accent hover:border-accent/30',
     },
     {
         role: 'admin',
-        label: 'Admin',
-        activeClass: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
-        inactiveClass: 'text-muted border-line hover:text-blue-300 hover:border-blue-500/30',
+        labelKey: 'role.admin',
+        activeClass: 'bg-warn-tint text-warn border-warn/40',
+        inactiveClass: 'text-muted border-line hover:text-warn hover:border-warn/30',
+    },
+    {
+        role: 'treasurer',
+        labelKey: 'role.treasurer',
+        activeClass: 'bg-ok-tint text-ok border-ok/40',
+        inactiveClass: 'text-muted border-line hover:text-ok hover:border-ok/30',
+    },
+    {
+        role: 'auditor',
+        labelKey: 'role.auditor',
+        activeClass: 'bg-accent-tint text-accent-tint-fg border-accent/40',
+        inactiveClass: 'text-muted border-line hover:text-accent hover:border-accent/30',
+    },
+    {
+        role: 'committee',
+        labelKey: 'role.committee',
+        activeClass: 'bg-accent-tint text-accent-tint-fg border-accent/40',
+        inactiveClass: 'text-muted border-line hover:text-accent hover:border-accent/30',
+    },
+    {
+        role: 'zeugwart',
+        labelKey: 'role.zeugwart',
+        activeClass: 'bg-accent-tint text-accent-tint-fg border-accent/40',
+        inactiveClass: 'text-muted border-line hover:text-accent hover:border-accent/30',
     },
 ]
 
@@ -124,10 +148,7 @@ export function SuperadminRolesManager() {
                 <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
                     {filteredUsers.map(u => {
                         const uRoles = getUserRoles(u)
-                        const isPlainMember =
-                            !uRoles.includes('superadmin') &&
-                            !uRoles.includes('product_manager') &&
-                            !uRoles.includes('admin')
+                        const isPlainMember = !ROLE_CONFIG.some(rc => uRoles.includes(rc.role))
 
                         return (
                             <div
@@ -139,7 +160,7 @@ export function SuperadminRolesManager() {
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm font-bold text-ink truncate">{u.name}</span>
                                             {isPlainMember && (
-                                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-surface-2 text-muted border border-line">
+                                                <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-surface-2 text-muted border border-line">
                                                     {t('superadmin.roles.role.member')}
                                                 </span>
                                             )}
@@ -151,10 +172,10 @@ export function SuperadminRolesManager() {
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-line/50">
-                                    <span className="text-[11px] font-medium text-muted mr-1">
+                                    <span className="text-xs font-medium text-muted mr-1">
                                         {t('superadmin.roles.role')}:
                                     </span>
-                                    {ROLE_CONFIG.map(({role, label, activeClass, inactiveClass}) => {
+                                    {ROLE_CONFIG.map(({role, labelKey, activeClass, inactiveClass}) => {
                                         const isActive = uRoles.includes(role)
                                         return (
                                             <button
@@ -177,7 +198,7 @@ export function SuperadminRolesManager() {
                                                 ) : (
                                                     <Plus className="w-3 h-3 flex-shrink-0 opacity-60" />
                                                 )}
-                                                <span>{label}</span>
+                                                <span>{t(labelKey as Parameters<typeof t>[0])}</span>
                                             </button>
                                         )
                                     })}

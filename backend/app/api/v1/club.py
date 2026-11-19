@@ -14,7 +14,7 @@ from sqlalchemy import or_, and_, func, case
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from api.deps import require_club_member, require_club_admin
+from api.deps import require_club_member, require_club_admin, require_it_admin, require_treasurer
 from api.v1.app_icon import serialize_app_icon
 from api.v1.stickers import CARTO_STYLES, DEFAULT_MAP_STYLE
 from core.database import get_db
@@ -28,7 +28,7 @@ from models.game import GameTemplate, WinnerType
 from models.payment import MemberPayment, ClubExpense, PaymentRequest, PaymentRequestStatus
 from models.penalty import PenaltyType, PenaltyLog, SOUND_PRESET_KEYS
 from models.schedule import MemberRsvp, ScheduledEveningGuest
-from models.user import User, UserRole, InviteToken
+from models.user import User, UserRole, InviteToken, CLUB_ASSIGNABLE_ROLES, normalize_roles
 
 logger = logging.getLogger(__name__)
 
@@ -156,8 +156,8 @@ def update_club_settings(data: ClubSettingsUpdate, db: Session = Depends(get_db)
 
 
 @router.post("/settings/regenerate-ical-token")
-def regenerate_ical_token(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
-    """Admin only: rotate the iCal feed token (invalidates old links)."""
+def regenerate_ical_token(db: Session = Depends(get_db), user: User = Depends(require_it_admin)):
+    """IT-Admin only: rotate the iCal feed token (invalidates old links)."""
     import uuid
     s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
     if not s:
@@ -171,8 +171,8 @@ def regenerate_ical_token(db: Session = Depends(get_db), user: User = Depends(re
 
 
 @router.post("/settings/regenerate-scoreboard-token")
-def regenerate_scoreboard_token(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
-    """Admin only: rotate the public TV scoreboard token (invalidates old links)."""
+def regenerate_scoreboard_token(db: Session = Depends(get_db), user: User = Depends(require_it_admin)):
+    """IT-Admin only: rotate the public TV scoreboard token (invalidates old links)."""
     import uuid
     s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
     if not s:
@@ -252,24 +252,55 @@ def get_members(include_inactive: bool = False, db: Session = Depends(get_db),
     if not include_inactive:
         q = q.filter(User.is_active == True)
     users = q.order_by(User.name).all()
-    return [{"id": u.id, "name": u.name, "role": u.role,
+    return [{"id": u.id, "name": u.name, "role": u.primary_role.value,
+             "roles": sorted(list(u.all_roles)),
              "regular_member_id": u.regular_member_id, "is_active": u.is_active,
              "avatar": u.avatar, "username": u.username} for u in users]
+
+
+class ClubMemberRolesUpdate(TrimmedModel):
+    roles: list[str]
+
+
+def _set_club_member_roles(db: Session, actor: User, member_id: int, requested_roles: list[str]) -> dict:
+    target = db.query(User).filter(User.id == member_id, User.club_id == actor.club_id).first()
+    if not target:
+        raise HTTPException(404)
+    if target.is_superadmin and not actor.is_superadmin:
+        raise HTTPException(403, "Cannot modify superadmin roles")
+
+    valid_roles = {r.value for r in UserRole}
+    club_assignable = {r.value for r in CLUB_ASSIGNABLE_ROLES}
+    for r in requested_roles:
+        if r not in valid_roles:
+            raise HTTPException(400, "Invalid role")
+        if r not in club_assignable and not actor.is_superadmin:
+            raise HTTPException(403, "Only superadmin can assign platform roles")
+
+    target.roles = normalize_roles(requested_roles)
+    db.commit()
+    db.refresh(target)
+    logger.info("Member roles updated: user=%d new_roles=%r by admin=%d", member_id, target.roles, actor.id)
+    return {
+        "ok": True,
+        "id": target.id,
+        "role": target.primary_role.value,
+        "roles": sorted(list(target.all_roles)),
+    }
 
 
 @router.patch("/members/{member_id}/role")
 def update_member_role(member_id: int, role: str, db: Session = Depends(get_db),
                        user: User = Depends(require_club_admin)):
-    """Admin only: promote or demote club members."""
-    target = db.query(User).filter(User.id == member_id, User.club_id == user.club_id).first()
-    if not target: raise HTTPException(404)
-    try:
-        target.role = UserRole(role)
-    except ValueError:
-        raise HTTPException(400, "Invalid role")
-    db.commit()
-    logger.info("Member role updated: user=%d new_role=%s by admin=%d", member_id, role, user.id)
-    return {"ok": True}
+    """Admin only: promote or demote club members (single-role convenience endpoint)."""
+    return _set_club_member_roles(db, user, member_id, [role])
+
+
+@router.patch("/members/{member_id}/roles")
+def update_member_roles(member_id: int, data: ClubMemberRolesUpdate, db: Session = Depends(get_db),
+                        user: User = Depends(require_club_admin)):
+    """Admin only: set all club roles for a club member."""
+    return _set_club_member_roles(db, user, member_id, data.roles)
 
 
 @router.delete("/members/{member_id}")
@@ -278,7 +309,7 @@ def deactivate_member(member_id: int, db: Session = Depends(get_db),
     """Admin only: soft-delete a club member (preserves stats)."""
     target = db.query(User).filter(User.id == member_id, User.club_id == user.club_id).first()
     if not target: raise HTTPException(404)
-    if target.role == UserRole.superadmin:
+    if target.is_superadmin:
         raise HTTPException(403, "Cannot deactivate superadmin")
     if target.id == user.id:
         raise HTTPException(400, "Verwende 'Konto löschen' im eigenen Profil")
@@ -324,15 +355,39 @@ def link_user_to_roster(member_id: int, data: LinkRosterRequest, db: Session = D
     return {"ok": True}
 
 
-# ── Regular members (Stammspieler) — admin write, all read ──
+# ── Regular members (Stammspieler) ──
 
-def _member_dict(m: RegularMember, avatar: str | None = None, evening_count: int = 0) -> dict:
-    return {"id": m.id, "name": m.name, "nickname": m.nickname,
-            "is_guest": m.is_guest, "is_active": m.is_active,
-            "is_committee": m.is_committee, "is_auditor": bool(m.is_auditor),
-            "is_zeugwart": bool(m.is_zeugwart), "avatar": avatar,
-            "deactivated_at": m.deactivated_at.isoformat() if m.deactivated_at else None,
-            "evening_count": evening_count}
+def _linked_users_by_member_id(db: Session, club_id: int | None) -> dict[int, User]:
+    if not club_id:
+        return {}
+    users = db.query(User).filter(User.club_id == club_id).all()
+    by_rm: dict[int, User] = {}
+    for u in users:
+        if u.regular_member_id is not None:
+            by_rm[u.regular_member_id] = u
+    return by_rm
+
+
+def _member_dict(
+    m: RegularMember,
+    avatar: str | None = None,
+    evening_count: int = 0,
+    linked_user: User | None = None,
+) -> dict:
+    u_roles = linked_user.all_roles if linked_user else set()
+    resolved_avatar = avatar if avatar is not None else (linked_user.avatar if linked_user else None)
+    return {
+        "id": m.id, "name": m.name, "nickname": m.nickname,
+        "is_guest": m.is_guest, "is_active": m.is_active,
+        "is_committee": UserRole.committee.value in u_roles,
+        "is_auditor": UserRole.auditor.value in u_roles,
+        "is_zeugwart": UserRole.zeugwart.value in u_roles,
+        "is_treasurer": UserRole.treasurer.value in u_roles,
+        "roles": sorted(u_roles) if linked_user else [],
+        "avatar": resolved_avatar,
+        "deactivated_at": m.deactivated_at.isoformat() if m.deactivated_at else None,
+        "evening_count": evening_count,
+    }
 
 
 @router.get("/regular-members")
@@ -356,7 +411,17 @@ def list_regular_members(include_inactive: bool = False, db: Session = Depends(g
     if not include_inactive:
         q = q.filter(RegularMember.is_active == True)
     rows = q.order_by(RegularMember.name).all()
-    return [_member_dict(m, avatar, int(count or 0)) for m, avatar, count in rows]
+    by_rm = _linked_users_by_member_id(db, user.club_id)
+    by_uid = {u.id: u for u in db.query(User).filter(User.club_id == user.club_id).all()} if user.club_id else {}
+    return [
+        _member_dict(
+            m,
+            avatar,
+            int(count or 0),
+            linked_user=by_rm.get(m.id) or (by_uid.get(m.user_id) if m.user_id else None),
+        )
+        for m, avatar, count in rows
+    ]
 
 
 class RegularMemberCreate(TrimmedModel):
@@ -378,7 +443,7 @@ def create_regular_member(data: RegularMemberCreate, db: Session = Depends(get_d
 
 @router.put("/regular-members/{mid}")
 def update_regular_member(mid: int, data: RegularMemberCreate, db: Session = Depends(get_db),
-                          user: User = Depends(require_club_admin)):
+                          user: User = Depends(require_club_member)):
     m = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
     if not m: raise HTTPException(404)
     m.name = data.name
@@ -391,7 +456,8 @@ def update_regular_member(mid: int, data: RegularMemberCreate, db: Session = Dep
         .filter(Evening.club_id == user.club_id, EveningPlayer.regular_member_id == mid)
         .scalar()
     ) or 0
-    return _member_dict(m, evening_count=int(count))
+    by_rm = _linked_users_by_member_id(db, user.club_id)
+    return _member_dict(m, evening_count=int(count), linked_user=by_rm.get(m.id))
 
 
 class DeactivateRegularMemberBody(TrimmedModel):
@@ -1062,7 +1128,7 @@ def _payment_dict(p: MemberPayment, has_expense: bool = False) -> dict:
 @router.post("/member-payments", status_code=201)
 def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks,
                            db: Session = Depends(get_db),
-                           user: User = Depends(require_club_admin)):
+                           user: User = Depends(require_treasurer)):
     if data.amount == 0:
         raise HTTPException(400, "Betrag darf nicht 0 sein")
     if data.idempotency_key:
@@ -1127,7 +1193,7 @@ def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks
 @router.patch("/member-payments/{pid}")
 def update_member_payment(pid: int, data: PaymentUpdate, background_tasks: BackgroundTasks,
                           db: Session = Depends(get_db),
-                          user: User = Depends(require_club_admin)):
+                          user: User = Depends(require_treasurer)):
     p = db.query(MemberPayment).filter(
         MemberPayment.id == pid, MemberPayment.club_id == user.club_id, MemberPayment.is_deleted == False
     ).first()
@@ -1201,7 +1267,7 @@ def update_member_payment(pid: int, data: PaymentUpdate, background_tasks: Backg
 @router.delete("/member-payments/{pid}", status_code=204)
 def delete_member_payment(pid: int, background_tasks: BackgroundTasks, reason: Optional[str] = None,
                            db: Session = Depends(get_db),
-                           user: User = Depends(require_club_admin)):
+                           user: User = Depends(require_treasurer)):
     p = db.query(MemberPayment).filter(
         MemberPayment.id == pid, MemberPayment.club_id == user.club_id, MemberPayment.is_deleted == False
     ).first()
@@ -1487,7 +1553,7 @@ class GuestCostTransfer(TrimmedModel):
 
 @router.post("/guest-cost-transfer", status_code=201)
 def transfer_guest_costs(data: GuestCostTransfer, db: Session = Depends(get_db),
-                         user: User = Depends(require_club_admin)):
+                         user: User = Depends(require_treasurer)):
     """Pass on a guest's outstanding cost to a regular member.
 
     Stats / PenaltyLog are untouched. Two paired MemberPayment rows are
@@ -1559,7 +1625,7 @@ class TreasuryPayout(TrimmedModel):
 
 @router.post("/treasury-payout", status_code=201)
 def create_treasury_payout(data: TreasuryPayout, db: Session = Depends(get_db),
-                            user: User = Depends(require_club_admin)):
+                            user: User = Depends(require_treasurer)):
     """Bulk payout: distribute treasury funds to members as negative payment entries."""
     entries = [e for e in data.payouts if e.amount != 0]
     if not entries:
@@ -1634,7 +1700,7 @@ def list_expenses(db: Session = Depends(get_db), user: User = Depends(require_cl
 
 @router.post("/expenses", status_code=201)
 def create_expense(data: ExpenseCreate, db: Session = Depends(get_db),
-                   user: User = Depends(require_club_admin)):
+                   user: User = Depends(require_treasurer)):
     if data.amount == 0:
         raise HTTPException(400, "Betrag darf nicht 0 sein")
     if data.idempotency_key:
@@ -1668,7 +1734,7 @@ def create_expense(data: ExpenseCreate, db: Session = Depends(get_db),
 
 @router.patch("/expenses/{eid}")
 def update_expense(eid: int, data: ExpenseUpdate, db: Session = Depends(get_db),
-                   user: User = Depends(require_club_admin)):
+                   user: User = Depends(require_treasurer)):
     expense = db.query(ClubExpense).filter(
         ClubExpense.id == eid, ClubExpense.club_id == user.club_id, ClubExpense.is_deleted == False
     ).first()
@@ -1710,7 +1776,7 @@ def update_expense(eid: int, data: ExpenseUpdate, db: Session = Depends(get_db),
 
 @router.delete("/expenses/{eid}", status_code=204)
 def delete_expense(eid: int, reason: Optional[str] = None, db: Session = Depends(get_db),
-                   user: User = Depends(require_club_admin)):
+                   user: User = Depends(require_treasurer)):
     expense = db.query(ClubExpense).filter(
         ClubExpense.id == eid, ClubExpense.club_id == user.club_id, ClubExpense.is_deleted == False
     ).first()
@@ -1799,7 +1865,7 @@ def _fmt_request(r: PaymentRequest, member_name: str) -> dict:
 
 
 @router.get("/payment-requests")
-def list_payment_requests(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+def list_payment_requests(db: Session = Depends(get_db), user: User = Depends(require_treasurer)):
     """Admin: all pending payment requests."""
     rows = (
         db.query(PaymentRequest, RegularMember)
@@ -1880,7 +1946,7 @@ def create_payment_request(data: PaymentRequestCreate,
 @router.patch("/payment-requests/{rid}/confirm", status_code=200)
 def confirm_payment_request(rid: int, background_tasks: BackgroundTasks,
                              db: Session = Depends(get_db),
-                             user: User = Depends(require_club_admin)):
+                             user: User = Depends(require_treasurer)):
     """Admin: confirm request → creates a MemberPayment and marks request confirmed."""
     req = db.query(PaymentRequest).filter(
         PaymentRequest.id == rid, PaymentRequest.club_id == user.club_id
@@ -1915,7 +1981,7 @@ def confirm_payment_request(rid: int, background_tasks: BackgroundTasks,
 @router.patch("/payment-requests/{rid}/reject", status_code=200)
 def reject_payment_request(rid: int, background_tasks: BackgroundTasks,
                             db: Session = Depends(get_db),
-                            user: User = Depends(require_club_admin)):
+                            user: User = Depends(require_treasurer)):
     """Admin: reject a payment request."""
     req = db.query(PaymentRequest).filter(
         PaymentRequest.id == rid, PaymentRequest.club_id == user.club_id
@@ -2010,7 +2076,7 @@ _EMAIL_DEFAULTS = {
 
 
 @router.get("/email-settings")
-def get_email_settings(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+def get_email_settings(db: Session = Depends(get_db), user: User = Depends(require_it_admin)):
     """Admin: return the club's SMTP config. The password is never returned (only whether it is set)."""
     s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
     saved = ((s.extra or {}).get("email") or {}) if s else {}
@@ -2037,7 +2103,7 @@ class EmailSettingsUpdate(TrimmedModel):
 
 @router.patch("/email-settings")
 def update_email_settings(data: EmailSettingsUpdate, db: Session = Depends(get_db),
-                          user: User = Depends(require_club_admin)):
+                          user: User = Depends(require_it_admin)):
     """Admin: update the club's SMTP config. Password is only changed when provided."""
     s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
     if not s:
@@ -2070,7 +2136,7 @@ class TestEmailRequest(TrimmedModel):
 
 @router.post("/email-settings/test")
 def test_email_settings(data: TestEmailRequest = TestEmailRequest(), db: Session = Depends(get_db),
-                        user: User = Depends(require_club_admin)):
+                        user: User = Depends(require_it_admin)):
     """Admin: send a test email using the saved SMTP config (to the given address or self)."""
     from core.email import build_email_bodies, email_theme, get_club_email_config, send_club_email
     club = db.query(Club).filter(Club.id == user.club_id).first()
@@ -2099,7 +2165,7 @@ _TELEGRAM_DEFAULTS = {"enabled": False, "bot_username": ""}
 
 
 @router.get("/telegram-settings")
-def get_telegram_settings(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+def get_telegram_settings(db: Session = Depends(get_db), user: User = Depends(require_it_admin)):
     """Admin: return the club's Telegram bot config. The token is never returned (only whether it is set)."""
     from core.config import settings as app_settings
     s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
@@ -2120,7 +2186,7 @@ class TelegramSettingsUpdate(TrimmedModel):
 
 @router.patch("/telegram-settings")
 def update_telegram_settings(data: TelegramSettingsUpdate, db: Session = Depends(get_db),
-                             user: User = Depends(require_club_admin)):
+                             user: User = Depends(require_it_admin)):
     """Admin: update the club's Telegram bot. A new token is validated (and its username fetched)
     via Telegram's getMe before being saved; the webhook is (de)registered to match `enabled`."""
     from core.config import settings as app_settings
@@ -2176,7 +2242,7 @@ def update_telegram_settings(data: TelegramSettingsUpdate, db: Session = Depends
 
 
 @router.post("/telegram-settings/test")
-def test_telegram_settings(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+def test_telegram_settings(db: Session = Depends(get_db), user: User = Depends(require_it_admin)):
     """Admin: send a test message to the admin's own linked Telegram chat."""
     from core.telegram import get_club_telegram_config, send_telegram_message
     from core.crypto import decrypt_secret
@@ -2211,7 +2277,7 @@ def broadcast_push(data: BroadcastPushRequest, background_tasks: BackgroundTasks
 
 
 @router.post("/remind-debtors", status_code=200)
-def remind_debtors(background_tasks: BackgroundTasks, db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+def remind_debtors(background_tasks: BackgroundTasks, db: Session = Depends(get_db), user: User = Depends(require_treasurer)):
     """Admin: send push notification to every member with outstanding debt."""
     members = db.query(RegularMember).filter(
         RegularMember.club_id == user.club_id,
@@ -2439,7 +2505,7 @@ class ClubConfigBundle(TrimmedModel):
 
 
 @router.get("/config/export", response_model=ClubConfigBundle)
-def export_club_config(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+def export_club_config(db: Session = Depends(get_db), user: User = Depends(require_it_admin)):
     """Admin only: export the club's setup configuration as a portable JSON bundle."""
     club = db.query(Club).filter(Club.id == user.club_id).first()
     s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
@@ -2491,7 +2557,7 @@ def export_club_config(db: Session = Depends(get_db), user: User = Depends(requi
 
 @router.post("/config/import")
 def import_club_config(data: ClubConfigBundle, db: Session = Depends(get_db),
-                       user: User = Depends(require_club_admin)):
+                       user: User = Depends(require_it_admin)):
     """Admin only: replace the club's setup configuration with an imported bundle.
 
     Destructive by design — meant for seeding a fresh/test club from another club's exported
@@ -2568,12 +2634,7 @@ def set_committee_member(
     db: Session = Depends(get_db),
     user: User = Depends(require_club_admin),
 ):
-    """Toggle the is_committee flag for a regular member (admin only)."""
-    member = db.query(RegularMember).filter(
-        RegularMember.id == mid, RegularMember.club_id == user.club_id
-    ).first()
-    if not member:
-        raise HTTPException(404, "Member not found")
-    member.is_committee = data.is_committee
-    db.commit()
-    return {"id": member.id, "is_committee": member.is_committee}
+    """Toggle the committee role for a regular member's linked user (admin only)."""
+    from api.deps import toggle_regular_member_role
+    member = toggle_regular_member_role(db, user.club_id, mid, UserRole.committee, data.is_committee)
+    return {"id": member.id, "is_committee": data.is_committee}

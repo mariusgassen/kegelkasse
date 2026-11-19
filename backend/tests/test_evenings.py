@@ -145,10 +145,10 @@ class TestCreateEvening:
         assert data["is_closed"] is False
         assert data["players"] == []
 
-    def test_member_cannot_create_evening(self, client: TestClient, auth_headers: dict, club: Club):
+    def test_member_can_create_evening(self, client: TestClient, auth_headers: dict, club: Club):
         resp = client.post("/api/v1/evening/", headers=auth_headers,
                            json={"date": "2025-07-01"})
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
     def test_creates_with_note(self, client: TestClient, admin_headers: dict, club: Club):
         resp = client.post("/api/v1/evening/", headers=admin_headers,

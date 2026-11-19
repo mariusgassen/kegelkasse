@@ -79,6 +79,28 @@ def admin_headers(admin_user: User) -> dict:
 
 
 @pytest.fixture()
+def it_admin_user(db: Session, club: Club) -> User:
+    u = User(
+        email="it_admin_ext@test.de",
+        name="IT Admin Ext",
+        hashed_password=get_password_hash("x"),
+        roles=[UserRole.it_admin.value, UserRole.member.value],
+        club_id=club.id,
+        is_active=True,
+    )
+    db.add(u)
+    db.commit()
+    db.refresh(u)
+    return u
+
+
+@pytest.fixture()
+def it_admin_headers(it_admin_user: User) -> dict:
+    token = create_access_token({"sub": str(it_admin_user.id)})
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
 def club_settings(db: Session, club: Club) -> ClubSettings:
     s = ClubSettings(club_id=club.id, extra={"ical_token": "existing-token"})
     db.add(s)
@@ -101,12 +123,16 @@ def regular_member(db: Session, club: Club) -> RegularMember:
 # ---------------------------------------------------------------------------
 
 class TestRegenerateIcalToken:
-    def test_admin_regenerates_token(self, client: TestClient, admin_headers: dict, club_settings: ClubSettings):
-        resp = client.post("/api/v1/club/settings/regenerate-ical-token", headers=admin_headers)
+    def test_it_admin_regenerates_token(self, client: TestClient, it_admin_headers: dict, club_settings: ClubSettings):
+        resp = client.post("/api/v1/club/settings/regenerate-ical-token", headers=it_admin_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert "ical_token" in data
         assert data["ical_token"] != "existing-token"
+
+    def test_plain_admin_cannot_regenerate(self, client: TestClient, admin_headers: dict, club_settings: ClubSettings):
+        resp = client.post("/api/v1/club/settings/regenerate-ical-token", headers=admin_headers)
+        assert resp.status_code == 403
 
     def test_member_cannot_regenerate(self, client: TestClient, auth_headers: dict, club_settings: ClubSettings):
         resp = client.post("/api/v1/club/settings/regenerate-ical-token", headers=auth_headers)
@@ -143,14 +169,42 @@ class TestGetMembers:
 
 
 # ---------------------------------------------------------------------------
-# PATCH /club/members/{id}/role
+# PATCH /club/members/{id}/role and /roles
 # ---------------------------------------------------------------------------
 
 class TestUpdateMemberRole:
-    def test_admin_updates_role(self, client: TestClient, admin_headers: dict, user: User):
+    def test_admin_updates_role(self, client: TestClient, db: Session, admin_headers: dict, user: User):
         resp = client.patch(f"/api/v1/club/members/{user.id}/role",
                             headers=admin_headers, params={"role": "admin"})
         assert resp.status_code == 200
+        db.refresh(user)
+        assert "admin" in user.all_roles
+
+    def test_admin_demoting_admin_removes_from_roles(self, client: TestClient, db: Session, admin_headers: dict, user: User):
+        user.roles = ["admin"]
+        db.commit()
+        resp = client.patch(f"/api/v1/club/members/{user.id}/role",
+                            headers=admin_headers, params={"role": "member"})
+        assert resp.status_code == 200
+        db.refresh(user)
+        assert "admin" not in user.all_roles
+        assert user.role == UserRole.member
+
+    def test_admin_cannot_escalate_to_superadmin(self, client: TestClient, admin_headers: dict, user: User):
+        resp = client.patch(f"/api/v1/club/members/{user.id}/role",
+                            headers=admin_headers, params={"role": "superadmin"})
+        assert resp.status_code == 403
+        resp2 = client.patch(f"/api/v1/club/members/{user.id}/roles",
+                             headers=admin_headers, json={"roles": ["superadmin", "member"]})
+        assert resp2.status_code == 403
+
+    def test_admin_updates_multiple_club_roles(self, client: TestClient, db: Session, admin_headers: dict, user: User):
+        resp = client.patch(f"/api/v1/club/members/{user.id}/roles",
+                            headers=admin_headers, json={"roles": ["treasurer", "auditor", "member"]})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert set(data["roles"]) == {"treasurer", "auditor"}
+        assert data["role"] == "treasurer"
 
     def test_404_if_not_found(self, client: TestClient, admin_headers: dict):
         resp = client.patch("/api/v1/club/members/999999/role",
@@ -780,6 +834,31 @@ class TestMemberPayments:
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
+    def test_treasurer_blocks_plain_admin_when_assigned(self, client: TestClient, db: Session, club: Club,
+                                                        admin_headers: dict, regular_member: RegularMember):
+        treasurer = User(
+            email="treasurer_ext@test.de",
+            name="Kassenwart Ext",
+            hashed_password=get_password_hash("x"),
+            roles=[UserRole.treasurer.value, UserRole.member.value],
+            club_id=club.id,
+            is_active=True,
+        )
+        db.add(treasurer)
+        db.commit()
+        db.refresh(treasurer)
+        treasurer_headers = {"Authorization": f"Bearer {create_access_token({'sub': str(treasurer.id)})}"}
+
+        # Once a treasurer exists in the club, plain admin is blocked from treasury mutations
+        resp_admin = client.post("/api/v1/club/member-payments", headers=admin_headers,
+                                 json={"regular_member_id": regular_member.id, "amount": 5.0})
+        assert resp_admin.status_code == 403
+
+        # Treasurer can book payment
+        resp_tr = client.post("/api/v1/club/member-payments", headers=treasurer_headers,
+                              json={"regular_member_id": regular_member.id, "amount": 5.0})
+        assert resp_tr.status_code == 201
+
 
 # ---------------------------------------------------------------------------
 # Guest balances
@@ -1078,21 +1157,30 @@ class TestClubPins:
 # ---------------------------------------------------------------------------
 
 class TestCommitteeToggle:
-    def test_admin_sets_committee_flag(self, client: TestClient, admin_headers: dict,
-                                       regular_member: RegularMember):
+    def test_admin_sets_committee_flag(self, client: TestClient, db: Session, admin_headers: dict,
+                                       regular_member: RegularMember, user: User):
+        user.regular_member_id = regular_member.id
+        db.commit()
         resp = client.patch(f"/api/v1/club/members/{regular_member.id}/committee",
                             headers=admin_headers,
                             json={"is_committee": True})
         assert resp.status_code == 200
         assert resp.json()["is_committee"] is True
+        db.refresh(user)
+        assert "committee" in user.all_roles
 
-    def test_admin_clears_committee_flag(self, client: TestClient, admin_headers: dict,
-                                         regular_member: RegularMember):
+    def test_admin_clears_committee_flag(self, client: TestClient, db: Session, admin_headers: dict,
+                                         regular_member: RegularMember, user: User):
+        user.regular_member_id = regular_member.id
+        user.roles = ["committee", "member"]
+        db.commit()
         resp = client.patch(f"/api/v1/club/members/{regular_member.id}/committee",
                             headers=admin_headers,
                             json={"is_committee": False})
         assert resp.status_code == 200
         assert resp.json()["is_committee"] is False
+        db.refresh(user)
+        assert "committee" not in user.all_roles
 
     def test_404_if_member_not_found(self, client: TestClient, admin_headers: dict):
         resp = client.patch("/api/v1/club/members/999999/committee",
@@ -1511,8 +1599,12 @@ class TestExportClubConfig:
         resp = client.get("/api/v1/club/config/export", headers=auth_headers)
         assert resp.status_code == 403
 
-    def test_export_empty_club(self, client: TestClient, admin_headers: dict):
+    def test_plain_admin_cannot_export(self, client: TestClient, admin_headers: dict):
         resp = client.get("/api/v1/club/config/export", headers=admin_headers)
+        assert resp.status_code == 403
+
+    def test_export_empty_club(self, client: TestClient, it_admin_headers: dict):
+        resp = client.get("/api/v1/club/config/export", headers=it_admin_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert data["version"] == 1
@@ -1521,7 +1613,7 @@ class TestExportClubConfig:
         assert data["teams"] == []
         assert data["pins"] == []
 
-    def test_export_includes_setup_data(self, client: TestClient, admin_headers: dict,
+    def test_export_includes_setup_data(self, client: TestClient, it_admin_headers: dict,
                                          db: Session, club: Club):
         s = ClubSettings(
             club_id=club.id, home_venue="Krone", primary_color="#111111",
@@ -1544,7 +1636,7 @@ class TestExportClubConfig:
         db.add(ClubPin(club_id=club.id, name="Vereinsnadel", icon="📌"))
         db.commit()
 
-        resp = client.get("/api/v1/club/config/export", headers=admin_headers)
+        resp = client.get("/api/v1/club/config/export", headers=it_admin_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert data["club_name"] == club.name
@@ -1566,12 +1658,12 @@ class TestExportClubConfig:
         assert data["pins"][0]["name"] == "Vereinsnadel"
         assert "holder_regular_member_id" not in data["pins"][0]
 
-    def test_export_omits_inactive_entries(self, client: TestClient, admin_headers: dict,
+    def test_export_omits_inactive_entries(self, client: TestClient, it_admin_headers: dict,
                                             db: Session, club: Club):
         db.add(PenaltyType(club_id=club.id, name="Inactive", icon="⚠️", default_amount=1.0,
                             is_active=False))
         db.commit()
-        resp = client.get("/api/v1/club/config/export", headers=admin_headers)
+        resp = client.get("/api/v1/club/config/export", headers=it_admin_headers)
         assert resp.status_code == 200
         assert resp.json()["penalty_types"] == []
 
@@ -1599,9 +1691,13 @@ class TestImportClubConfig:
         resp = client.post("/api/v1/club/config/import", headers=auth_headers, json=self._bundle())
         assert resp.status_code == 403
 
-    def test_import_creates_setup_data(self, client: TestClient, admin_headers: dict,
-                                        db: Session, club: Club):
+    def test_plain_admin_cannot_import(self, client: TestClient, admin_headers: dict):
         resp = client.post("/api/v1/club/config/import", headers=admin_headers, json=self._bundle())
+        assert resp.status_code == 403
+
+    def test_import_creates_setup_data(self, client: TestClient, it_admin_headers: dict,
+                                        db: Session, club: Club):
+        resp = client.post("/api/v1/club/config/import", headers=it_admin_headers, json=self._bundle())
         assert resp.status_code == 200
         assert resp.json() == {"ok": True, "penalty_types": 1, "game_templates": 1, "teams": 1, "pins": 1}
 
@@ -1628,7 +1724,7 @@ class TestImportClubConfig:
         assert s.home_venue == "Neue Halle"
         assert (s.extra or {}).get("guest_penalty_cap") == 3.0
 
-    def test_import_replaces_existing_setup_data(self, client: TestClient, admin_headers: dict,
+    def test_import_replaces_existing_setup_data(self, client: TestClient, it_admin_headers: dict,
                                                   db: Session, club: Club):
         old_pt = PenaltyType(club_id=club.id, name="Old", icon="⚠️", default_amount=0.5)
         old_gt = GameTemplate(club_id=club.id, name="Old Game", winner_type="individual",
@@ -1639,7 +1735,7 @@ class TestImportClubConfig:
         db.commit()
         old_pt_id, old_gt_id, old_team_id = old_pt.id, old_gt.id, old_team.id
 
-        resp = client.post("/api/v1/club/config/import", headers=admin_headers, json=self._bundle())
+        resp = client.post("/api/v1/club/config/import", headers=it_admin_headers, json=self._bundle())
         assert resp.status_code == 200
 
         db.expire_all()
@@ -1654,48 +1750,48 @@ class TestImportClubConfig:
         assert len(active_pts) == 1
         assert active_pts[0].name == "Null"
 
-    def test_import_preserves_secret_tokens(self, client: TestClient, admin_headers: dict,
+    def test_import_preserves_secret_tokens(self, client: TestClient, it_admin_headers: dict,
                                              db: Session, club: Club):
         s = ClubSettings(club_id=club.id, extra={"ical_token": "keep-me"})
         db.add(s)
         db.commit()
-        resp = client.post("/api/v1/club/config/import", headers=admin_headers, json=self._bundle())
+        resp = client.post("/api/v1/club/config/import", headers=it_admin_headers, json=self._bundle())
         assert resp.status_code == 200
         db.expire_all()
         s2 = db.query(ClubSettings).filter(ClubSettings.club_id == club.id).first()
         assert s2.extra.get("ical_token") == "keep-me"
 
-    def test_import_rejects_unsupported_version(self, client: TestClient, admin_headers: dict):
-        resp = client.post("/api/v1/club/config/import", headers=admin_headers,
+    def test_import_rejects_unsupported_version(self, client: TestClient, it_admin_headers: dict):
+        resp = client.post("/api/v1/club/config/import", headers=it_admin_headers,
                            json=self._bundle(version=999))
         assert resp.status_code == 400
 
-    def test_import_drops_unknown_sound_key(self, client: TestClient, admin_headers: dict,
+    def test_import_drops_unknown_sound_key(self, client: TestClient, it_admin_headers: dict,
                                              db: Session, club: Club):
         bundle = self._bundle(penalty_types=[{"icon": "⚠️", "name": "X", "default_amount": 1.0,
                                               "sort_order": 0, "sound_key": "not-real"}])
-        resp = client.post("/api/v1/club/config/import", headers=admin_headers, json=bundle)
+        resp = client.post("/api/v1/club/config/import", headers=it_admin_headers, json=bundle)
         assert resp.status_code == 200
         pt = db.query(PenaltyType).filter(
             PenaltyType.club_id == club.id, PenaltyType.is_active == True).first()
         assert pt.sound_key is None
 
-    def test_import_tolerates_legacy_sort_order_field(self, client: TestClient, admin_headers: dict,
+    def test_import_tolerates_legacy_sort_order_field(self, client: TestClient, it_admin_headers: dict,
                                                        db: Session, club: Club):
         # Bundles exported before 056 carry a per-penalty sort_order; they must still import.
         bundle = self._bundle(penalty_types=[{"icon": "⚠️", "name": "Alt", "default_amount": 1.0,
                                               "sort_order": 99, "sound_key": None}])
-        resp = client.post("/api/v1/club/config/import", headers=admin_headers, json=bundle)
+        resp = client.post("/api/v1/club/config/import", headers=it_admin_headers, json=bundle)
         assert resp.status_code == 200
         pt = db.query(PenaltyType).filter(
             PenaltyType.club_id == club.id, PenaltyType.is_active == True).first()
         assert pt.name == "Alt"
 
-    def test_import_empty_bundle_deactivates_everything(self, client: TestClient, admin_headers: dict,
+    def test_import_empty_bundle_deactivates_everything(self, client: TestClient, it_admin_headers: dict,
                                                           db: Session, club: Club):
         db.add(PenaltyType(club_id=club.id, name="Old", icon="⚠️", default_amount=0.5))
         db.commit()
-        resp = client.post("/api/v1/club/config/import", headers=admin_headers, json=self._bundle(
+        resp = client.post("/api/v1/club/config/import", headers=it_admin_headers, json=self._bundle(
             penalty_types=[], game_templates=[], teams=[], pins=[],
         ))
         assert resp.status_code == 200

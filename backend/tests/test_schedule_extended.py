@@ -211,11 +211,11 @@ class TestGuestManagement:
     def test_add_guest_member_required(
             self, client: TestClient, auth_headers: dict,
             scheduled_evening: ScheduledEvening):
-        """Lines 185-201: non-admin gets 403."""
+        """Members can add guests to scheduled evenings."""
         resp = client.post(f"/api/v1/schedule/{scheduled_evening.id}/guests",
-                           json={"name": "Intruder"},
+                           json={"name": "Member Guest"},
                            headers=auth_headers)
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
     def test_add_guest_nonexistent_se(
             self, client: TestClient, admin_headers: dict):
@@ -251,20 +251,20 @@ class TestGuestManagement:
                              headers=admin_headers)
         assert resp.status_code == 404
 
-    def test_remove_guest_requires_admin(
+    def test_member_can_remove_guest(
             self, client: TestClient, auth_headers: dict,
             scheduled_evening: ScheduledEvening, db: Session):
-        """Lines 204-219: member role gets 403."""
+        """Members can remove guests from scheduled evenings."""
         guest = ScheduledEveningGuest(
             scheduled_evening_id=scheduled_evening.id,
-            name="Protected Guest",
+            name="Member Removable Guest",
         )
         db.add(guest)
         db.commit()
         db.refresh(guest)
         resp = client.delete(f"/api/v1/schedule/{scheduled_evening.id}/guests/{guest.id}",
                              headers=auth_headers)
-        assert resp.status_code == 403
+        assert resp.status_code == 204
 
     # ── Known-guest entries: guests are roster entries from the moment they are entered ──
 
@@ -555,15 +555,15 @@ class TestSetRsvpForMember:
         )
         assert resp.status_code == 400
 
-    def test_member_cannot_set_rsvp_for_other(
+    def test_member_can_set_rsvp_for_other(
             self, client: TestClient, auth_headers: dict,
             scheduled_evening: ScheduledEvening, regular_member: RegularMember):
-        """Lines 363-391: member role gets 403."""
+        """Members can set RSVP on behalf of another member."""
         resp = client.post(
             f"/api/v1/schedule/{scheduled_evening.id}/rsvp/member/{regular_member.id}",
             json={"status": "attending"}, headers=auth_headers,
         )
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -669,13 +669,13 @@ class TestSendReminder:
         assert resp.status_code == 200
         assert resp.json()["reminded_count"] == 0
 
-    def test_send_reminder_requires_admin(
+    def test_member_can_send_reminder(
             self, client: TestClient, auth_headers: dict,
             scheduled_evening: ScheduledEvening):
-        """Lines 435-459: member role gets 403."""
+        """Members can trigger RSVP reminder."""
         resp = client.post(f"/api/v1/schedule/{scheduled_evening.id}/remind",
                            headers=auth_headers)
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
     def test_send_reminder_nonexistent(
             self, client: TestClient, admin_headers: dict):

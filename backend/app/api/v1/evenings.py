@@ -114,7 +114,7 @@ class EveningCreate(TrimmedModel):
 
 @router.post("/")
 def create_evening(data: EveningCreate, db: Session = Depends(get_db),
-                   user: User = Depends(require_club_admin)):
+                   user: User = Depends(require_club_member)):
     other_open = db.query(Evening).filter(
         Evening.club_id == user.club_id,
         Evening.is_closed == False,
@@ -464,10 +464,10 @@ def update_penalty(eid: int, lid: int, data: PenaltyUpdate, db: Session = Depend
     l = db.query(PenaltyLog).filter(PenaltyLog.id == lid, PenaltyLog.evening_id == e.id).first()
     if not l: raise HTTPException(404)
     updates = data.model_dump(exclude_none=True)
-    # Date override requires admin role
+    # Date override: allowed for any member while evening is open; admin/treasurer required when closed
     if "date" in updates:
-        if not user.has_role(UserRole.admin):
-            raise HTTPException(403, "Admin required to change penalty date")
+        if e.is_closed and not user.has_role(UserRole.admin, UserRole.treasurer):
+            raise HTTPException(403, "Admin or treasurer required to change penalty date on a closed evening")
         date_str = updates.pop("date")
         try:
             dt = _parse_date(date_str)
@@ -625,8 +625,8 @@ def _do_calculate_absence_penalties(
 def calculate_absence_penalties(eid: int,
 background_tasks: BackgroundTasks,
                                 db: Session = Depends(get_db),
-                                user: User = Depends(require_club_admin)):
-    """Admin: calculate absence penalties for all absent members. RSVP-aware."""
+                                user: User = Depends(require_club_member)):
+    """Calculate absence penalties for all absent members. RSVP-aware."""
     e = get_club_evening(eid, user, db)
     return _do_calculate_absence_penalties(e, background_tasks, db, user.id)
 
@@ -637,7 +637,7 @@ class MarkCancelledBody(TrimmedModel):
 
 @router.post("/{eid}/mark-cancelled")
 def mark_cancelled(eid: int, data: MarkCancelledBody, db: Session = Depends(get_db),
-                   user: User = Depends(require_club_admin)):
+                   user: User = Depends(require_club_member)):
     """Admin: mark members as having properly cancelled for an ad-hoc evening.
 
     Finds or creates a ScheduledEvening for the evening's date and club,
@@ -769,7 +769,7 @@ class CameraThrowCreate(TrimmedModel):
 def add_camera_throw(eid: int, gid: int, data: CameraThrowCreate,
                      background_tasks: BackgroundTasks,
                      db: Session = Depends(get_db),
-                     user: User = Depends(require_club_admin)):
+                     user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
     g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id, Game.is_deleted == False).first()
     if not g:
@@ -805,7 +805,7 @@ def add_camera_throw(eid: int, gid: int, data: CameraThrowCreate,
 def clear_camera_throws(eid: int, gid: int,
                         background_tasks: BackgroundTasks,
                         db: Session = Depends(get_db),
-                        user: User = Depends(require_club_admin)):
+                        user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
     g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id).first()
     if not g:
@@ -820,7 +820,7 @@ def clear_camera_throws(eid: int, gid: int,
 def delete_camera_throw(eid: int, gid: int, tid: int,
                         background_tasks: BackgroundTasks,
                         db: Session = Depends(get_db),
-                        user: User = Depends(require_club_admin)):
+                        user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
     g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id).first()
     if not g:
@@ -844,7 +844,7 @@ class CameraThrowUpdate(TrimmedModel):
 def update_camera_throw(eid: int, gid: int, tid: int, data: CameraThrowUpdate,
                         background_tasks: BackgroundTasks,
                         db: Session = Depends(get_db),
-                        user: User = Depends(require_club_admin)):
+                        user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
     g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id).first()
     if not g:
@@ -1049,8 +1049,8 @@ def update_game(eid: int, gid: int, data: GameUpdate, db: Session = Depends(get_
     new_started_at = g.started_at.replace(tzinfo=UTC) if g.started_at and not g.started_at.tzinfo else g.started_at
     new_finished_at = g.finished_at.replace(tzinfo=UTC) if g.finished_at and not g.finished_at.tzinfo else g.finished_at
     if data.started_at is not None or data.finished_at is not None:
-        if not user.has_role(UserRole.admin):
-            raise HTTPException(status_code=403, detail="Club admin role required to edit game timestamps")
+        if e.is_closed and not user.has_role(UserRole.admin, UserRole.treasurer):
+            raise HTTPException(status_code=403, detail="Club admin or treasurer role required to edit game timestamps on a closed evening")
         try:
             if data.started_at is not None:
                 parsed = datetime.fromisoformat(data.started_at)

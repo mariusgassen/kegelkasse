@@ -73,7 +73,7 @@ def main():
             email=settings.FIRST_SUPERADMIN_EMAIL,
             name="Admin",
             hashed_password=get_password_hash(settings.FIRST_SUPERADMIN_PASSWORD),
-            role=UserRole.superadmin,
+            roles=[UserRole.superadmin.value],
             club_id=club.id
         )
         db.add(admin)

@@ -48,7 +48,7 @@ def cleanup(db: Session, club: Club):
 @pytest.fixture()
 def admin_headers(db: Session, club: Club):
     u = User(email="admin_ai@test.de", name="AI Admin", hashed_password=get_password_hash("x"),
-             role=UserRole.admin, club_id=club.id, is_active=True)
+             roles=[UserRole.admin.value, UserRole.it_admin.value], club_id=club.id, is_active=True)
     db.add(u)
     db.commit()
     return {"Authorization": f"Bearer {create_access_token({'sub': str(u.id)})}"}
@@ -442,11 +442,12 @@ def test_booking_review_admin_only_and_range(client, auth_headers, admin_headers
 
 def test_booking_review_allowed_for_auditor(client, db, club, monkeypatch):
     monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "")
-    m = RegularMember(club_id=club.id, name="Petra Prüfer", is_auditor=True)
+    m = RegularMember(club_id=club.id, name="Petra Prüfer")
     db.add(m)
     db.flush()
     u = User(email="auditor_ai@test.de", name="Petra", hashed_password=get_password_hash("x"),
-             role=UserRole.member, club_id=club.id, is_active=True, regular_member_id=m.id)
+             roles=[UserRole.auditor.value, UserRole.member.value], club_id=club.id, is_active=True,
+             regular_member_id=m.id)
     db.add(u)
     db.commit()
     headers = {"Authorization": f"Bearer {create_access_token({'sub': str(u.id)})}"}
@@ -469,9 +470,18 @@ def test_settings_defaults_never_expose_key(client, admin_headers, claude):
     assert "test-key" not in r.text
 
 
-def test_settings_admin_only(client, auth_headers):
+def test_settings_it_admin_only(client, db, club, auth_headers):
     assert client.get("/api/v1/ai/settings", headers=auth_headers).status_code == 403
     assert client.patch("/api/v1/ai/settings", json={"recaps": False}, headers=auth_headers).status_code == 403
+    plain_admin = User(email="plain_admin_ai@test.de", name="Plain Admin", hashed_password=get_password_hash("x"),
+                       roles=[UserRole.admin.value], club_id=club.id, is_active=True)
+    db.add(plain_admin)
+    db.commit()
+    pa_headers = {"Authorization": f"Bearer {create_access_token({'sub': str(plain_admin.id)})}"}
+    assert client.get("/api/v1/ai/settings", headers=pa_headers).status_code == 403
+    assert client.patch("/api/v1/ai/settings", json={"recaps": False}, headers=pa_headers).status_code == 403
+    db.delete(plain_admin)
+    db.commit()
 
 
 def test_settings_validation(client, admin_headers):

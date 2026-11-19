@@ -457,25 +457,23 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                         </Button>
                     )}
                 </div>
-                {isAdmin(user) && (
-                    <div className="mt-2">
-                        <button
-                            className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-2 ${hasAbsenceEntries ? 'border-accent text-accent-fg bg-accent/10' : 'border-line text-muted'}`}
-                            onClick={doCalculateAbsence}
-                            disabled={absenceLoading}>
-                            🏠 {absenceLoading
-                                ? t('action.loading')
-                                : hasAbsenceEntries ? t('penalty.absence.recalculate') : t('penalty.absence.calculate')}
-                        </button>
-                        {absenceResult && !absenceLoading && (
-                            <p className="text-xs text-muted text-center mt-1">
-                                {absenceResult.absent_count > 0
-                                    ? `${absenceResult.absent_count} ${t('penalty.absence.result')} · Ø ${fe(absenceResult.avg)}`
-                                    : t('penalty.absence.none')}
-                            </p>
-                        )}
-                    </div>
-                )}
+                <div className="mt-2">
+                    <button
+                        className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-2 ${hasAbsenceEntries ? 'border-accent text-accent-fg bg-accent/10' : 'border-line text-muted'}`}
+                        onClick={doCalculateAbsence}
+                        disabled={absenceLoading}>
+                        🏠 {absenceLoading
+                            ? t('action.loading')
+                            : hasAbsenceEntries ? t('penalty.absence.recalculate') : t('penalty.absence.calculate')}
+                    </button>
+                    {absenceResult && !absenceLoading && (
+                        <p className="text-xs text-muted text-center mt-1">
+                            {absenceResult.absent_count > 0
+                                ? `${absenceResult.absent_count} ${t('penalty.absence.result')} · Ø ${fe(absenceResult.avg)}`
+                                : t('penalty.absence.none')}
+                        </p>
+                    )}
+                </div>
             </div>
 
             {/* ── Player filter chips ── */}
@@ -934,8 +932,8 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                         </div>
                     </div>
 
-                    {/* Date override (admin only) */}
-                    {isAdmin(user) && (
+                    {/* Date override */}
+                    {(!evening.is_closed || isAdmin(user)) && (
                         <Field label={t('penalty.date')}>
                             <input type="datetime-local" className="kce-input" value={editDate}
                                    onChange={e => setEditDate(e.target.value)}/>

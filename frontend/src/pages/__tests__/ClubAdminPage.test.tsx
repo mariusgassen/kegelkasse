@@ -18,20 +18,24 @@ vi.mock('@/hooks/useOnline.ts', () => ({
 // useAppStore is called both with selector and without:
 // - useAppStore(s => s.user) → selector style
 // - useAppStore() → returns { setPenaltyTypes, setRegularMembers, setGameTemplates, setGuestPenaltyCap }
-vi.mock('@/store/app.ts', () => ({
-    useAppStore: vi.fn((sel?: any) => {
-        const store = {
-            user: null,
-            regularMembers: [],
-            setPenaltyTypes: vi.fn(),
-            setRegularMembers: vi.fn(),
-            setGameTemplates: vi.fn(),
-            setGuestPenaltyCap: vi.fn(),
-        }
-        return sel ? sel(store) : store
-    }),
-    isAdmin: vi.fn(() => false),
-}))
+vi.mock('@/store/app.ts', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/store/app.ts')>()
+    return {
+        ...actual,
+        useAppStore: vi.fn((sel?: any) => {
+            const store = {
+                user: null,
+                regularMembers: [],
+                setPenaltyTypes: vi.fn(),
+                setRegularMembers: vi.fn(),
+                setGameTemplates: vi.fn(),
+                setGuestPenaltyCap: vi.fn(),
+            }
+            return sel ? sel(store) : store
+        }),
+        isAdmin: vi.fn(() => false),
+    }
+})
 
 vi.mock('@/api/client.ts', () => ({
     api: {
@@ -126,12 +130,12 @@ vi.mock('@/utils/share.ts', () => ({ shareOrCopy: vi.fn() }))
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
 const ADMIN_USER = {
-    id: 1, role: 'admin', email: 'admin@test.de', name: 'Admin',
+    id: 1, role: 'admin', roles: ['admin', 'it_admin'], email: 'admin@test.de', name: 'Admin',
     username: 'admin', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: 1,
 }
 
 const SUPERADMIN_USER = {
-    id: 1, role: 'superadmin', email: 'super@test.de', name: 'Super',
+    id: 1, role: 'superadmin', roles: ['superadmin'], email: 'super@test.de', name: 'Super',
     username: 'super', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: 1,
 }
 

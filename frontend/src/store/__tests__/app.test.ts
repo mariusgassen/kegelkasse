@@ -1,15 +1,26 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useAppStore, isAdmin, isSuperadmin, isProductManager, canManageRoadmap, hasRole } from '../app'
+import {
+    useAppStore,
+    isAdmin,
+    isSuperadmin,
+    isItAdmin,
+    isTreasurer,
+    isAuditor,
+    isCommittee,
+    isZeugwart,
+    canManageRoadmap,
+    hasRole,
+} from '../app'
 import type { User, UserRole } from '../../types'
 
-function makeUser(role: string, roles?: UserRole[]): User {
+function makeUser(role: UserRole, roles?: UserRole[]): User {
     return {
         id: 1,
         email: 'test@test.de',
         name: 'Test User',
         username: 'testuser',
-        role: role as User['role'],
-        roles,
+        role,
+        roles: roles ?? [role],
         club_id: 1,
         preferred_locale: 'de',
         avatar: null,
@@ -21,35 +32,53 @@ describe('role helpers', () => {
     it('returns false for null user', () => {
         expect(isAdmin(null)).toBe(false)
         expect(isSuperadmin(null)).toBe(false)
-        expect(isProductManager(null)).toBe(false)
+        expect(isItAdmin(null)).toBe(false)
+        expect(isTreasurer(null)).toBe(false)
+        expect(isAuditor(null)).toBe(false)
+        expect(isCommittee(null)).toBe(false)
+        expect(isZeugwart(null)).toBe(false)
         expect(canManageRoadmap(null)).toBe(false)
     })
 
-    it('handles single role (legacy)', () => {
+    it('handles single roles and superadmin hierarchy', () => {
         expect(isAdmin(makeUser('member'))).toBe(false)
         expect(isAdmin(makeUser('admin'))).toBe(true)
         expect(isAdmin(makeUser('superadmin'))).toBe(true)
         expect(isSuperadmin(makeUser('superadmin'))).toBe(true)
         expect(isSuperadmin(makeUser('admin'))).toBe(false)
-        expect(isProductManager(makeUser('product_manager'))).toBe(true)
-        expect(canManageRoadmap(makeUser('product_manager'))).toBe(true)
+        expect(isItAdmin(makeUser('it_admin'))).toBe(true)
+        expect(isItAdmin(makeUser('superadmin'))).toBe(true)
+        expect(isItAdmin(makeUser('admin'))).toBe(false)
+        expect(isTreasurer(makeUser('treasurer'))).toBe(true)
+        expect(isTreasurer(makeUser('superadmin'))).toBe(true)
+        expect(isAuditor(makeUser('auditor'))).toBe(true)
+        // Superadmin does NOT imply auditor (four-eyes principle)
+        expect(isAuditor(makeUser('superadmin'))).toBe(false)
+        expect(canManageRoadmap(makeUser('superadmin'))).toBe(true)
+        expect(canManageRoadmap(makeUser('admin'))).toBe(false)
     })
 
     it('handles multiple roles', () => {
-        const adminPmUser = makeUser('admin', ['admin', 'product_manager'])
-        expect(isAdmin(adminPmUser)).toBe(true)
-        expect(isProductManager(adminPmUser)).toBe(true)
-        expect(canManageRoadmap(adminPmUser)).toBe(true)
-        expect(isSuperadmin(adminPmUser)).toBe(false)
+        const adminItUser = makeUser('admin', ['admin', 'it_admin', 'treasurer'])
+        expect(isAdmin(adminItUser)).toBe(true)
+        expect(isItAdmin(adminItUser)).toBe(true)
+        expect(isTreasurer(adminItUser)).toBe(true)
+        expect(isSuperadmin(adminItUser)).toBe(false)
+        expect(canManageRoadmap(adminItUser)).toBe(false)
 
-        const memberPmUser = makeUser('product_manager', ['member', 'product_manager'])
-        expect(isAdmin(memberPmUser)).toBe(false)
-        expect(isProductManager(memberPmUser)).toBe(true)
-        expect(canManageRoadmap(memberPmUser)).toBe(true)
+        const clubRoleUser = makeUser('member', ['committee', 'zeugwart', 'auditor'])
+        expect(isAdmin(clubRoleUser)).toBe(false)
+        expect(isCommittee(clubRoleUser)).toBe(true)
+        expect(isZeugwart(clubRoleUser)).toBe(true)
+        expect(isAuditor(clubRoleUser)).toBe(true)
+        expect(hasRole(clubRoleUser, 'member')).toBe(true)
 
         const superUser = makeUser('superadmin', ['superadmin'])
         expect(isAdmin(superUser)).toBe(true)
-        expect(isProductManager(superUser)).toBe(true)
+        expect(isItAdmin(superUser)).toBe(true)
+        expect(isTreasurer(superUser)).toBe(true)
+        expect(isCommittee(superUser)).toBe(true)
+        expect(isZeugwart(superUser)).toBe(true)
         expect(isSuperadmin(superUser)).toBe(true)
         expect(canManageRoadmap(superUser)).toBe(true)
     })

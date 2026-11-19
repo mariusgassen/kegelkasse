@@ -1872,23 +1872,23 @@ describe('api superadmin role management methods', () => {
     })
 
     it('superadminSetUserRole PATCHes /superadmin/users/{id}/role', async () => {
-        mockFetch.mockResolvedValueOnce(jsonOk({id: 7, role: 'product_manager'}))
+        mockFetch.mockResolvedValueOnce(jsonOk({id: 7, role: 'it_admin'}))
         const {api} = await import('../client')
-        await api.superadminSetUserRole(7, 'product_manager')
+        await api.superadminSetUserRole(7, 'it_admin')
         const [url, opts] = mockFetch.mock.calls[0]
         expect(url).toBe('/api/v1/superadmin/users/7/role')
         expect(opts.method).toBe('PATCH')
-        expect(JSON.parse(opts.body)).toEqual({role: 'product_manager'})
+        expect(JSON.parse(opts.body)).toEqual({role: 'it_admin'})
     })
 
     it('superadminSetUserRoles PATCHes /superadmin/users/{id}/roles', async () => {
-        mockFetch.mockResolvedValueOnce(jsonOk({id: 7, role: 'admin', roles: ['admin', 'product_manager']}))
+        mockFetch.mockResolvedValueOnce(jsonOk({id: 7, role: 'admin', roles: ['admin', 'it_admin']}))
         const {api} = await import('../client')
-        await api.superadminSetUserRoles(7, ['admin', 'product_manager'])
+        await api.superadminSetUserRoles(7, ['admin', 'it_admin'])
         const [url, opts] = mockFetch.mock.calls[0]
         expect(url).toBe('/api/v1/superadmin/users/7/roles')
         expect(opts.method).toBe('PATCH')
-        expect(JSON.parse(opts.body)).toEqual({roles: ['admin', 'product_manager']})
+        expect(JSON.parse(opts.body)).toEqual({roles: ['admin', 'it_admin']})
     })
 })
 

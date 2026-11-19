@@ -193,8 +193,7 @@ class TestAddTripExpense:
     def test_committee_member_allowed_plain_member_not(self, client, db, club, bernd, trip, member):
         assert client.post(self._url(trip), json={
             "paid_by_member_id": bernd.id, "amount": 5, "description": "x"}, headers=member).status_code == 403
-        bernd.is_committee = True
-        u = _user(db, club, "va@trip.de", UserRole.member)
+        u = _user(db, club, "va@trip.de", UserRole.committee)
         u.regular_member_id = bernd.id
         db.commit()
         assert client.post(self._url(trip), json={

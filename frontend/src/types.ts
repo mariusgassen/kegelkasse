@@ -13,7 +13,15 @@ export interface NotificationItem {
 }
 
 
-export type UserRole = 'superadmin' | 'product_manager' | 'admin' | 'member'
+export type UserRole =
+    | 'superadmin'
+    | 'it_admin'
+    | 'admin'
+    | 'treasurer'
+    | 'auditor'
+    | 'committee'
+    | 'zeugwart'
+    | 'member'
 
 export interface User {
     id: number
@@ -228,6 +236,8 @@ export interface RegularMember {
     is_committee: boolean
     is_auditor?: boolean
     is_zeugwart?: boolean
+    is_treasurer?: boolean
+    roles?: UserRole[]
     avatar: string | null
     deactivated_at: string | null
     evening_count?: number
@@ -274,12 +284,14 @@ export interface ClubDocument {
     change_summary: string | null
     file_name: string
     file_size: number
+    uploaded_by?: number | null
     uploaded_by_name: string
     uploaded_at: string | null
     is_current: boolean
     acknowledged_count: number
     my_response: ClubDocumentResponse | null
     my_confirmed_at: string | null
+    can_edit?: boolean
     acknowledgements?: ClubDocumentAcknowledgement[]
 }
 
@@ -287,6 +299,7 @@ export interface ClubDocumentList {
     documents: ClubDocument[]
     member_count: number
     can_upload: boolean
+    can_upload_decisions?: boolean
 }
 
 export interface ClubDocumentUpload {

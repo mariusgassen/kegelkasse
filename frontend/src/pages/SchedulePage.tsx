@@ -625,77 +625,73 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                             ❌ {se.absent_count}
                         </span>
                     )}
-                    {isAdminUser && (
-                        <CardActionMenu
-                            title={fDateTimeLong(se.scheduled_at)}
-                            actions={[
-                                {icon: '👥', label: t('schedule.rsvpTitle'), onClick: onViewRsvps},
-                                {icon: '✏️', label: t('action.edit'), onClick: onEdit},
-                                {icon: '🗑️', label: t('action.delete'), onClick: onDelete, danger: true},
-                            ]}/>
-                    )}
+                    <CardActionMenu
+                        title={fDateTimeLong(se.scheduled_at)}
+                        actions={[
+                            {icon: '👥', label: t('schedule.rsvpTitle'), onClick: onViewRsvps},
+                            {icon: '✏️', label: t('action.edit'), onClick: onEdit},
+                            {icon: '🗑️', label: t('action.delete'), onClick: onDelete, danger: true},
+                        ]}/>
                 </div>
             </div>
 
             {/* RSVP chips */}
             <RsvpChips se={se} onUpdate={onRsvpUpdate}/>
 
-            {/* Guests section (admin only) */}
-            {isAdminUser && (
-                <div className="mt-2.5 pt-2.5 border-t border-surface-2">
-                    <div className="flex items-center justify-between mb-1.5">
-                        <button
-                            onClick={() => setShowGuests(v => !v)}
-                            className="text-xs font-extrabold text-muted uppercase tracking-wider flex items-center gap-1">
-                            🧑‍🤝‍🧑 {t('schedule.guests')}
-                            {se.guests.length > 0 && (
-                                <span className="px-1.5 py-0.5 rounded-full bg-surface-2 font-bold">
-                                    {se.guests.length}
-                                </span>
-                            )}
-                            <span className="ml-0.5">{showGuests ? '▲' : '▼'}</span>
-                        </button>
-                        {!addingGuest && (
-                            <Button variant="secondary" size="xs" onClick={() => {
-                                setShowGuests(true)
-                                setAddingGuest(true)
-                            }}>
-                                + {t('schedule.addGuest')}
-                            </Button>
+            {/* Guests section */}
+            <div className="mt-2.5 pt-2.5 border-t border-surface-2">
+                <div className="flex items-center justify-between mb-1.5">
+                    <button
+                        onClick={() => setShowGuests(v => !v)}
+                        className="text-xs font-extrabold text-muted uppercase tracking-wider flex items-center gap-1">
+                        🧑‍🤝‍🧑 {t('schedule.guests')}
+                        {se.guests.length > 0 && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-surface-2 font-bold">
+                                {se.guests.length}
+                            </span>
                         )}
-                    </div>
-
-                    {showGuests && (
-                        <>
-                            {se.guests.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mb-2">
-                                    {se.guests.map(g => (
-                                        <div key={g.id}
-                                             className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-full bg-surface-2 text-ink">
-                                            <span>{upcomingGuestLabels.get(g.id) ?? g.name}</span>
-                                            <button className="text-muted active:text-danger-fg ml-0.5 p-1 -m-0.5"
-                                                    aria-label={`${t('action.delete')}: ${g.name}`}
-                                                    onClick={() => removeGuest(g.id)}>
-                                                <X size={12} strokeWidth={2.5} aria-hidden="true"/>
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                            {addingGuest && (
-                                <AddGuestForm
-                                    se={se}
-                                    onAdded={() => {
-                                        setAddingGuest(false)
-                                        qc.invalidateQueries({queryKey: ['schedule']})
-                                    }}
-                                    onCancel={() => setAddingGuest(false)}
-                                />
-                            )}
-                        </>
+                        <span className="ml-0.5">{showGuests ? '▲' : '▼'}</span>
+                    </button>
+                    {!addingGuest && (
+                        <Button variant="secondary" size="xs" onClick={() => {
+                            setShowGuests(true)
+                            setAddingGuest(true)
+                        }}>
+                            + {t('schedule.addGuest')}
+                        </Button>
                     )}
                 </div>
-            )}
+
+                {showGuests && (
+                    <>
+                        {se.guests.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                                {se.guests.map(g => (
+                                    <div key={g.id}
+                                         className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-full bg-surface-2 text-ink">
+                                        <span>{upcomingGuestLabels.get(g.id) ?? g.name}</span>
+                                        <button className="text-muted active:text-danger-fg ml-0.5 p-1 -m-0.5"
+                                                aria-label={`${t('action.delete')}: ${g.name}`}
+                                                onClick={() => removeGuest(g.id)}>
+                                            <X size={12} strokeWidth={2.5} aria-hidden="true"/>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {addingGuest && (
+                            <AddGuestForm
+                                se={se}
+                                onAdded={() => {
+                                    setAddingGuest(false)
+                                    qc.invalidateQueries({queryKey: ['schedule']})
+                                }}
+                                onCancel={() => setAddingGuest(false)}
+                            />
+                        )}
+                    </>
+                )}
+            </div>
 
             {/* Start button (any club member, only on/after date — a kegelabend
                 shouldn't be blocked from starting just because no admin is present) */}
@@ -1145,16 +1141,14 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
             <div className="flex gap-2 mb-3">
                 <input className="kce-input flex-1" value={search} onChange={e => setSearch(e.target.value)}
                        placeholder={t('history.search')}/>
-                {isAdmin(user) && (
-                    <Button variant="secondary" size="sm" className="whitespace-nowrap flex-shrink-0"
-                            onClick={() => {
-                                setBacklogDate(TODAY)
-                                setBacklogVenue(defaultVenue)
-                                setBacklogSheet(true)
-                            }}>
-                        + {t('history.backlog')}
-                    </Button>
-                )}
+                <Button variant="secondary" size="sm" className="whitespace-nowrap flex-shrink-0"
+                        onClick={() => {
+                            setBacklogDate(TODAY)
+                            setBacklogVenue(defaultVenue)
+                            setBacklogSheet(true)
+                        }}>
+                    + {t('history.backlog')}
+                </Button>
             </div>
 
             {/* Active evening at top */}
@@ -1373,37 +1367,35 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                         </div>
                                                     </div>
                                                 )}
-                                                {isAdmin(user) && (
-                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-surface-2">
-                                                        {ev.season_closed ? (
-                                                            <span className="btn-secondary btn-sm flex-1 opacity-50 cursor-default justify-center">
-                                                                📦 {t('history.archived')}
-                                                            </span>
-                                                        ) : (
-                                                            <Button variant="secondary" size="sm" className="flex-1"
-                                                                    onClick={() => doReopen(ev.id)}>
-                                                                ↩ {t('history.reopen')}
-                                                            </Button>
-                                                        )}
-                                                        {confirmDeleteId === ev.id ? (
-                                                            <div className="flex gap-1 flex-1">
-                                                                <Button variant="danger" size="sm" className="flex-1"
-                                                                        onClick={() => doDelete(ev.id)}>
-                                                                    ✓ {t('action.delete')}
-                                                                </Button>
-                                                                <Button variant="secondary" size="sm"
-                                                                        aria-label={t('action.cancel')}
-                                                                        onClick={() => setConfirmDeleteId(null)}>✕
-                                                                </Button>
-                                                            </div>
-                                                        ) : (
+                                                <div className="flex gap-2 mt-3 pt-3 border-t border-surface-2">
+                                                    {ev.season_closed ? (
+                                                        <span className="btn-secondary btn-sm flex-1 opacity-50 cursor-default justify-center">
+                                                            📦 {t('history.archived')}
+                                                        </span>
+                                                    ) : (
+                                                        <Button variant="secondary" size="sm" className="flex-1"
+                                                                onClick={() => doReopen(ev.id)}>
+                                                            ↩ {t('history.reopen')}
+                                                        </Button>
+                                                    )}
+                                                    {isAdmin(user) && (confirmDeleteId === ev.id ? (
+                                                        <div className="flex gap-1 flex-1">
                                                             <Button variant="danger" size="sm" className="flex-1"
-                                                                    onClick={() => setConfirmDeleteId(ev.id)}>
-                                                                🗑 {t('action.delete')}
+                                                                    onClick={() => doDelete(ev.id)}>
+                                                                ✓ {t('action.delete')}
                                                             </Button>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                            <Button variant="secondary" size="sm"
+                                                                    aria-label={t('action.cancel')}
+                                                                    onClick={() => setConfirmDeleteId(null)}>✕
+                                                            </Button>
+                                                        </div>
+                                                    ) : (
+                                                        <Button variant="danger" size="sm" className="flex-1"
+                                                                onClick={() => setConfirmDeleteId(ev.id)}>
+                                                            🗑 {t('action.delete')}
+                                                        </Button>
+                                                    ))}
+                                                </div>
                                             </>
                                         ) : (
                                             <SkeletonChart height="4rem" className="py-2"/>
@@ -1544,12 +1536,10 @@ export function SchedulePage({onNavigate: onNavigateProp}: { onNavigate?: () => 
                         <CalendarPlus size={14} strokeWidth={2} aria-hidden="true"/>
                         {t('schedule.subscribeCalendar')}
                     </Button>
-                    {isAdminUser && (
-                        <Button variant="secondary" size="xs"
-                                onClick={() => setEditSheet('new')}>
-                            + {t('schedule.add')}
-                        </Button>
-                    )}
+                    <Button variant="secondary" size="xs"
+                            onClick={() => setEditSheet('new')}>
+                        + {t('schedule.add')}
+                    </Button>
                 </div>
             </div>
 

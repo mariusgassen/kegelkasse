@@ -76,7 +76,7 @@ def test_upload_and_list(client, admin, user):
     res = client.get(BASE, headers=_headers(user))
     assert res.status_code == 200
     body = res.json()
-    assert body["can_upload"] is False
+    assert body["can_upload"] is True
     assert body["member_count"] >= 2
     assert len(body["documents"]) == 1
     doc = body["documents"][0]
@@ -88,11 +88,17 @@ def test_upload_and_list(client, admin, user):
     assert doc["my_response"] is None
 
 
-def test_upload_requires_auth_and_admin(client, user, admin):
+def test_upload_requires_auth_and_admin_for_decision_docs(client, user, admin):
     files = {"file": ("x.pdf", io.BytesIO(_pdf()), "application/pdf")}
     assert client.post(BASE, files=files, data={"title": "Satzung"}).status_code == 401
-    res = client.post(BASE, files=files, data={"title": "Satzung"}, headers=_headers(user))
-    assert res.status_code == 403
+    # Members cannot upload decision documents (satzung/geschaeftsordnung)
+    res_decision = client.post(BASE, files={"file": ("x.pdf", io.BytesIO(_pdf()), "application/pdf")},
+                               data={"title": "Satzung", "document_type": "satzung"}, headers=_headers(user))
+    assert res_decision.status_code == 403
+    # Members can upload protocols
+    res_proto = client.post(BASE, files={"file": ("p.pdf", io.BytesIO(_pdf()), "application/pdf")},
+                            data={"title": "Protokoll JHV", "document_type": "protokoll"}, headers=_headers(user))
+    assert res_proto.status_code == 201
 
 
 def test_upload_validation(client, admin):
@@ -238,7 +244,7 @@ def test_analyze_new_version_compares_with_previous(client, admin, claude):
 
 def test_analyze_errors(client, admin, user, claude, monkeypatch):
     assert client.post(ANALYZE, files={"file": ("x.pdf", io.BytesIO(_pdf()), "application/pdf")}).status_code == 401
-    assert _analyze(client, user).status_code == 403
+    assert _analyze(client, user).status_code == 200
     assert _analyze(client, admin, group_id="unbekannt").status_code == 404
     bad = {"file": ("x.pdf", io.BytesIO(b"hello"), "application/pdf")}
     assert client.post(ANALYZE, files=bad, headers=_headers(admin)).status_code == 400

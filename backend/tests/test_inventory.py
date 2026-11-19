@@ -53,9 +53,9 @@ def keeper_member(db, club):
 
 @pytest.fixture()
 def keeper(db, club, keeper_member):
-    keeper_member.is_zeugwart = True
     u = User(email="zeugwart@test.de", name="Zoe", hashed_password=get_password_hash("x"),
-             role=UserRole.member, club_id=club.id, is_active=True, regular_member_id=keeper_member.id)
+             roles=[UserRole.zeugwart.value, UserRole.member.value], club_id=club.id, is_active=True,
+             regular_member_id=keeper_member.id)
     db.add(u)
     db.commit()
     db.refresh(u)
@@ -70,7 +70,11 @@ def _create(client, who, **body):
 
 
 class TestKeepers:
-    def test_admin_appoints_and_lists(self, client, admin, keeper_member, auth_headers):
+    def test_admin_appoints_and_lists(self, client, db, club, admin, keeper_member, auth_headers):
+        u = User(email="zoe_user@test.de", name="Zoe", hashed_password=get_password_hash("x"),
+                 roles=[UserRole.member.value], club_id=club.id, is_active=True, regular_member_id=keeper_member.id)
+        db.add(u)
+        db.commit()
         r = client.patch(f"/api/v1/inventory/keepers/{keeper_member.id}", json={"is_zeugwart": True},
                          headers=_headers(admin))
         assert r.status_code == 200

@@ -11,10 +11,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_admin, require_club_member
-from api.v1.audit import _display_name, _is_admin, _my_member
+from api.v1.audit import _display_name, _is_admin
 from core.database import get_db
 from core.schemas import TrimmedModel
-from models.evening import RegularMember
 from models.inventory import InventoryItem, InventoryMovement
 from models.user import User
 
@@ -28,8 +27,7 @@ MAX_NOTE = 500
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _is_zeugwart(db: Session, user: User) -> bool:
-    m = _my_member(db, user)
-    return bool(m and m.is_zeugwart and not m.is_guest)
+    return user.is_zeugwart
 
 
 def _can_edit(db: Session, user: User) -> bool:
@@ -102,12 +100,9 @@ def _record(db: Session, user: User, item: InventoryItem, new_stock: int, note: 
 
 @router.get("/keepers")
 def list_keepers(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    members = db.query(RegularMember).filter(
-        RegularMember.club_id == user.club_id,
-        RegularMember.is_zeugwart == True,
-        RegularMember.is_guest == False,
-    ).order_by(RegularMember.name).all()
-    return [{"id": m.id, "name": m.name, "nickname": m.nickname} for m in members]
+    from api.deps import list_regular_members_with_role
+    from models.user import UserRole
+    return list_regular_members_with_role(db, user.club_id, UserRole.zeugwart)
 
 
 class KeeperToggle(TrimmedModel):
@@ -117,16 +112,10 @@ class KeeperToggle(TrimmedModel):
 @router.patch("/keepers/{mid}")
 def set_keeper(mid: int, data: KeeperToggle, db: Session = Depends(get_db),
                user: User = Depends(require_club_admin)):
-    member = db.query(RegularMember).filter(
-        RegularMember.id == mid, RegularMember.club_id == user.club_id
-    ).first()
-    if not member:
-        raise HTTPException(404, "Member not found")
-    if member.is_guest and data.is_zeugwart:
-        raise HTTPException(400, "Guests cannot be Zeugwart")
-    member.is_zeugwart = data.is_zeugwart
-    db.commit()
-    return {"id": member.id, "is_zeugwart": member.is_zeugwart}
+    from api.deps import toggle_regular_member_role
+    from models.user import UserRole
+    member = toggle_regular_member_role(db, user.club_id, mid, UserRole.zeugwart, data.is_zeugwart)
+    return {"id": member.id, "is_zeugwart": data.is_zeugwart}
 
 
 # ── Items ────────────────────────────────────────────────────────────────────

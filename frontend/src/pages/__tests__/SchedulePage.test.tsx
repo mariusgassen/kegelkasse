@@ -263,11 +263,11 @@ describe('SchedulePage — admin features', () => {
         })
     })
 
-    it('non-admin does not see add schedule button', async () => {
+    it('non-admin also sees add schedule button', async () => {
         await setupDefaultMocks()
         await renderSchedulePage()
         await waitFor(() => {
-            expect(screen.queryByText(/schedule\.add/)).not.toBeInTheDocument()
+            expect(screen.getByText(/schedule\.add/)).toBeInTheDocument()
         })
     })
 })

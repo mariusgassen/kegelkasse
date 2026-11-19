@@ -272,13 +272,13 @@ def test_delete_roadmap_item(client, user, second_user, admin, superadmin, db):
     assert db.query(RoadmapItem).filter(RoadmapItem.id == official.id).first() is None
 
 
-def test_product_manager_permissions(client, user, db):
+def test_superadmin_global_roadmap_permissions(client, user, db):
     pm = User(
         email="pm@test.de",
-        name="Product Manager",
+        name="Platform Superadmin",
         hashed_password=get_password_hash("pass"),
-        role=UserRole.product_manager,
-        club_id=None,  # PM has cross-club rights
+        role=UserRole.superadmin,
+        club_id=None,  # Superadmin has cross-club rights
         is_active=True,
     )
     db.add(pm)

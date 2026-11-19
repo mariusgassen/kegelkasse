@@ -16,7 +16,7 @@ from core.ratelimit import SlidingWindowLimiter
 from core.schemas import TrimmedModel
 from models.comment import Comment, ItemReaction
 from models.roadmap import RoadmapItem, RoadmapVote
-from models.user import User, UserRole
+from models.user import User
 
 router = APIRouter(prefix="/roadmap", tags=["roadmap"])
 
@@ -119,11 +119,11 @@ def _can_see(item: RoadmapItem, user: User) -> bool:
 
 
 def _can_manage(item: RoadmapItem, user: User) -> bool:
-    """Product managers and superadmins manage everything; club admins only their club's ideas.
+    """Superadmins manage everything; club admins only their club's ideas.
 
     Official (global) items have no club, so a club admin must never match them.
     """
-    if user.has_role(UserRole.product_manager):
+    if user.is_superadmin:
         return True
     return item.club_id is not None and item.club_id == user.club_id and _is_admin(user)
 
@@ -507,11 +507,11 @@ def delete_roadmap_item(
     if not item or not _can_see(item, user):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Roadmap item not found")
 
-    is_lead = user.has_role(UserRole.product_manager)
+    is_lead = user.is_superadmin
     is_author = item.created_by_user_id == user.id and item.status == "idea"
 
     if item.is_official and not is_lead:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Official items can only be deleted by superadmins or product managers")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Official items can only be deleted by superadmins")
 
     if not (_can_manage(item, user) or is_author):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to delete this item")
