@@ -89,6 +89,19 @@ describe('api.analyzeClubDocument', () => {
     })
 })
 
+describe('api.updateClubDocument', () => {
+    it('patches only the metadata as JSON', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({...DOC, version: '1.1'}))
+        const {api} = await import('../client')
+        const result = await api.updateClubDocument(7, {version: '1.1', decision_date: null})
+        expect(result.version).toBe('1.1')
+        const [url, init] = mockFetch.mock.calls[0]
+        expect(url).toBe('/api/v1/club/documents/7')
+        expect(init.method).toBe('PATCH')
+        expect(JSON.parse(init.body as string)).toEqual({version: '1.1', decision_date: null})
+    })
+})
+
 describe('api.downloadClubDocument', () => {
     it('opens the authenticated PDF in the in-app viewer under the stored file name', async () => {
         const {api} = await import('../client')

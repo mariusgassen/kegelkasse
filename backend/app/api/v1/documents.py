@@ -70,6 +70,17 @@ class AcknowledgeBody(TrimmedModel):
     response: str
 
 
+class UpdateDocumentBody(TrimmedModel):
+    """Metadata only — the PDF itself changes only through a new version. Omitted fields stay as they are."""
+    title: Optional[str] = None
+    document_type: Optional[str] = None
+    version: Optional[str] = None
+    decision_date: Optional[str] = None
+    effective_date: Optional[str] = None
+    summary: Optional[str] = None
+    change_summary: Optional[str] = None
+
+
 def _parse_date(value: Optional[str], field: str) -> Optional[date]:
     if not value:
         return None
@@ -301,6 +312,37 @@ async def upload_document(
     db.commit()
     db.refresh(doc)
     logger.info("Club document uploaded: club=%s doc=%s group=%s", user.club_id, doc.id, group_id)
+    return _serialize(db, doc, user)
+
+
+@router.patch("/{doc_id}")
+def update_document(doc_id: int, data: UpdateDocumentBody, db: Session = Depends(get_db),
+                    user: User = Depends(require_club_admin)):
+    """Correct the metadata of one version. A field sent as null/empty is cleared (title and type stay required)."""
+    doc = _get_doc(db, doc_id, user)
+    sent = data.model_fields_set
+    if "title" in sent:
+        title = (data.title or "").strip()
+        if not title:
+            raise HTTPException(400, "A title is required")
+        doc.title = title
+    if "document_type" in sent:
+        if data.document_type not in DOCUMENT_TYPES:
+            raise HTTPException(400, "Unsupported document type")
+        doc.document_type = data.document_type
+    if "version" in sent:
+        doc.version = (data.version or "").strip() or None
+    if "decision_date" in sent:
+        doc.decision_date = _parse_date(data.decision_date, "decision_date")
+    if "effective_date" in sent:
+        doc.effective_date = _parse_date(data.effective_date, "effective_date")
+    if "summary" in sent:
+        doc.summary = _clean_summary(data.summary)
+    if "change_summary" in sent:
+        doc.change_summary = _clean_summary(data.change_summary)
+    db.commit()
+    db.refresh(doc)
+    logger.info("Club document updated: doc=%s user=%s fields=%s", doc.id, user.id, sorted(sent))
     return _serialize(db, doc, user)
 
 

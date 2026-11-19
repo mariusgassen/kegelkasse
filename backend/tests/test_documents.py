@@ -279,3 +279,33 @@ def test_analyze_prompt_asks_for_markdown_and_passes_hint(client, admin, claude)
     text = call["messages"][0]["content"][-1]["text"]
     assert "Achte auf die Beiträge" in text
     assert '"bisherige_version": "1.0"' in text
+
+
+def test_update_metadata_only(client, admin, user):
+    doc = _upload(client, admin, title="Satzung", version="1.0", summary="- alt").json()
+    res = client.patch(f"{BASE}{doc['id']}", headers=_headers(admin), json={
+        "title": " Satzung KCE ", "version": "1.1", "document_type": "geschaeftsordnung",
+        "decision_date": None, "summary": "- neu **fett**",
+    })
+    assert res.status_code == 200
+    body = res.json()
+    assert body["title"] == "Satzung KCE"
+    assert body["version"] == "1.1"
+    assert body["document_type"] == "geschaeftsordnung"
+    assert body["decision_date"] is None          # explicitly cleared
+    assert body["effective_date"] == "2026-11-17"  # not sent -> untouched
+    assert body["summary"] == "- neu **fett**"
+    assert body["file_name"] == "Satzung_KCE.pdf" and body["id"] == doc["id"]
+    # the file is untouched and still downloadable
+    assert client.get(f"{BASE}{doc['id']}/download", headers=_headers(user)).content == _pdf()
+
+
+def test_update_metadata_rules(client, admin, user):
+    doc = _upload(client, admin).json()
+    url = f"{BASE}{doc['id']}"
+    assert client.patch(url, json={"title": "X"}).status_code == 401
+    assert client.patch(url, json={"title": "X"}, headers=_headers(user)).status_code == 403
+    assert client.patch(f"{BASE}999999", json={"title": "X"}, headers=_headers(admin)).status_code == 404
+    assert client.patch(url, json={"title": "  "}, headers=_headers(admin)).status_code == 400
+    assert client.patch(url, json={"document_type": "geheim"}, headers=_headers(admin)).status_code == 400
+    assert client.patch(url, json={"effective_date": "17.11.2026"}, headers=_headers(admin)).status_code == 400
