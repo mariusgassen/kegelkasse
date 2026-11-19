@@ -16,6 +16,8 @@ import {toastError} from '@/utils/error.ts'
 import type {InventoryItem} from '@/types.ts'
 import {Button} from '@/components/ui/Button.tsx'
 import {Field} from '@/components/ui/Field.tsx'
+import {Markdown} from '@/components/ui/Markdown.tsx'
+import {MarkdownField} from '@/components/ui/MarkdownField.tsx'
 
 function fDateTime(iso: string | null) {
     if (!iso) return ''
@@ -98,10 +100,8 @@ function ItemForm({initial, onSubmit, onCancel, busy, withStock}: {
                            onChange={e => setTarget(e.target.value)}/>
                 </Field>
             </div>
-            <Field label={t('zeugwart.note')} htmlFor="zw-note">
-                <input id="zw-note" className="kce-input" value={note} maxLength={500}
-                       onChange={e => setNote(e.target.value)}/>
-            </Field>
+            <MarkdownField id="zw-note" label={t('zeugwart.note')} value={note} onChange={setNote}
+                           rows={3} maxLength={500}/>
             <div className="flex gap-2">
                 <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>{t('action.cancel')}</Button>
                 <Button type="submit" variant="primary" className="flex-1" disabled={!valid || busy}>{t('action.save')}</Button>
@@ -181,7 +181,7 @@ function ItemSheet({item, canEdit, onClose}: { item: InventoryItem | null; canEd
                 <div className="space-y-3" data-testid="zeugwart-detail">
                     <div className="kce-card p-3">
                         <StockStatus item={item}/>
-                        {item.note && <p className="text-xs text-muted mt-2">{item.note}</p>}
+                        {item.note && <Markdown text={item.note} className="text-xs text-muted mt-2"/>}
                     </div>
 
                     {canEdit && (
@@ -223,7 +223,7 @@ function ItemSheet({item, canEdit, onClose}: { item: InventoryItem | null; canEd
                                     {moves.map(m => (
                                         <li key={m.id} className="kce-card p-2.5 flex items-start justify-between gap-2">
                                             <div className="min-w-0">
-                                                <div className="text-sm">{m.note || '—'}</div>
+                                                {m.note ? <Markdown text={m.note} className="text-sm"/> : <div className="text-sm">—</div>}
                                                 <div className="text-xs text-muted">{m.actor_name} · {fDateTime(m.created_at)}</div>
                                             </div>
                                             <div className="text-right flex-shrink-0">

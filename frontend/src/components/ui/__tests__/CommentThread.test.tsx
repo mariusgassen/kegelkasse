@@ -292,6 +292,12 @@ describe('CommentThread — with comments', () => {
         expect(screen.getByText('Nice shot!')).toBeInTheDocument()
     })
 
+    it('renders Markdown formatting in comment text', async () => {
+        await renderWithComments([makeComment({ text: 'Super **Wurf** und *Glück*' })])
+        expect(screen.getByText('Wurf').tagName).toBe('STRONG')
+        expect(screen.getByText('Glück').tagName).toBe('EM')
+    })
+
     it('renders comment author name', async () => {
         await renderWithComments([makeComment({ created_by_name: 'Klaus' })])
         expect(screen.getByText('Klaus')).toBeInTheDocument()

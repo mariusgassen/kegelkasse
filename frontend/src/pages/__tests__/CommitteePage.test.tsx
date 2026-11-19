@@ -344,6 +344,18 @@ describe('CommitteePage — trips tab', () => {
             expect(screen.getByText('Spaß dabei')).toBeInTheDocument()
         })
     })
+
+    it('renders Markdown formatting in trip notes', async () => {
+        await setupOnTripsTab()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue([
+            { id: 1, destination: 'München', date: '2026-04-15', note: 'Bitte **Trikot** einpacken\n- Bahncard', created_by: 1 },
+        ] as any)
+        await renderCommitteePage()
+        await waitFor(() => expect(screen.getByText('Trikot').tagName).toBe('STRONG'))
+        expect(screen.getByText('Bahncard')).toBeInTheDocument()
+    })
 })
 
 // ── tests: admin / canWrite ───────────────────────────────────────────────────

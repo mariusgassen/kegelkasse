@@ -47,7 +47,7 @@ export const PRIMITIVES: Primitive[] = [
     {name: '<Skeleton*>', source: 'ui/Skeleton.tsx', status: 'component', use: 'Loading placeholders.', uses: '58 in 14 files'},
     {name: '<Loading>', source: 'ui/Loading.tsx', status: 'component', use: 'Text-only loader. No importers left (dead).', uses: '0'},
     {name: 'showToast (Island ToastActivity)', source: 'ui/Toast.tsx', status: 'component', use: 'Feedback after mutations, shown in the Dynamic Island.', uses: 'everywhere'},
-    {name: '<CountUp>, <ZoomableImage>, <EmojiPickerButton>, <SoundPickerButton>, <MediaUploadButton>, <ReactionPill>, <ItemReactionBar>, <CommentThread>, <Markdown>', source: 'ui/*', status: 'component', use: 'Specialised widgets.', uses: 'feature-specific'},
+    {name: '<CountUp>, <ZoomableImage>, <EmojiPickerButton>, <SoundPickerButton>, <MediaUploadButton>, <ReactionPill>, <ItemReactionBar>, <CommentThread>, <Markdown>, <MarkdownField>', source: 'ui/*', status: 'component', use: 'Specialised widgets.', uses: 'feature-specific'},
 ]
 
 export interface Duplicate {

@@ -37,6 +37,8 @@ import {SkeletonCard} from '@/components/ui/Skeleton'
 import {SuperadminRolesManager} from '@/components/superadmin/SuperadminRolesManager'
 import {Button} from '@/components/ui/Button.tsx'
 import {Field} from '@/components/ui/Field.tsx'
+import {Markdown} from '@/components/ui/Markdown.tsx'
+import {MarkdownField} from '@/components/ui/MarkdownField.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -1623,7 +1625,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                             {gt.is_opener && <span className="text-base">👑</span>}
                             <span className="text-sm font-bold">{gt.name}</span>
                         </div>
-                        {gt.description && <div className="text-xs text-muted mt-0.5">{gt.description}</div>}
+                        {gt.description && <Markdown text={gt.description} className="text-xs text-muted mt-0.5"/>}
                         <div className="flex gap-2 mt-1">
                             <span className="text-xs text-muted">{gt.winner_type}{gt.turn_mode ? ` · ${gt.turn_mode}` : ''}</span>
                             {gt.manual_penalties && <span className="text-xs text-muted">· {t('game.manualPenaltiesShort')}</span>}
@@ -1654,8 +1656,8 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                             <EmojiPickerButton mode="insert" value={name} onChange={setName}/>
                         </div>
                     </Field>
-                    <Field label={t('club.template.description')}>
-                        <input className="kce-input" value={desc} onChange={e => setDesc(e.target.value)}/></Field>
+                    <MarkdownField id="template-description" label={t('club.template.description')}
+                                   value={desc} onChange={setDesc} rows={3}/>
                     <Field label={t('club.template.winnerType')}>
                         <select className="kce-input" value={wtype}
                                 disabled={isOpener}

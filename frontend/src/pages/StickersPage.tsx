@@ -23,6 +23,8 @@ import {PhotoPicker, type Photo} from '@/components/stickers/PhotoPicker.tsx'
 import {PhotoGallery} from '@/components/stickers/PhotoGallery.tsx'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
+import {Markdown} from '@/components/ui/Markdown.tsx'
+import {MarkdownField} from '@/components/ui/MarkdownField.tsx'
 import {toastError} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {readFileExif} from '@/lib/exifGps.ts'
@@ -284,10 +286,8 @@ function StickerForm({sticker, mapStyle, onClose, onSaved}: {
                         <input id="sticker-day" type="date" className="kce-input" value={shownDay} max={todayDateInput()}
                                onChange={e => split ? updateCurrentPhoto({takenOn: e.target.value}) : setDay(e.target.value)}/>
                     </Field>
-                    <Field label={t('stickers.form.caption')} htmlFor="sticker-caption">
-                        <textarea id="sticker-caption" className="kce-input resize-none" rows={2} maxLength={1000}
-                                  value={caption} onChange={e => setCaption(e.target.value)}/>
-                    </Field>
+                    <MarkdownField id="sticker-caption" label={t('stickers.form.caption')} value={caption}
+                                   onChange={setCaption} rows={3} maxLength={1000}/>
                 </>)}
                 <Button type="submit" variant="primary" block disabled={!canSave}>
                     {saving ? t('action.saving') : t('action.save')}
@@ -492,7 +492,7 @@ export function StickersPage() {
                                 <PhotoGallery urls={s.media_urls} title={s.place_name}
                                               subtitle={s.stuck_on ? fDay(s.stuck_on, locale) : undefined}
                                               shareUrl={`/stickers?tab=feed&item=${s.id}`}/>
-                                {s.caption && <p className="text-sm text-ink mt-2 whitespace-pre-wrap">{s.caption}</p>}
+                                {s.caption && <Markdown text={s.caption} className="text-sm text-ink mt-2"/>}
                                 <ItemReactionBar
                                     parentType="sticker" parentId={s.id}
                                     commentOpen={openComment === s.id}

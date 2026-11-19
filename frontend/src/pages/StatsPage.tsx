@@ -26,6 +26,7 @@ import {axisLeftPad, compactEuro} from '@/lib/chartAxis.ts'
 import {StatsLab} from '@/components/stats/StatsLab.tsx'
 import {useThrowTracking} from '@/hooks/useClub.ts'
 import {Tabs} from '@/components/ui/Tabs'
+import {Markdown} from '@/components/ui/Markdown.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -654,9 +655,7 @@ function GamesDetailSheet({evening, t, onClose}: {
                                 )}
 
                                 {g.note && (
-                                    <div className="text-sm text-muted mt-1.5 italic">
-                                        {g.note}
-                                    </div>
+                                    <Markdown text={g.note} className="text-sm text-muted mt-1.5 italic"/>
                                 )}
                             </div>
                         )
@@ -1409,7 +1408,7 @@ export function StatsPage() {
                                                             <ZoomableImage src={h.media_url}
                                                                  className="mt-1 rounded max-h-64 max-w-full object-contain border border-line/40"/>
                                                         )}
-                                                        {h.text && <div className="text-sm mt-1">{h.text}</div>}
+                                                        {h.text && <Markdown text={h.text} className="text-sm mt-1"/>}
                                                     </div>
                                                 </div>
                                                 <ItemReactionBar

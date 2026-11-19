@@ -19,7 +19,7 @@ Danach werden die übrigen Felder – wenn die Fotos die Daten enthalten – aut
 - **Ort** (Pflicht), z. B. „Lissabon, Portugal": aus der GPS-Position des Fotos als „Stadt, Land" ermittelt (über OpenStreetMap). Du kannst ihn jederzeit ändern; was du selbst getippt hast, wird nie überschrieben.
 - **Position auf der Karte** (Pflicht): aus den GPS-Daten des Fotos. Die Karte bleibt eingeklappt – mit **Pin auf der Karte anpassen** korrigierst du die Position, oder du tippst auf **Meinen Standort verwenden**. Hat das Foto keine Position, erscheint die Karte gleich; ein Tipp setzt den Pin und füllt den Ort, falls er noch leer ist.
 - **Geklebt am** (optional): das Aufnahmedatum des Fotos.
-- **Beschreibung** (optional).
+- **Beschreibung** (optional, Markdown mit Schreiben/Vorschau-Umschalter).
 
 Bearbeiten und Löschen können der Autor und Admins über das ⋮-Menü der Karte.
 

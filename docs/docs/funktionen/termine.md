@@ -19,7 +19,7 @@ Navigiere zu **Termine** (📅) in der Navigation.
 |------|-------------|
 | **Datum** | Datum des geplanten Abends |
 | **Spiellokal** | Optional: Abweichendes Spiellokal |
-| **Notiz** | Freitext-Hinweis (z. B. "Vereinsausflug") |
+| **Notiz** | Markdown-Hinweis mit Vorschau (z. B. `**Vereinsausflug**`) |
 
 3. Tippe auf **Speichern**
 

@@ -12,6 +12,7 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {Markdown} from '@/components/ui/Markdown.tsx'
+import {MarkdownField} from '@/components/ui/MarkdownField.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
@@ -216,15 +217,14 @@ function AnnouncementsTab({canWrite, search, setSearch, order, addOpen, setAddOp
                                 autoFocus
                             />
                         </Field>
-                        <Field label={t('committee.announcement.text')}>
-                            <textarea
-                                className="kce-input resize-none"
-                                rows={4}
-                                value={text}
-                                onChange={e => setText(e.target.value)}
-                                placeholder={t('committee.announcement.text')}
-                            />
-                        </Field>
+                        <MarkdownField
+                            id="announcement-text"
+                            label={t('committee.announcement.text')}
+                            value={text}
+                            onChange={setText}
+                            rows={4}
+                            placeholder={t('committee.announcement.text')}
+                        />
                         <Field label={t('media.attach')}>
                             <MediaUploadButton
                                 value={mediaUrl}
@@ -440,15 +440,14 @@ function TripFormFields({date, endDate, destination, note, onDate, onEndDate, on
                     autoFocus
                 />
             </Field>
-            <Field label={t('committee.trip.note')}>
-                <textarea
-                    className="kce-input resize-none"
-                    rows={3}
-                    value={note}
-                    onChange={e => onNote(e.target.value)}
-                    placeholder={t('common.optional')}
-                />
-            </Field>
+            <MarkdownField
+                id="trip-note"
+                label={t('committee.trip.note')}
+                value={note}
+                onChange={onNote}
+                rows={3}
+                placeholder={t('common.optional')}
+            />
         </>
     )
 }
@@ -477,7 +476,7 @@ function TripCard({trip, canWrite, order, past = false, commentOpen, highlightCo
                     </div>
                     <p className="text-xs text-accent-fg font-bold">{formatTripRange(trip.date, trip.end_date)}</p>
                     {trip.note && (
-                        <p className="text-muted text-xs mt-1 whitespace-pre-wrap">{trip.note}</p>
+                        <Markdown text={trip.note} className="text-muted text-xs mt-1"/>
                     )}
                     {trip.created_by_name && (
                         <p className="text-xs text-muted mt-1.5">von {trip.created_by_name}</p>
@@ -663,9 +662,7 @@ function PollsTab({canWrite, order, addOpen, setAddOpen, visible, search}: FeedP
                                         </span>
                                     </div>
                                     {poll.text && (
-                                        <p className="text-muted text-xs mt-1 whitespace-pre-wrap leading-relaxed">
-                                            {poll.text}
-                                        </p>
+                                        <Markdown text={poll.text} className="text-muted text-xs mt-1"/>
                                     )}
                                     {poll.created_by_name && (
                                         <p className="text-xs text-muted mt-1">
@@ -773,15 +770,14 @@ function PollsTab({canWrite, order, addOpen, setAddOpen, visible, search}: FeedP
                                 autoFocus
                             />
                         </Field>
-                        <Field label={t('committee.poll.text')}>
-                            <textarea
-                                className="kce-input resize-none"
-                                rows={3}
-                                value={newText}
-                                onChange={e => setNewText(e.target.value)}
-                                placeholder={t('committee.poll.text')}
-                            />
-                        </Field>
+                        <MarkdownField
+                            id="poll-text"
+                            label={t('committee.poll.text')}
+                            value={newText}
+                            onChange={setNewText}
+                            rows={3}
+                            placeholder={t('committee.poll.text')}
+                        />
                         <Field label={t('committee.poll.mode')}>
                             <div className="flex gap-2">
                                 {(['single', 'multi'] as const).map(m => (

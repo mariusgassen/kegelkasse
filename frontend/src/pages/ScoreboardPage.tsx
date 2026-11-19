@@ -20,6 +20,7 @@ import {api} from '@/api/client'
 import {celebrate} from '@/lib/celebrate'
 import {deriveTokens, DEFAULT_DARK_BG} from '@/lib/tokens'
 import {AppLogoAnimated} from '@/components/Logo'
+import {Markdown} from '@/components/ui/Markdown.tsx'
 import {
     availablePanels,
     initialWatch,
@@ -408,7 +409,7 @@ function StandingsPanel({data, panel}: {data: ScoreboardData; panel: PanelId | n
                         marginTop: '1.5vh', fontSize: 'clamp(16px, 1.9vw, 38px)',
                         fontWeight: 700, lineHeight: 1.25,
                     }}>
-                        {h.text}
+                        <Markdown text={h.text}/>
                     </div>
                 )}
             </Card>

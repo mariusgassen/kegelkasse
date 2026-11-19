@@ -23,6 +23,7 @@ import {
     type SearchResult,
 } from '@/lib/globalSearch'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {InlineMarkdown} from '@/components/ui/Markdown.tsx'
 
 interface Props {
     open: boolean
@@ -123,7 +124,7 @@ export function GlobalSearch({open, onClose}: Props) {
                                 >
                                     <span className="text-sm text-ink truncate">{r.title}</span>
                                     {r.subtitle && (
-                                        <span className="text-xs text-muted flex-shrink-0 ml-2">{r.subtitle}</span>
+                                        <InlineMarkdown text={r.subtitle} className="text-xs text-muted truncate ml-2"/>
                                     )}
                                 </button>
                             ))}

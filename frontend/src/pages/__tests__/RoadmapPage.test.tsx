@@ -286,4 +286,16 @@ describe('RoadmapPage', () => {
         fireEvent.click(manageRolesBtn)
         expect(screen.getByTestId('superadmin-roles-manager')).toBeInTheDocument()
     })
+
+    it('renders Markdown formatting in description and admin notes', async () => {
+        vi.mocked(api.listRoadmap).mockResolvedValue([{
+            ...MOCK_ITEMS[0],
+            description: 'Mit **Vorschau** und\n- Detail',
+            admin_notes: 'Geplant für *Q4*',
+        }])
+        renderPage()
+        await waitFor(() => expect(screen.getByText('Vorschau').tagName).toBe('STRONG'))
+        expect(screen.getByText('Detail')).toBeInTheDocument()
+        expect(screen.getByText('Q4').tagName).toBe('EM')
+    })
 })

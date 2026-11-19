@@ -31,6 +31,8 @@ import {toastError} from '@/utils/error'
 import {haptic} from '@/lib/haptics'
 import {CardActionMenu, type SheetAction} from '@/components/ui/ActionSheet'
 import {CommentThread} from '@/components/ui/CommentThread'
+import {Markdown} from '@/components/ui/Markdown'
+import {MarkdownField} from '@/components/ui/MarkdownField'
 import {SuperadminRolesManager} from '@/components/superadmin/SuperadminRolesManager'
 import type {RoadmapItem, RoadmapStatus} from '@/types'
 
@@ -571,9 +573,7 @@ export function RoadmapPage() {
                                 </h2>
 
                                 {item.description && (
-                                    <p className="text-xs text-muted mt-1.5 leading-relaxed whitespace-pre-line">
-                                        {item.description}
-                                    </p>
+                                    <Markdown text={item.description} className="text-xs text-muted mt-1.5"/>
                                 )}
 
                                 {/* Tags */}
@@ -601,8 +601,9 @@ export function RoadmapPage() {
                                 {item.admin_notes && (
                                     <div className="mt-2.5 px-3 py-2 rounded-xl bg-surface-2 border border-line/60 text-xs text-muted flex items-start gap-2">
                                         <Sparkles className="w-3.5 h-3.5 text-accent flex-shrink-0 mt-0.5" />
-                                        <div>
-                                            <span className="font-bold text-ink">{t('roadmap.edit.adminNotes')}:</span> {item.admin_notes}
+                                        <div className="min-w-0 flex-1">
+                                            <span className="font-bold text-ink">{t('roadmap.edit.adminNotes')}:</span>
+                                            <Markdown text={item.admin_notes} className="mt-0.5"/>
                                         </div>
                                     </div>
                                 )}
@@ -716,19 +717,14 @@ export function RoadmapPage() {
                         />
                     </div>
 
-                    <div>
-                        <label htmlFor="roadmap-new-desc" className="block text-xs font-bold text-ink mb-1">
-                            {t('roadmap.propose.field.description')}
-                        </label>
-                        <textarea
-                            id="roadmap-new-desc"
-                            rows={3}
-                            value={newDesc}
-                            onChange={e => setNewDesc(e.target.value)}
-                            placeholder={t('roadmap.propose.field.description.placeholder')}
-                            className="w-full bg-surface-2 border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:border-accent"
-                        />
-                    </div>
+                    <MarkdownField
+                        id="roadmap-new-desc"
+                        label={t('roadmap.propose.field.description')}
+                        value={newDesc}
+                        onChange={setNewDesc}
+                        rows={3}
+                        placeholder={t('roadmap.propose.field.description.placeholder')}
+                    />
 
                     <div className="flex gap-2 pt-2">
                         <button
@@ -875,32 +871,24 @@ export function RoadmapPage() {
                                         placeholder={t('roadmap.edit.version.placeholder')}
                                     />
                                 </div>
-                                <label htmlFor="roadmap-edit-admin-notes" className="block text-xs font-bold text-ink mb-1">
-                                    {t('roadmap.edit.adminNotes')}
-                                </label>
-                                <textarea
+                                <MarkdownField
                                     id="roadmap-edit-admin-notes"
-                                    rows={2}
+                                    label={t('roadmap.edit.adminNotes')}
                                     value={editAdminNotes}
-                                    onChange={e => setEditAdminNotes(e.target.value)}
+                                    onChange={setEditAdminNotes}
+                                    rows={2}
                                     placeholder={t('roadmap.edit.adminNotes.placeholder')}
-                                    className="w-full bg-surface-2 border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:border-accent"
                                 />
                             </div>
                         )}
 
-                        <div>
-                            <label htmlFor="roadmap-edit-desc" className="block text-xs font-bold text-ink mb-1">
-                                {t('roadmap.propose.field.description')}
-                            </label>
-                            <textarea
-                                id="roadmap-edit-desc"
-                                rows={3}
-                                value={editDesc}
-                                onChange={e => setEditDesc(e.target.value)}
-                                className="w-full bg-surface-2 border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:border-accent"
-                            />
-                        </div>
+                        <MarkdownField
+                            id="roadmap-edit-desc"
+                            label={t('roadmap.propose.field.description')}
+                            value={editDesc}
+                            onChange={setEditDesc}
+                            rows={3}
+                        />
 
                         <div className="flex gap-2 pt-2">
                             <button

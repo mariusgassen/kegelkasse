@@ -17,6 +17,7 @@ import {router} from '@/router'
 import {toastError} from '@/utils/error.ts'
 import {SkeletonCard} from '@/components/ui/Skeleton'
 import {CountUp} from '@/components/ui/CountUp'
+import {InlineMarkdown} from '@/components/ui/Markdown'
 import type {RsvpStatus, ScheduledEvening} from '@/types.ts'
 import {
     nextAppointment,
@@ -197,7 +198,7 @@ function CommunityRow({item, locale}: {item: CommunityItem; locale: string}) {
                 {(item.subtitle || hasActivity) && (
                     <div className="flex items-center gap-2 min-w-0 mt-0.5">
                         {item.subtitle && (
-                            <span className="text-sm text-muted truncate flex-1 min-w-0">{item.subtitle}</span>
+                            <InlineMarkdown text={item.subtitle} className="text-sm text-muted truncate flex-1 min-w-0"/>
                         )}
                         {hasActivity && (
                             <span className="flex items-center gap-1.5 text-xs text-muted flex-shrink-0">

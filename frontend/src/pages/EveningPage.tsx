@@ -21,6 +21,8 @@ import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
 import {MeBadge, MemberBadges} from '@/components/ui/MemberBadges.tsx'
 import {Button} from '@/components/ui/Button.tsx'
 import {Field} from '@/components/ui/Field.tsx'
+import {Markdown} from '@/components/ui/Markdown.tsx'
+import {MarkdownField} from '@/components/ui/MarkdownField.tsx'
 
 export function EveningPage() {
     const t = useT()
@@ -196,7 +198,7 @@ export function EveningPage() {
                     <div>
                         <div className="text-sm font-bold">{formatDate(evening.date)}</div>
                         {evening.venue && <div className="text-xs text-muted mt-0.5">📍 {evening.venue}</div>}
-                        {evening.note && <div className="text-xs text-muted mt-0.5 italic">{evening.note}</div>}
+                        {evening.note && <Markdown text={evening.note} className="text-xs text-muted mt-0.5 italic"/>}
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                         {!evening.is_closed ? (
@@ -431,7 +433,7 @@ export function EveningPage() {
                             <div className="flex items-start gap-2">
                                 <span className="text-base flex-shrink-0">✨</span>
                                 <div className="flex-1 min-w-0">
-                                    {h.text && <div className="text-sm">{h.text}</div>}
+                                    {h.text && <Markdown text={h.text} className="text-sm"/>}
                                     {h.media_url && (
                                         <ZoomableImage src={h.media_url} className="mt-1 rounded max-h-64 max-w-full object-contain border border-line/40"/>
                                     )}
@@ -468,13 +470,14 @@ export function EveningPage() {
             {!evening.is_closed && (
                 <div className="flex flex-col gap-1.5 mb-4">
                     <div className="flex gap-2">
-                        <input
-                            className="kce-input flex-1"
+                        <textarea
+                            rows={1}
+                            className="kce-input flex-1 resize-none"
                             value={highlightText}
                             onChange={e => setHighlightText(e.target.value)}
                             placeholder={t('highlight.placeholder')}
                             onKeyDown={async e => {
-                                if (e.key === 'Enter' && (highlightText.trim() || highlightMediaUrl)) {
+                                if (e.key === 'Enter' && !e.shiftKey && (highlightText.trim() || highlightMediaUrl)) {
                                     e.preventDefault()
                                     setAddingHighlight(true)
                                     try {
@@ -523,9 +526,7 @@ export function EveningPage() {
                         <input className="kce-input" value={editVenue} onChange={e => setEditVenue(e.target.value)}
                                placeholder={t('evening.venuePlaceholder')}/>
                     </Field>
-                    <Field label={t('evening.note')}>
-                        <input className="kce-input" value={editNote} onChange={e => setEditNote(e.target.value)}/>
-                    </Field>
+                    <MarkdownField id="evening-note" label={t('evening.note')} value={editNote} onChange={setEditNote} rows={3}/>
                     <Button type="submit" variant="primary" block>{t('action.save')}</Button>
                 </div>
             </Sheet>
