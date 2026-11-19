@@ -336,6 +336,18 @@ describe('StickersPage', () => {
         expect(document.getElementById('sticker-2')).toHaveClass('kce-deeplink-flash')
     })
 
+    it('keeps the deep link in the URL until the card was shown, so a remount still finds it', async () => {
+        const {clearHashParams} = await import('@/utils/hashParams.ts')
+        vi.mocked(clearHashParams).mockClear()
+        Element.prototype.scrollIntoView = vi.fn()
+        mockGetHashParams.mockReturnValue(new URLSearchParams('item=2'))
+        renderPage()
+        // Before the stickers have loaded nothing may have consumed the params yet.
+        expect(clearHashParams).not.toHaveBeenCalled()
+        await waitFor(() => expect(clearHashParams).toHaveBeenCalled())
+        expect(document.getElementById('sticker-2')).toBeInTheDocument()
+    })
+
     it('edits an existing sticker', async () => {
         vi.mocked(api.updateSticker).mockResolvedValue(S())
         renderPage()
