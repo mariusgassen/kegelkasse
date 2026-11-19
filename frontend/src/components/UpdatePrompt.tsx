@@ -25,6 +25,7 @@ function SwUpdateActivity() {
         const accent = islandAccent.blue
         const body = t('update.banner.body')
         const actionLabel = t('update.banner.button')
+        const shortLabel = t('island.updateShort')
         const dismissLabel = t('update.banner.dismiss')
 
         island.start({
@@ -37,7 +38,7 @@ function SwUpdateActivity() {
                 leading: <Glyph icon={DownloadGlyph} color={accent}/>,
                 trailing: (
                     <BubbleForm bubble={null}>
-                        <CompactText color={accent}>{actionLabel}</CompactText>
+                        <CompactText color={accent}>{shortLabel}</CompactText>
                     </BubbleForm>
                 ),
             },
@@ -50,13 +51,13 @@ function SwUpdateActivity() {
             expanded: {
                 leading: (
                     <SensorRow glyph={<Glyph icon={DownloadGlyph} color={accent} size={18}/>}>
-                        <ContextLabel>{actionLabel}</ContextLabel>
+                        <ContextLabel>{shortLabel}</ContextLabel>
                     </SensorRow>
                 ),
                 bottom: (
                     <ExpandedBottom reach="action" gap={12}>
                         <div role="status">
-                            <TitleStack title={body}/>
+                            <TitleStack title={body} titleLines={2}/>
                         </div>
                         <div style={{display: 'flex', gap: 10}}>
                             <IslandButton

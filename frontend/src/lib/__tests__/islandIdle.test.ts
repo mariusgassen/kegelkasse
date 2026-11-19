@@ -2,8 +2,6 @@ import {describe, it, expect} from 'vitest'
 import {
     daysUntilDate,
     deriveIdleIslandMode,
-    formatEurCompact,
-    formatEurFull,
     formatScheduleCompact,
     formatScheduleFull,
     todayLocalKey,
@@ -76,120 +74,62 @@ describe('formatScheduleFull', () => {
     })
 })
 
-describe('formatEurCompact & formatEurFull', () => {
-    it('formats zero, negative (U+2212) and positive amounts concisely', () => {
-        expect(formatEurCompact(0)).toBe('0 €')
-        expect(formatEurCompact(-0.002)).toBe('0 €')
-        expect(formatEurCompact(-12)).toBe('\u221212 €')
-        expect(formatEurCompact(-12.5)).toBe('\u221212,50 €')
-        expect(formatEurCompact(5)).toBe('+5 €')
-        expect(formatEurCompact(5.25)).toBe('+5,25 €')
-    })
-
-    it('always includes two decimals in full format', () => {
-        expect(formatEurFull(0)).toBe('0,00 €')
-        expect(formatEurFull(-12)).toBe('\u221212,00 €')
-        expect(formatEurFull(5)).toBe('+5,00 €')
-    })
-})
-
 describe('deriveIdleIslandMode', () => {
     it('returns null when an evening is open or user is not logged in', () => {
         expect(deriveIdleIslandMode({
             hasOpenEvening: true,
             isLoggedIn: true,
-            schedules: [se()],
+            schedules: [se({scheduled_at: '2026-11-16T19:30'})],
             todayKey: '2026-11-14',
-            regularMemberId: 1,
-            myBalance: {regular_member_id: 1, penalty_total: 10, payments_total: 0, balance: -10},
         })).toBeNull()
 
         expect(deriveIdleIslandMode({
             hasOpenEvening: false,
             isLoggedIn: false,
-            schedules: [se()],
+            schedules: [se({scheduled_at: '2026-11-16T19:30'})],
             todayKey: '2026-11-14',
-            regularMemberId: 1,
-            myBalance: {regular_member_id: 1, penalty_total: 10, payments_total: 0, balance: -10},
         })).toBeNull()
     })
 
-    it('returns null before any query data arrives', () => {
+    it('returns null before schedule query data arrives', () => {
         expect(deriveIdleIslandMode({
             hasOpenEvening: false,
             isLoggedIn: true,
             schedules: undefined,
             todayKey: '2026-11-14',
-            regularMemberId: 1,
-            myBalance: undefined,
         })).toBeNull()
     })
 
-    it('prefers the next upcoming scheduled evening and attaches balance', () => {
+    it('returns the next upcoming scheduled evening within the reminder window', () => {
         const mode = deriveIdleIslandMode({
             hasOpenEvening: false,
             isLoggedIn: true,
             schedules: [se({id: 1, scheduled_at: '2026-11-10T19:00'}), se({id: 2, scheduled_at: '2026-11-18T20:00'})],
             todayKey: '2026-11-14',
-            regularMemberId: 1,
-            myBalance: {regular_member_id: 1, penalty_total: 20, payments_total: 7.5, balance: -12.5},
         })
         expect(mode).toMatchObject({
             kind: 'schedule',
             appointment: {id: 2},
-            balance: -12.5,
-            balanceState: 'owed',
         })
     })
 
-    it('falls back to personal balance when no upcoming evening is scheduled', () => {
+    it('stays quietly at rest (null) when no upcoming evening is scheduled', () => {
         const mode = deriveIdleIslandMode({
             hasOpenEvening: false,
             isLoggedIn: true,
             schedules: [se({id: 1, scheduled_at: '2026-11-10T19:00'}), se({id: 2, scheduled_at: '2026-11-18T20:00', evening_id: 99})],
             todayKey: '2026-11-14',
-            regularMemberId: 1,
-            myBalance: {regular_member_id: 1, penalty_total: 10, payments_total: 15, balance: 5},
         })
-        expect(mode).toEqual({
-            kind: 'balance',
-            balance: 5,
-            penaltyTotal: 10,
-            paymentsTotal: 15,
-            balanceState: 'credit',
-        })
-    })
-
-    it('waits for myBalance before falling back when regularMemberId is present', () => {
-        expect(deriveIdleIslandMode({
-            hasOpenEvening: false,
-            isLoggedIn: true,
-            schedules: [],
-            todayKey: '2026-11-14',
-            regularMemberId: 1,
-            myBalance: undefined,
-        })).toBeNull()
-
-        expect(deriveIdleIslandMode({
-            hasOpenEvening: false,
-            isLoggedIn: true,
-            schedules: [],
-            todayKey: '2026-11-14',
-            regularMemberId: 1,
-            myBalance: undefined,
-            balanceFailed: true,
-        })).toEqual({kind: 'fallback'})
+        expect(mode).toBeNull()
     })
 
     it('only shows upcoming scheduled evening within the configured reminder days window', () => {
-        // Default window (5 days): 5 days ahead shows schedule, 6 days ahead falls back to balance
+        // Default window (5 days): 5 days ahead shows schedule, further ahead rests quietly (null)
         const withinDefault = deriveIdleIslandMode({
             hasOpenEvening: false,
             isLoggedIn: true,
             schedules: [se({id: 2, scheduled_at: '2026-11-19T20:00'})],
             todayKey: '2026-11-14',
-            regularMemberId: 1,
-            myBalance: {regular_member_id: 1, penalty_total: 10, payments_total: 15, balance: 5},
         })
         expect(withinDefault?.kind).toBe('schedule')
 
@@ -198,16 +138,8 @@ describe('deriveIdleIslandMode', () => {
             isLoggedIn: true,
             schedules: [se({id: 2, scheduled_at: '2026-12-14T20:00'})],
             todayKey: '2026-11-14',
-            regularMemberId: 1,
-            myBalance: {regular_member_id: 1, penalty_total: 10, payments_total: 15, balance: 5},
         })
-        expect(outsideDefault).toEqual({
-            kind: 'balance',
-            balance: 5,
-            penaltyTotal: 10,
-            paymentsTotal: 15,
-            balanceState: 'credit',
-        })
+        expect(outsideDefault).toBeNull()
 
         // Club setting overrides default (e.g. 2 days or 35 days)
         expect(deriveIdleIslandMode({
@@ -215,18 +147,14 @@ describe('deriveIdleIslandMode', () => {
             isLoggedIn: true,
             schedules: [se({id: 2, scheduled_at: '2026-11-18T20:00'})],
             todayKey: '2026-11-14',
-            regularMemberId: 1,
-            myBalance: {regular_member_id: 1, penalty_total: 10, payments_total: 15, balance: 5},
             upcomingReminderDays: 2,
-        })?.kind).toBe('balance')
+        })).toBeNull()
 
         expect(deriveIdleIslandMode({
             hasOpenEvening: false,
             isLoggedIn: true,
             schedules: [se({id: 2, scheduled_at: '2026-12-14T20:00'})],
             todayKey: '2026-11-14',
-            regularMemberId: 1,
-            myBalance: undefined,
             upcomingReminderDays: 35,
         })?.kind).toBe('schedule')
     })
@@ -237,21 +165,17 @@ describe('deriveIdleIslandMode', () => {
             isLoggedIn: true,
             schedules: [se({id: 2, scheduled_at: '2026-12-14T20:00'})],
             todayKey: '2026-11-14',
-            regularMemberId: 1,
-            myBalance: {regular_member_id: 1, penalty_total: 10, payments_total: 15, balance: 5},
             reminderReady: false,
         })).toBeNull()
     })
 
-    it('falls back to account shortcut for members without regularMemberId and no appointments', () => {
+    it('stays quietly at rest (null) when no appointments exist', () => {
         const mode = deriveIdleIslandMode({
             hasOpenEvening: false,
             isLoggedIn: true,
             schedules: [],
             todayKey: '2026-11-14',
-            regularMemberId: null,
-            myBalance: undefined,
         })
-        expect(mode).toEqual({kind: 'fallback'})
+        expect(mode).toBeNull()
     })
 })
