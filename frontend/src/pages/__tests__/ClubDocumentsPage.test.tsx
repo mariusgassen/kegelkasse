@@ -94,10 +94,24 @@ describe('ClubDocumentsPage', () => {
         await waitFor(() => expect(api.downloadClubDocument).toHaveBeenCalledWith(7, 'Satzung_KCE.pdf'))
     })
 
-    it('records an acknowledgement', async () => {
+    it('offers one confirm button that agrees to a Satzung', async () => {
         renderPage()
-        fireEvent.click(await screen.findByTestId('document-agree'))
+        const btn = await screen.findByTestId('document-confirm')
+        expect(btn.textContent).toBe('document.action.agree')
+        expect(screen.getAllByTestId('document-confirm')).toHaveLength(1)
+        fireEvent.click(btn)
         await waitFor(() => expect(api.acknowledgeClubDocument).toHaveBeenCalledWith(7, 'agreed'))
+    })
+
+    it('only takes note of minutes and other documents', async () => {
+        apiMock.listClubDocuments.mockResolvedValue({
+            documents: [{...DOC, document_type: 'protokoll'}], member_count: 5, can_upload: false,
+        })
+        renderPage()
+        const btn = await screen.findByTestId('document-confirm')
+        expect(btn.textContent).toBe('document.action.acknowledge')
+        fireEvent.click(btn)
+        await waitFor(() => expect(api.acknowledgeClubDocument).toHaveBeenCalledWith(7, 'acknowledged'))
     })
 
     it('can withdraw an existing acknowledgement', async () => {
