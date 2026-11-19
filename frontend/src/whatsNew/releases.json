@@ -1,6 +1,49 @@
 {
   "releases": [
     {
+      "version": "1.80.0",
+      "date": "2026-11-19",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "27646cb",
+              "pr": 669,
+              "sha": "27646cb",
+              "text": {
+                "en": "Dokument-Angaben nachträglich bearbeiten, ruhige Button-Zeile",
+                "de": "Dokument-Angaben nachträglich bearbeiten, ruhige Button-Zeile"
+              }
+            },
+            {
+              "key": "e689575",
+              "pr": 667,
+              "sha": "e689575",
+              "text": {
+                "en": "Dokumente mit einem Bestätigungs-Knopf, Beschriftung nach Dokumentart",
+                "de": "Dokumente mit einem Bestätigungs-Knopf, Beschriftung nach Dokumentart"
+              }
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "1217ecb",
+              "pr": 666,
+              "sha": "1217ecb",
+              "text": {
+                "en": "Neuigkeiten kompakter, Sticker-Links im Start-Feed funktionieren",
+                "de": "Neuigkeiten kompakter, Sticker-Links im Start-Feed funktionieren"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.79.1",
       "date": "2026-11-18",
       "sections": [
