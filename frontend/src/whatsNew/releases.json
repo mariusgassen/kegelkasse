@@ -1,6 +1,60 @@
 {
   "releases": [
     {
+      "version": "1.81.0",
+      "date": "2026-11-19",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "be1ce6d",
+              "pr": 674,
+              "sha": "be1ce6d",
+              "text": {
+                "en": "consolidate role model into User.roles, add IT-Admin and Treasurer, empower members",
+                "de": "Rollenmodell in User.roles zusammengeführt, IT-Admin und Kassenwart hinzugefügt, Mitglieder gestärkt"
+              }
+            },
+            {
+              "key": "2403c27",
+              "pr": 677,
+              "sha": "2403c27",
+              "text": {
+                "en": "Markdown für alle Textanzeigen, Neuigkeiten-Vorschau und Eingabefelder",
+                "de": "Markdown für alle Textanzeigen, Neuigkeiten-Vorschau und Eingabefelder"
+              }
+            },
+            {
+              "key": "fb1bbf8",
+              "scope": "roadmap",
+              "pr": 678,
+              "sha": "fb1bbf8",
+              "text": {
+                "en": "add Roadmap MCP server (/mcp & stdio)",
+                "de": "Roadmap-MCP-Server hinzugefügt (/mcp & stdio)"
+              }
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "40a0ed9",
+              "scope": "roles",
+              "pr": 676,
+              "sha": "40a0ed9",
+              "text": {
+                "en": "remove double scrollbar, revoke inactive user roles, translate member role badges",
+                "de": "Doppelte Bildlaufleiste entfernt, Rollen inaktiver Nutzer entzogen, Rollen-Abzeichen der Mitglieder übersetzt"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.80.1",
       "date": "2026-11-19",
       "sections": [
