@@ -198,6 +198,25 @@ class TestUpdateMemberRole:
                              headers=admin_headers, json={"roles": ["superadmin", "member"]})
         assert resp2.status_code == 403
 
+    def test_admin_cannot_assign_or_strip_it_admin(self, client: TestClient, db: Session, admin_headers: dict, user: User):
+        resp = client.patch(f"/api/v1/club/members/{user.id}/role",
+                            headers=admin_headers, params={"role": "it_admin"})
+        assert resp.status_code == 403
+        resp2 = client.patch(f"/api/v1/club/members/{user.id}/roles",
+                             headers=admin_headers, json={"roles": ["it_admin", "admin"]})
+        assert resp2.status_code == 403
+
+        # Existing it_admin role is preserved when updating club roles, and cannot be removed by club admin
+        user.roles = ["it_admin"]
+        db.commit()
+        resp3 = client.patch(f"/api/v1/club/members/{user.id}/roles",
+                             headers=admin_headers, json={"roles": ["treasurer"]})
+        assert resp3.status_code == 403
+        resp4 = client.patch(f"/api/v1/club/members/{user.id}/roles",
+                             headers=admin_headers, json={"roles": ["it_admin", "treasurer"]})
+        assert resp4.status_code == 200
+        assert set(resp4.json()["roles"]) == {"it_admin", "treasurer"}
+
     def test_admin_updates_multiple_club_roles(self, client: TestClient, db: Session, admin_headers: dict, user: User):
         resp = client.patch(f"/api/v1/club/members/{user.id}/roles",
                             headers=admin_headers, json={"roles": ["treasurer", "auditor", "member"]})

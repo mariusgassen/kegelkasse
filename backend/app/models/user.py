@@ -18,10 +18,9 @@ class UserRole(str, enum.Enum):
     member = "member"  # regular club member
 
 
-# Roles a club admin may assign to members of their own club (never superadmin).
+# Roles a club admin may assign to members of their own club (never platform/technical roles).
 CLUB_ASSIGNABLE_ROLES = (
     UserRole.admin,
-    UserRole.it_admin,
     UserRole.treasurer,
     UserRole.auditor,
     UserRole.committee,

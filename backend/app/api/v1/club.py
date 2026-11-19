@@ -282,10 +282,14 @@ def _set_club_member_roles(db: Session, actor: User, member_id: int, requested_r
 
     valid_roles = {r.value for r in UserRole}
     club_assignable = {r.value for r in CLUB_ASSIGNABLE_ROLES}
+    platform_roles = valid_roles - club_assignable
     for r in requested_roles:
         if r not in valid_roles:
             raise HTTPException(400, "Invalid role")
-        if r not in club_assignable and not actor.is_superadmin:
+    if not actor.is_superadmin:
+        existing_platform = target.all_roles & platform_roles
+        requested_platform = set(requested_roles) & platform_roles
+        if requested_platform != existing_platform:
             raise HTTPException(403, "Only superadmin can assign platform roles")
 
     target.roles = normalize_roles(requested_roles)

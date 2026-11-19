@@ -1,13 +1,11 @@
 import {useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
-import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
 import {SkeletonRows} from '@/components/ui/Skeleton.tsx'
 import {EmojiPickerButton} from '@/components/ui/EmojiPickerButton.tsx'
 import {ActionItem} from '@/components/ui/ActionSheet.tsx'
@@ -243,49 +241,6 @@ function ItemSheet({item, canEdit, onClose}: { item: InventoryItem | null; canEd
     )
 }
 
-/** Admins pick which members are Zeugwart. Guests cannot be. */
-function KeeperManager({keeperIds}: { keeperIds: Set<number> }) {
-    const t = useT()
-    const qc = useQueryClient()
-    const regularMembers = useAppStore(s => s.regularMembers)
-    const [busy, setBusy] = useState<number | null>(null)
-    const candidates = regularMembers.filter(m => m.is_active && !m.is_guest && !m.deactivated_at)
-
-    async function toggle(id: number) {
-        setBusy(id)
-        try {
-            await api.setZeugwart(id, !keeperIds.has(id))
-            await Promise.all([
-                qc.invalidateQueries({queryKey: ['inventory-keepers']}),
-                qc.invalidateQueries({queryKey: ['inventory']}),
-            ])
-        } catch (e) {
-            toastError(e)
-        } finally {
-            setBusy(null)
-        }
-    }
-
-    return (
-        <ExpandableCard title={<span className="text-sm font-bold">🛠️ {t('zeugwart.manageKeepers')}</span>}
-                        data-testid="zeugwart-manage">
-            <div className="px-3 pb-3">
-                <p className="text-xs text-muted mb-2">{t('zeugwart.manageHint')}</p>
-                <div className="flex flex-wrap gap-1.5">
-                    {candidates.map(m => (
-                        <button key={m.id} type="button" disabled={busy === m.id}
-                                className={`chip ${keeperIds.has(m.id) ? 'active' : ''}`}
-                                aria-pressed={keeperIds.has(m.id)}
-                                onClick={() => toggle(m.id)}>
-                            {m.nickname || m.name}
-                        </button>
-                    ))}
-                </div>
-            </div>
-        </ExpandableCard>
-    )
-}
-
 /**
  * Zeugwart: what the club has (stickers, pins, shirts, …) and what it still needs. Everyone
  * reads; the Zeugwart and admins keep it current. Items that fall short of their target come first.
@@ -293,8 +248,6 @@ function KeeperManager({keeperIds}: { keeperIds: Set<number> }) {
 export function ZeugwartPage() {
     const t = useT()
     const isOnline = useOnline()
-    const user = useAppStore(s => s.user)
-    const admin = isAdmin(user)
     const invalidate = useInvalidateInventory()
     const [selectedId, setSelectedId] = useState<number | null>(null)
     const [adding, setAdding] = useState(false)
@@ -307,7 +260,6 @@ export function ZeugwartPage() {
         (b.missing > 0 ? 1 : 0) - (a.missing > 0 ? 1 : 0) || a.name.localeCompare(b.name, 'de'))
     const canEdit = !!data?.can_edit
     const selected = items.find(i => i.id === selectedId) ?? null
-    const keeperIds = new Set(keepers.map(k => k.id))
 
     async function create(v: { name: string; icon: string; stock: number; target: number; note: string }) {
         setBusy(true)
@@ -343,8 +295,6 @@ export function ZeugwartPage() {
                     ? <span data-testid="zeugwart-no-keepers">{t('zeugwart.noKeepers')}</span>
                     : <span data-testid="zeugwart-keepers">{keepers.map(k => k.nickname || k.name).join(', ')}</span>}
             </div>
-
-            {admin && <KeeperManager keeperIds={keeperIds}/>}
 
             {isLoading ? <SkeletonRows rows={4}/> : items.length === 0
                 ? <Empty icon="📦" text={t('zeugwart.empty')}/>
