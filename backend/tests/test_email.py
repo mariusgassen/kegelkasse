@@ -510,3 +510,13 @@ class TestEmailChannelDispatch:
         assert db.query(NotificationLog).filter(NotificationLog.user_id == u.id).count() == 0
         db.delete(u)
         db.commit()
+
+
+def test_every_email_links_to_homepage():
+    from core.email import build_email_bodies, build_digest_email
+    theme = {"primary": "#e8a020", "on_primary": "#fff", "club_name": "Club",
+             "logo_url": None, "base_url": "https://kegel.example"}
+    _, html = build_email_bodies("T", "B", "", theme=theme)
+    assert 'href="https://kegel.example/"' in html
+    _, _, dhtml = build_digest_email(theme, {"member_name": "A"}, "de")
+    assert 'href="https://kegel.example/"' in dhtml
