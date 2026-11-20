@@ -1,7 +1,10 @@
-"""Tests for the club documents endpoints (upload, versioned list, protected download, acknowledgements)."""
+"""Tests for the club documents endpoints (upload, versioned list, protected download, acknowledgements,
+review requests with Frist and reminders)."""
 import io
 import json
+from datetime import date, timedelta
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy.orm import Session
@@ -10,7 +13,9 @@ import core.ai as core_ai
 from core.config import settings
 from core.security import create_access_token, get_password_hash
 from models.club import Club
-from models.document import ClubDocument, ClubDocumentAcknowledgement
+from models.document import (
+    ClubDocument, ClubDocumentAcknowledgement, ClubDocumentReviewRecipient, ClubDocumentReviewRequest,
+)
 from models.user import User, UserRole
 
 BASE = "/api/v1/club/documents/"
@@ -20,6 +25,8 @@ BASE = "/api/v1/club/documents/"
 def cleanup(db: Session, club: Club):
     yield
     db.rollback()
+    db.query(ClubDocumentReviewRecipient).delete(synchronize_session=False)
+    db.query(ClubDocumentReviewRequest).delete(synchronize_session=False)
     db.query(ClubDocumentAcknowledgement).delete(synchronize_session=False)
     db.query(ClubDocument).delete(synchronize_session=False)
     db.commit()
@@ -315,3 +322,136 @@ def test_update_metadata_rules(client, admin, user):
     assert client.patch(url, json={"title": "  "}, headers=_headers(admin)).status_code == 400
     assert client.patch(url, json={"document_type": "geheim"}, headers=_headers(admin)).status_code == 400
     assert client.patch(url, json={"effective_date": "17.11.2026"}, headers=_headers(admin)).status_code == 400
+
+
+# ── Prüf-/Zustimmungsanfragen mit Frist und Erinnerungen ──────────────────────────────────────────
+
+
+def _review(client, admin, doc_id, **overrides):
+    payload = {
+        "document_id": doc_id,
+        "deadline": (date.today() + timedelta(days=7)).isoformat(),
+    }
+    payload.update(overrides)
+    return client.post(f"{BASE}requests", json=payload, headers=_headers(admin))
+
+
+def test_review_request_create_notify_and_visibility(client, admin, user, second_user, other_club_user, db):
+    doc = _upload(client, admin).json()
+    with patch("core.document_reviews.notify_user", return_value=True) as mock_notify:
+        res = _review(client, admin, doc["id"], title="Satzung prüfen", message="Bitte lesen!")
+    assert res.status_code == 201
+    body = res.json()
+    assert body["title"] == "Satzung prüfen"
+    assert body["status"] == "open"
+    assert body["document_id"] == doc["id"]
+    assert body["recipient_count"] >= 2
+    assert body["pending_count"] == body["recipient_count"]
+    assert body["my_response"] is None
+    assert mock_notify.call_count >= 2
+    args = mock_notify.call_args.args
+    assert args[4] == f"/#documents?item={doc['id']}"
+    assert mock_notify.call_args.kwargs["category"] == "documents"
+
+    admin_list = client.get(f"{BASE}requests", headers=_headers(admin))
+    assert admin_list.status_code == 200
+    assert admin_list.json()["requests"][0]["id"] == body["id"]
+    assert client.get(f"{BASE}requests", headers=_headers(user)).status_code == 403
+
+    detail = client.get(f"{BASE}requests/{body['id']}", headers=_headers(admin)).json()
+    assert len(detail["recipients"]) == detail["recipient_count"]
+    assert all(r["response"] is None for r in detail["recipients"])
+
+    mine = client.get(f"{BASE}requests/mine", headers=_headers(user)).json()
+    assert [r["id"] for r in mine["requests"]] == [body["id"]]
+    assert client.get(f"{BASE}requests/mine", headers=_headers(other_club_user)).json()["requests"] == []
+    # An admin of a different club must not see this club's request either.
+    other_club_user.role = UserRole.admin
+    db.commit()
+    assert client.get(f"{BASE}requests/{body['id']}", headers=_headers(other_club_user)).status_code == 404
+
+
+def test_review_progress_and_reminders_follow_acknowledgements(client, admin, user, second_user):
+    doc = _upload(client, admin).json()
+    res = _review(client, admin, doc["id"], user_ids=[user.id, second_user.id])
+    assert res.status_code == 201
+    req_id = res.json()["id"]
+    assert res.json()["recipient_count"] == 2
+
+    client.post(f"{BASE}{doc['id']}/acknowledge", json={"response": "agreed"}, headers=_headers(user))
+    detail = client.get(f"{BASE}requests/{req_id}", headers=_headers(admin)).json()
+    assert detail["responded_count"] == 1
+    assert detail["pending_count"] == 1
+
+    with patch("core.document_reviews.notify_user", return_value=True) as mock_notify:
+        reminded = client.post(f"{BASE}requests/{req_id}/remind", headers=_headers(admin))
+    assert reminded.status_code == 200
+    assert reminded.json()["sent"] == 1
+    assert mock_notify.call_count == 1
+    assert mock_notify.call_args.args[1].id == second_user.id
+
+    # A second reminder on the same day is a no-op for the already-reminded member.
+    with patch("core.document_reviews.notify_user", return_value=True) as mock_notify:
+        assert client.post(f"{BASE}requests/{req_id}/remind", headers=_headers(admin)).json()["sent"] == 0
+        assert mock_notify.call_count == 0
+
+    # Withdrawing the acknowledgement reopens that recipient's response.
+    client.delete(f"{BASE}{doc['id']}/acknowledge", headers=_headers(user))
+    with patch("core.document_reviews.notify_user", return_value=True):
+        assert client.post(f"{BASE}requests/{req_id}/remind", headers=_headers(admin)).json()["sent"] == 1
+
+
+def test_review_request_validation_and_delete_guard(client, admin, user, other_club_user):
+    doc = _upload(client, admin).json()
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    assert _review(client, admin, doc["id"], deadline=yesterday).status_code == 400
+    assert _review(client, admin, doc["id"], reminder_days_before=31).status_code == 400
+    assert _review(client, admin, doc["id"], user_ids=[]).status_code == 400
+    assert _review(client, admin, doc["id"], user_ids=[other_club_user.id]).status_code == 400
+    assert _review(client, user, doc["id"]).status_code == 403
+    assert _review(client, admin, 999999).status_code == 404
+
+    req = _review(client, admin, doc["id"]).json()
+    res = client.delete(f"{BASE}{doc['id']}", headers=_headers(admin))
+    assert res.status_code == 400
+    assert "review requests" in res.json()["detail"]
+    assert client.delete(f"{BASE}requests/{req['id']}", headers=_headers(user)).status_code == 403
+
+
+def test_review_request_close_and_cancel(client, admin, user):
+    doc = _upload(client, admin).json()
+    req_id = _review(client, admin, doc["id"]).json()["id"]
+
+    closed = client.post(f"{BASE}requests/{req_id}/close", headers=_headers(admin))
+    assert closed.status_code == 200
+    assert closed.json()["status"] == "closed"
+    assert client.get(f"{BASE}requests/mine", headers=_headers(user)).json()["requests"] == []
+    assert client.post(f"{BASE}requests/{req_id}/remind", headers=_headers(admin)).status_code == 400
+    assert client.post(f"{BASE}requests/{req_id}/close", headers=_headers(admin)).status_code == 400
+
+    assert client.delete(f"{BASE}requests/{req_id}", headers=_headers(admin)).status_code == 204
+    assert client.get(f"{BASE}requests/{req_id}", headers=_headers(admin)).status_code == 404
+
+
+def test_automatic_review_reminder_on_due_date(client, admin, user, db, club):
+    from core.reminders import send_document_review_reminders
+
+    doc = _upload(client, admin).json()
+    today = date.today()
+    deadline = today + timedelta(days=2)
+    res = _review(client, admin, doc["id"], deadline=deadline.isoformat(),
+                  reminder_days_before=2, user_ids=[user.id])
+    assert res.status_code == 201
+
+    with patch("core.document_reviews.notify_user", return_value=True) as mock_notify:
+        assert send_document_review_reminders(db, club, today - timedelta(days=1)) == 0
+        assert mock_notify.call_count == 0
+        assert send_document_review_reminders(db, club, today) == 1
+        assert mock_notify.call_count == 1
+        assert send_document_review_reminders(db, club, today) == 0
+
+    recipient = db.query(ClubDocumentReviewRecipient).filter(
+        ClubDocumentReviewRecipient.request_id == res.json()["id"]
+    ).first()
+    assert recipient.reminder_count == 1
+    assert recipient.reminded_at is not None

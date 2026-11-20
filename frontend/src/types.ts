@@ -154,6 +154,7 @@ export interface PushPreferences {
     reminder_schedule: ChannelPref
     reminder_payments: ChannelPref
     guest_requests: ChannelPref
+    documents: ChannelPref
     app_updates: ChannelPref
     stickers: ChannelPref
     roadmap: ChannelPref
@@ -334,6 +335,52 @@ export interface ClubDocumentSuggestion {
     effective_date: string | null
     summary: string | null
     change_summary: string | null
+}
+
+// Review / Zustimmungsanfragen — an admin asks members to confirm one document version by a Frist.
+export type DocumentReviewStatus = 'open' | 'closed' | 'cancelled'
+
+export interface DocumentReviewRecipient {
+    user_id: number | null
+    responder_name: string
+    response: ClubDocumentResponse | null
+    confirmed_at: string | null
+    notified_at: string | null
+    reminded_at: string | null
+    reminder_count: number
+}
+
+export interface DocumentReviewRequest {
+    id: number
+    document_id: number
+    document_title: string | null
+    document_version: string | null
+    document_url: string
+    title: string
+    message: string | null
+    deadline: string
+    reminder_days_before: number
+    auto_reminders: boolean
+    status: DocumentReviewStatus
+    created_at: string | null
+    closed_at: string | null
+    created_by_name: string
+    recipient_count: number
+    responded_count: number
+    pending_count: number
+    my_response: ClubDocumentResponse | null
+    is_recipient: boolean
+    recipients?: DocumentReviewRecipient[]
+}
+
+export interface DocumentReviewRequestCreate {
+    document_id: number
+    deadline: string
+    title?: string
+    message?: string
+    reminder_days_before?: number
+    auto_reminders?: boolean
+    user_ids?: number[]
 }
 
 export interface Sticker {

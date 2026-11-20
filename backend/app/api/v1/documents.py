@@ -14,12 +14,16 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from api.deps import require_club_member
+from api.deps import require_club_admin, require_club_member
 from api.v1.ai import _require_ai, _run
 from core.database import get_db
+from core.document_reviews import notify_new_request, request_url, send_review_reminders
 from core.schemas import TrimmedModel
 from core.storage import get_storage
-from models.document import ACK_RESPONSES, DOCUMENT_TYPES, ClubDocument, ClubDocumentAcknowledgement
+from models.document import (
+    ACK_RESPONSES, DOCUMENT_TYPES, ClubDocument, ClubDocumentAcknowledgement,
+    ClubDocumentReviewRecipient, ClubDocumentReviewRequest,
+)
 from models.evening import RegularMember
 from models.user import User, UserRole
 
@@ -79,6 +83,16 @@ class UpdateDocumentBody(TrimmedModel):
     effective_date: Optional[str] = None
     summary: Optional[str] = None
     change_summary: Optional[str] = None
+
+
+class ReviewRequestCreate(TrimmedModel):
+    document_id: int
+    deadline: str
+    title: Optional[str] = None
+    message: Optional[str] = None
+    reminder_days_before: int = 2
+    auto_reminders: bool = True
+    user_ids: Optional[list[int]] = None
 
 
 def _parse_date(value: Optional[str], field: str) -> Optional[date]:
@@ -200,6 +214,176 @@ def list_documents(db: Session = Depends(get_db), user: User = Depends(require_c
         "can_upload": True,
         "can_upload_decisions": user.has_role(UserRole.admin),
     }
+
+
+# --- Review / Zustimmungsanfragen -------------------------------------------------------------
+# Declared before the /{doc_id} routes: FastAPI validates path params in declaration order and
+# would otherwise answer "/requests" with a 422 instead of reaching these handlers.
+
+
+def _get_request(db: Session, req_id: int, user: User) -> ClubDocumentReviewRequest:
+    req = db.query(ClubDocumentReviewRequest).filter(
+        ClubDocumentReviewRequest.id == req_id,
+        ClubDocumentReviewRequest.club_id == user.club_id,
+    ).first()
+    if not req:
+        raise HTTPException(404, "Review request not found")
+    return req
+
+
+def _serialize_request(db: Session, req: ClubDocumentReviewRequest, user: User,
+                       include_recipients: bool = False) -> dict:
+    doc = db.query(ClubDocument).filter(
+        ClubDocument.id == req.document_id, ClubDocument.club_id == req.club_id
+    ).first()
+    recipients = db.query(ClubDocumentReviewRecipient).filter(
+        ClubDocumentReviewRecipient.request_id == req.id
+    ).order_by(ClubDocumentReviewRecipient.responder_name).all()
+    ids = [r.user_id for r in recipients if r.user_id is not None]
+    acks = {
+        a.user_id: a for a in db.query(ClubDocumentAcknowledgement).filter(
+            ClubDocumentAcknowledgement.document_id == req.document_id,
+            ClubDocumentAcknowledgement.user_id.in_(ids),
+        ).all()
+    } if ids else {}
+    responded = sum(1 for i in ids if i in acks)
+    mine = acks.get(user.id)
+    out = {
+        "id": req.id,
+        "document_id": req.document_id,
+        "document_title": doc.title if doc else None,
+        "document_version": doc.version if doc else None,
+        "document_url": request_url(req.document_id),
+        "title": req.title,
+        "message": req.message,
+        "deadline": req.deadline.isoformat() if req.deadline else None,
+        "reminder_days_before": req.reminder_days_before,
+        "auto_reminders": bool(req.auto_reminders),
+        "status": req.status,
+        "created_at": req.created_at.isoformat() if req.created_at else None,
+        "closed_at": req.closed_at.isoformat() if req.closed_at else None,
+        "created_by_name": req.created_by_name,
+        "recipient_count": len(recipients),
+        "responded_count": responded,
+        "pending_count": len(recipients) - responded,
+        "my_response": mine.response if mine else None,
+        "is_recipient": any(r.user_id == user.id for r in recipients),
+    }
+    if include_recipients:
+        out["recipients"] = [{
+            "user_id": r.user_id,
+            "responder_name": r.responder_name,
+            "response": acks[r.user_id].response if r.user_id in acks else None,
+            "confirmed_at": acks[r.user_id].confirmed_at.isoformat()
+            if r.user_id in acks and acks[r.user_id].confirmed_at else None,
+            "notified_at": r.notified_at.isoformat() if r.notified_at else None,
+            "reminded_at": r.reminded_at.isoformat() if r.reminded_at else None,
+            "reminder_count": r.reminder_count or 0,
+        } for r in recipients]
+    return out
+
+
+@router.post("/requests", status_code=201)
+def create_review_request(data: ReviewRequestCreate, db: Session = Depends(get_db),
+                          user: User = Depends(require_club_admin)):
+    doc = _get_doc(db, data.document_id, user)
+    deadline = _parse_date(data.deadline, "deadline")
+    if not deadline:
+        raise HTTPException(400, "A deadline is required")
+    if deadline < date.today():
+        raise HTTPException(400, "The deadline must not be in the past")
+    if not 0 <= data.reminder_days_before <= 30:
+        raise HTTPException(400, "reminder_days_before must be between 0 and 30")
+
+    q = db.query(User).filter(User.club_id == user.club_id, User.is_active == True)  # noqa: E712
+    if data.user_ids is None:
+        recipients = q.all()
+    else:
+        ids = set(data.user_ids)
+        if not ids:
+            raise HTTPException(400, "Select at least one recipient")
+        recipients = q.filter(User.id.in_(ids)).all()
+        if len(recipients) != len(ids):
+            raise HTTPException(400, "Unknown or inactive recipient")
+
+    req = ClubDocumentReviewRequest(
+        club_id=user.club_id, document_id=doc.id, created_by=user.id,
+        created_by_name=_display_name(db, user),
+        title=(data.title or "").strip() or doc.title,
+        message=(data.message or "").strip() or None,
+        deadline=deadline, reminder_days_before=data.reminder_days_before,
+        auto_reminders=data.auto_reminders, status="open",
+    )
+    db.add(req)
+    db.flush()
+    for recipient in recipients:
+        db.add(ClubDocumentReviewRecipient(
+            request_id=req.id, user_id=recipient.id, responder_name=_display_name(db, recipient),
+        ))
+    db.commit()
+    db.refresh(req)
+    notify_new_request(db, req)
+    logger.info("Document review request created: club=%s doc=%s id=%s recipients=%d",
+                user.club_id, doc.id, req.id, len(recipients))
+    return _serialize_request(db, req, user, include_recipients=True)
+
+
+@router.get("/requests")
+def list_review_requests(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+    rows = db.query(ClubDocumentReviewRequest).filter(
+        ClubDocumentReviewRequest.club_id == user.club_id
+    ).order_by(
+        ClubDocumentReviewRequest.status, ClubDocumentReviewRequest.deadline
+    ).all()
+    return {"requests": [_serialize_request(db, r, user) for r in rows]}
+
+
+@router.get("/requests/mine")
+def my_review_requests(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    rows = db.query(ClubDocumentReviewRequest).join(
+        ClubDocumentReviewRecipient,
+        ClubDocumentReviewRecipient.request_id == ClubDocumentReviewRequest.id,
+    ).filter(
+        ClubDocumentReviewRequest.club_id == user.club_id,
+        ClubDocumentReviewRequest.status == "open",
+        ClubDocumentReviewRecipient.user_id == user.id,
+    ).order_by(ClubDocumentReviewRequest.deadline).all()
+    return {"requests": [_serialize_request(db, r, user) for r in rows]}
+
+
+@router.get("/requests/{req_id}")
+def get_review_request(req_id: int, db: Session = Depends(get_db),
+                       user: User = Depends(require_club_admin)):
+    return _serialize_request(db, _get_request(db, req_id, user), user, include_recipients=True)
+
+
+@router.post("/requests/{req_id}/close")
+def close_review_request(req_id: int, db: Session = Depends(get_db),
+                         user: User = Depends(require_club_admin)):
+    req = _get_request(db, req_id, user)
+    if req.status != "open":
+        raise HTTPException(400, "Request is not open")
+    req.status = "closed"
+    req.closed_at = datetime.now(timezone.utc)
+    db.commit()
+    return _serialize_request(db, req, user, include_recipients=True)
+
+
+@router.post("/requests/{req_id}/remind")
+def remind_review_request(req_id: int, db: Session = Depends(get_db),
+                          user: User = Depends(require_club_admin)):
+    req = _get_request(db, req_id, user)
+    if req.status != "open":
+        raise HTTPException(400, "Request is not open")
+    sent = send_review_reminders(db, req)
+    return {"sent": sent}
+
+
+@router.delete("/requests/{req_id}", status_code=204)
+def cancel_review_request(req_id: int, db: Session = Depends(get_db),
+                          user: User = Depends(require_club_admin)):
+    db.delete(_get_request(db, req_id, user))
+    db.commit()
 
 
 @router.get("/{doc_id}")
@@ -417,6 +601,10 @@ def delete_document(doc_id: int, db: Session = Depends(get_db), user: User = Dep
         ClubDocumentAcknowledgement.document_id == doc.id
     ).count():
         raise HTTPException(400, "A document with acknowledgements cannot be deleted")
+    if db.query(ClubDocumentReviewRequest).filter(
+        ClubDocumentReviewRequest.document_id == doc.id
+    ).count():
+        raise HTTPException(400, "A document with review requests cannot be deleted")
     get_storage().delete(doc.file_key)
     db.delete(doc)
     db.commit()

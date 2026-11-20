@@ -49,6 +49,8 @@ Push-Benachrichtigungen sind gerätegebunden. Wer auf mehreren Geräten empfange
 | **Ausstehende Zahlungsanfragen** (automatisch) | Admins |
 | **Broadcast** | Alle Mitglieder (Admin-Versand) |
 | **Neue Gastanfrage** (über die Vereins-Homepage) | Alle Mitglieder — Kategorie „Gastanfragen", standardmäßig **per E-Mail** statt Push |
+| **Prüf-/Zustimmungsanfrage zu einem Dokument** | Adressierte Mitglieder — Kategorie „Dokumente prüfen", standardmäßig **Push und E-Mail**. Ein Tipp öffnet direkt das Dokument |
+| **Erinnerung an eine offene Dokument-Anfrage** (automatisch oder „Jetzt erinnern") | Nur Mitglieder, die noch nicht bestätigt haben — gleiche Kategorie „Dokumente prüfen" |
 | **Roadmap-Idee bearbeitet** (Status geändert oder neue Notiz) | Der Einreicher der Idee — Kategorie „Meine Roadmap-Ideen", standardmäßig Push |
 | **Neue App-Version** (nur bei einem Release, nicht bei jeder Änderung) | Mitglieder, die die Kategorie „Neue App-Versionen" eingeschaltet haben — standardmäßig **aus**. Ein Tipp auf die Push-Nachricht lädt die neue Version sofort, ohne auf den „Aktualisieren"-Hinweis zu warten; werden die Release-Notes bzw. der Update-Hinweis über die Island angesehen oder geschlossen, wird die Benachrichtigung in der Glocke automatisch als gelesen markiert |
 
@@ -60,6 +62,7 @@ Im Profil-Tab **⚙️ Einstellungen** kann jede Benachrichtigung per **🔔 Pus
 - **Schulden-Erinnerungen** — automatische Schulden-Benachrichtigungen (Push, E-Mail und/oder Telegram)
 - **Termin-Erinnerungen** — automatische Terminbenachrichtigungen; dazu individuell einstellbar: wie viele Tage vorher erinnert werden soll
 - **Zahlungsanfragen (Admin)** — Nudges für ausstehende Anfragen (nur für Admins sichtbar)
+- **Dokumente prüfen** — Anfragen mit Frist und die zugehörigen Erinnerungen; standardmäßig Push **und** E-Mail, damit eine Frist nicht übersehen wird. Wer keine E-Mail-Schleife möchte, schaltet den Kanal hier ab.
 - **Kommentare & Reaktionen** — Benachrichtigungen zu Antworten und Reaktionen auf Ankündigungen, Kegelfahrten und Highlights
 - **Ankündigungen** sind immer aktiv (Push) und nicht abschaltbar.
 
@@ -82,6 +85,10 @@ Erinnerungen laufen täglich um 09:00 Uhr (Server-Zeit) automatisch. Sie müssen
 :::
 
 Über den Button **Push senden** (unterhalb der Erinnerungseinstellungen) können Admins jederzeit eine freie Push-Nachricht an alle Mitglieder senden.
+
+### Dokument-Anfragen mit Frist
+
+Im Bereich **Dokumente** kann ein Admin zu jeder Dokumentversion eine Prüfanfrage mit Frist starten. Dabei wird eingestellt, wie viele Tage vor der Frist automatisch erinnert wird (Standard: 2 Tage; 0 = am Tag der Frist). Die automatische Erinnerung läuft mit den täglichen Erinnerungen um 09:00 Uhr und geht nur an Mitglieder, die noch nicht „Kenntnis genommen" oder „Zugestimmt" gewählt haben. Über **Jetzt erinnern** kann ein Admin zusätzlich jederzeit manuell nachfassen; pro Mitglied und Tag geht dabei höchstens eine Erinnerung raus. Das Schließen der Anfrage beendet die automatischen Erinnerungen.
 
 ## Benachrichtigungen deaktivieren
 
