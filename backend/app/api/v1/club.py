@@ -2103,6 +2103,7 @@ _EMAIL_DEFAULTS = {
     "from_name": "",
     "use_tls": True,
     "use_ssl": False,
+    "landing_url": "",  # club website linked as "homepage" from every email (default: the app)
     "base_url": "",  # overrides the server-wide APP_BASE_URL for this club's email links (custom domain)
 }
 
@@ -2131,6 +2132,7 @@ class EmailSettingsUpdate(TrimmedModel):
     use_tls: Optional[bool] = None
     use_ssl: Optional[bool] = None
     base_url: Optional[str] = None  # e.g. "https://kegeln.meinverein.de" — empty string clears it
+    landing_url: Optional[str] = None  # club website / landing page — empty string clears it
 
 
 @router.patch("/email-settings")
@@ -2145,6 +2147,9 @@ def update_email_settings(data: EmailSettingsUpdate, db: Session = Depends(get_d
     extra = dict(s.extra or {})
     cfg = dict(extra.get("email", {}))
     payload = data.model_dump(exclude_unset=True)
+    landing = payload.get("landing_url")
+    if landing and not landing.lower().startswith(("http://", "https://")):
+        raise HTTPException(400, "Landing-Page-URL muss mit http:// oder https:// beginnen.")
     for key, value in payload.items():
         if key == "password":
             if value:  # only overwrite when a non-empty password is supplied — encrypted at rest

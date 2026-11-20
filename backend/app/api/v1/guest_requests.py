@@ -94,7 +94,9 @@ def _mail_requester(db: Session, req: GuestRequest) -> bool:
              venue=venue, club=club.name)
     try:
         # Link to the homepage (not a deep link): the requester has no account in the app.
-        text, html = build_email_bodies(subject, body, "/", theme=email_theme(club), locale=GUEST_LOCALE)
+        theme = email_theme(club)
+        text, html = build_email_bodies(subject, body, theme.get("home_url") or "/", theme=theme,
+                                        locale=GUEST_LOCALE)
         send_club_email(cfg, req.email, subject, text, html)
         return True
     except Exception as exc:  # noqa: BLE001 — the decision is saved either way

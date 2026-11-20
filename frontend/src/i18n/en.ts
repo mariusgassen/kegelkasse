@@ -1370,6 +1370,8 @@ export const en = {
     "email.useTls": "STARTTLS (port 587)",
     "email.useSsl": "SSL/TLS (port 465)",
     "email.baseUrl": "Custom domain (optional)",
+    "email.landingUrl": "Club website / landing page (optional)",
+    "email.landingUrlHint": "Where the homepage link and button in emails lead — e.g. your club's website. Leave blank to link straight to the app.",
     "email.baseUrlHint": "Overrides the default app URL used for links in this club's emails — e.g. for a custom (CNAME'd) domain. Leave blank to use the default address.",
     "email.sendTest": "Test email",
     "email.saved": "Email settings saved",

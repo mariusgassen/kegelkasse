@@ -155,6 +155,10 @@ Gibt es seit der letzten Zusammenfassung nichts Neues, wird **keine** E-Mail ver
 Beim manuellen **Zusammenfassung jetzt senden** wird die Zusammenfassung erzwungen, auch wenn seit der letzten Zusammenfassung nichts passiert ist — dann enthält die Vorschau **nur** den Kontostand, da Abende/Strafen/Buchungen/Neuigkeiten leer sind und ausgeblendet werden. Um die vollständige Ansicht mit Direktlinks zu testen, vorher z. B. einen Kommentar auf eine Ankündigung schreiben oder eine Strafe eintragen.
 :::
 
+### Landing Page des Vereins
+
+Unter **Vereins-Website / Landing Page** kann der Verein eine eigene Startseite festlegen (z. B. `https://www.meinverein.de`). Der Homepage-Link im Kopf jeder E-Mail sowie der Button in den Gäste-Mails führen dann dorthin statt direkt in die App. Ohne Eintrag zeigen sie auf die App-Adresse. Direktlinks zu einzelnen Inhalten (z. B. „Abend öffnen") bleiben unverändert.
+
 ### Warum ein Link manchmal nicht klickbar ist
 
 Jeder Link in einer E-Mail benötigt eine absolute Adresse (die serverweite `APP_BASE_URL` oder die Eigene-Domain-Einstellung des Vereins, siehe oben). Ist **keine** der beiden gesetzt, werden Links als reiner, nicht klickbarer Text angezeigt — inklusive des „Öffnen"-Buttons, der dann komplett entfällt. Betrifft alle E-Mails, nicht nur Zusammenfassungen.
