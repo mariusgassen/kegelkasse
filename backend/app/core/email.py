@@ -169,13 +169,20 @@ def _header_html(theme: dict) -> str:
             f'font-size:16px;line-height:36px;text-align:center;vertical-align:middle">'
             f'{initial}</span>'
         )
-    return (
-        f'<div style="background:{escape(theme["primary"])};padding:14px 20px;'
-        'border-radius:12px;text-align:center;margin:0 0 20px">'
-        f'{avatar}'
+    label = (
         '<span style="display:inline-block;vertical-align:middle;margin-left:10px;'
         f'font-size:17px;font-weight:800;color:{escape(theme["on_primary"])}">'
         f'{escape(name)} 🎳</span>'
+    )
+    home = _abs_link("/", theme.get("base_url"))
+    if home:  # every mail links to the homepage via its header
+        inner = f'<a href="{escape(home)}" style="text-decoration:none">{avatar}{label}</a>'
+    else:
+        inner = f'{avatar}{label}'
+    return (
+        f'<div style="background:{escape(theme["primary"])};padding:14px 20px;'
+        'border-radius:12px;text-align:center;margin:0 0 20px">'
+        f'{inner}'
         '</div>'
     )
 
