@@ -88,7 +88,12 @@ CHANNELS = ("push", "email", "telegram")
 # push by default; guest requests reach members by email, since most of them have no push
 # subscription and a request is worthless if nobody sees it before the evening. Release
 # announcements and new stickers are opt-in: off until a member turns them on.
-CATEGORY_DEFAULTS: dict[str, tuple[str, ...]] = {"guest_requests": ("email",), "app_updates": (), "stickers": ()}
+CATEGORY_DEFAULTS: dict[str, tuple[str, ...]] = {
+    "guest_requests": ("email",),
+    "documents": ("push", "email"),  # a Frist is worthless if the member never sees the request
+    "app_updates": (),
+    "stickers": (),
+}
 
 
 def category_default(category: str) -> tuple[str, ...]:

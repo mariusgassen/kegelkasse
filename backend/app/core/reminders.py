@@ -4,8 +4,10 @@ from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from core.document_reviews import send_review_reminders
 from core.push import notify_user, push_to_club_admins, push_to_regular_member
 from models.club import Club
+from models.document import ClubDocumentReviewRequest
 from models.evening import Evening, EveningPlayer, RegularMember
 from models.payment import MemberPayment, PaymentRequest, PaymentRequestStatus
 from models.penalty import PenaltyLog
@@ -325,11 +327,32 @@ def send_auto_report_reminder(db: Session, club: Club, settings: dict, today: da
     return 1
 
 
+def send_document_review_reminders(db: Session, club: Club, today: date) -> int:
+    """Automatic Frist reminder — N days before the deadline, only to non-responders."""
+    requests = db.query(ClubDocumentReviewRequest).filter(
+        ClubDocumentReviewRequest.club_id == club.id,
+        ClubDocumentReviewRequest.status == "open",
+        ClubDocumentReviewRequest.auto_reminders == True,  # noqa: E712
+    ).all()
+    sent = 0
+    for req in requests:
+        due = req.deadline - timedelta(days=req.reminder_days_before or 0)
+        if due != today:
+            continue
+        sent += send_review_reminders(db, req, today=today)
+    return sent
+
+
 async def send_all_reminders(db: Session) -> None:
     """Run all enabled reminder types for all clubs."""
     today = date.today()
     clubs = db.query(Club).all()
     for club in clubs:
+        try:
+            n = send_document_review_reminders(db, club, today)
+            logger.debug("Club %s document_review_reminders: sent=%d", club.id, n)
+        except Exception:
+            logger.exception("document_review_reminders failed for club %s", club.id)
         if not club.settings:
             continue
         cfg = get_reminder_settings(club)

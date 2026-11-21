@@ -17,6 +17,8 @@ import {
     ClubDocumentMetadata,
     ClubDocumentSuggestion,
     ClubDocumentUpload,
+    DocumentReviewRequest,
+    DocumentReviewRequestCreate,
     ClubSettings,
     ClubTeam,
     ClubPin,
@@ -489,6 +491,22 @@ export const api = {
     updateClubDocument: (id: number, d: ClubDocumentMetadata) =>
         request<ClubDocument>('PATCH', `/club/documents/${id}`, d),
     deleteClubDocument: (id: number) => request<void>('DELETE', `/club/documents/${id}`),
+
+    // Club document review requests (Frist, reminders, progress)
+    listDocumentReviewRequests: () =>
+        request<{requests: DocumentReviewRequest[]}>('GET', '/club/documents/requests'),
+    listMyDocumentReviewRequests: () =>
+        request<{requests: DocumentReviewRequest[]}>('GET', '/club/documents/requests/mine'),
+    createDocumentReviewRequest: (d: DocumentReviewRequestCreate) =>
+        request<DocumentReviewRequest>('POST', '/club/documents/requests', d),
+    getDocumentReviewRequest: (id: number) =>
+        request<DocumentReviewRequest>('GET', `/club/documents/requests/${id}`),
+    closeDocumentReviewRequest: (id: number) =>
+        request<DocumentReviewRequest>('POST', `/club/documents/requests/${id}/close`),
+    remindDocumentReviewRequest: (id: number) =>
+        request<{sent: number}>('POST', `/club/documents/requests/${id}/remind`),
+    cancelDocumentReviewRequest: (id: number) =>
+        request<void>('DELETE', `/club/documents/requests/${id}`),
 
     getAppIconSettings: () => request<AppIconSettings>('GET', '/club/app-icon'),
     updateAppIconSettings: (d: {enabled?: boolean; variant?: AppIconVariant}) =>

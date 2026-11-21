@@ -44,6 +44,12 @@ const apiMock = vi.hoisted(() => ({
     acknowledgeClubDocument: vi.fn(),
     withdrawClubDocumentAcknowledgement: vi.fn(),
     deleteClubDocument: vi.fn(),
+    listDocumentReviewRequests: vi.fn(),
+    listMyDocumentReviewRequests: vi.fn(),
+    createDocumentReviewRequest: vi.fn(),
+    closeDocumentReviewRequest: vi.fn(),
+    remindDocumentReviewRequest: vi.fn(),
+    cancelDocumentReviewRequest: vi.fn(),
 }))
 vi.mock('@/api/client.ts', () => ({api: apiMock}))
 
@@ -58,6 +64,14 @@ const DOC = {
     is_current: true, acknowledged_count: 3, my_response: null, my_confirmed_at: null,
 }
 const OLD = {...DOC, id: 5, version: '1.0', is_current: false, acknowledged_count: 2}
+const REQUEST = {
+    id: 11, document_id: 7, document_title: 'Satzung', document_version: '2.0',
+    document_url: '/#documents?item=7', title: 'Satzung prüfen', message: 'Bitte lesen',
+    deadline: '2026-12-01', reminder_days_before: 2, auto_reminders: true, status: 'open',
+    created_at: '2026-11-20T10:00:00Z', closed_at: null, created_by_name: 'Admin',
+    recipient_count: 3, responded_count: 1, pending_count: 2, my_response: null,
+    is_recipient: true,
+}
 
 function renderPage() {
     const qc = new QueryClient({defaultOptions: {queries: {retry: false}}})
@@ -74,6 +88,12 @@ beforeEach(() => {
     apiMock.acknowledgeClubDocument.mockResolvedValue(DOC)
     apiMock.downloadClubDocument.mockResolvedValue(undefined)
     apiMock.deleteClubDocument.mockResolvedValue(undefined)
+    apiMock.listMyDocumentReviewRequests.mockResolvedValue({requests: []})
+    apiMock.listDocumentReviewRequests.mockResolvedValue({requests: []})
+    apiMock.createDocumentReviewRequest.mockResolvedValue(REQUEST)
+    apiMock.remindDocumentReviewRequest.mockResolvedValue({sent: 1})
+    apiMock.closeDocumentReviewRequest.mockResolvedValue(REQUEST)
+    apiMock.cancelDocumentReviewRequest.mockResolvedValue(undefined)
     vi.mocked(isAdmin).mockReturnValue(false)
     aiOn.value = false
     mockHashParams.value = ''
@@ -308,5 +328,50 @@ describe('ClubDocumentsPage', () => {
             decision_date: '2026-11-16', effective_date: '2026-11-17', summary: '- neu', change_summary: null,
         })))
         expect(api.uploadClubDocument).not.toHaveBeenCalled()
+    })
+
+    it('shows a member their open request with Frist and lets them agree', async () => {
+        apiMock.listMyDocumentReviewRequests.mockResolvedValue({requests: [REQUEST]})
+        renderPage()
+        expect(await screen.findByTestId('document-review-card')).toBeTruthy()
+        expect(screen.getByTestId('document-review-progress').textContent).toBe('1/3')
+        expect(screen.getByTestId('document-review-card').textContent).toContain('document.review.dueIn')
+        fireEvent.click(screen.getByTestId('document-review-agree'))
+        await waitFor(() => expect(api.acknowledgeClubDocument).toHaveBeenCalledWith(7, 'agreed'))
+    })
+
+    it('lets an admin create a review request with a Frist', async () => {
+        vi.mocked(isAdmin).mockReturnValue(true)
+        renderPage()
+        fireEvent.click(await screen.findByLabelText('action.more'))
+        fireEvent.click(await screen.findByText('document.review.new'))
+        expect(screen.getByTestId('document-review-sheet')).toBeTruthy()
+        fireEvent.change(screen.getByLabelText('document.review.deadline'), {target: {value: '2026-12-10'}})
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(api.createDocumentReviewRequest).toHaveBeenCalledWith(
+            expect.objectContaining({document_id: 7, deadline: '2026-12-10', auto_reminders: true}),
+        ))
+    })
+
+    it('highlights the linked request from a review notification deep link', async () => {
+        mockHashParams.value = 'item=7'
+        apiMock.listMyDocumentReviewRequests.mockResolvedValue({requests: [REQUEST]})
+        renderPage()
+        await screen.findByTestId('document-review-card')
+        await waitFor(() => expect(flashMock).toHaveBeenCalledWith('document-7'))
+        expect(screen.getByTestId('document-review-card').className).toContain('border-accent')
+    })
+
+    it('lets an admin remind, close and delete a review request', async () => {
+        vi.mocked(isAdmin).mockReturnValue(true)
+        apiMock.listDocumentReviewRequests.mockResolvedValue({requests: [REQUEST]})
+        renderPage()
+        fireEvent.click(await screen.findByTestId('document-review-remind'))
+        await waitFor(() => expect(api.remindDocumentReviewRequest).toHaveBeenCalledWith(11))
+        fireEvent.click(screen.getByTestId('document-review-close'))
+        await waitFor(() => expect(api.closeDocumentReviewRequest).toHaveBeenCalledWith(11))
+        fireEvent.click(screen.getByTestId('document-review-cancel'))
+        fireEvent.click(await screen.findByText('action.confirmDelete'))
+        await waitFor(() => expect(api.cancelDocumentReviewRequest).toHaveBeenCalledWith(11))
     })
 })
