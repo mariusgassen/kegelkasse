@@ -859,6 +859,7 @@ function EmailSettingsCard() {
     const [useTls, setUseTls] = useState(true)
     const [useSsl, setUseSsl] = useState(false)
     const [baseUrl, setBaseUrl] = useState('')
+    const [landingUrl, setLandingUrl] = useState('')
     const [passwordSet, setPasswordSet] = useState(false)
     const [saving, setSaving] = useState(false)
     const [testing, setTesting] = useState(false)
@@ -874,6 +875,7 @@ function EmailSettingsCard() {
         setUseTls(saved.use_tls)
         setUseSsl(saved.use_ssl)
         setBaseUrl(saved.base_url || '')
+        setLandingUrl(saved.landing_url || '')
         setPasswordSet(saved.password_set)
     }, [saved])
 
@@ -883,7 +885,7 @@ function EmailSettingsCard() {
             const payload: Partial<EmailSettings> & { password?: string } = {
                 enabled, host: host.trim(), port, username: username.trim(),
                 from_address: fromAddress.trim(), from_name: fromName.trim(),
-                use_tls: useTls, use_ssl: useSsl, base_url: baseUrl.trim(),
+                use_tls: useTls, use_ssl: useSsl, base_url: baseUrl.trim(), landing_url: landingUrl.trim(),
             }
             if (password) payload.password = password
             const res = await api.updateEmailSettings(payload)
@@ -959,6 +961,11 @@ function EmailSettingsCard() {
                     <input className="kce-input" value={baseUrl} onChange={e => setBaseUrl(e.target.value)}
                            placeholder="https://kegeln.meinverein.de" autoCapitalize="none" autoCorrect="off"/>
                     <p className="text-sm text-muted mt-1">{t('email.baseUrlHint')}</p>
+                </Field>
+                <Field label={t('email.landingUrl')}>
+                    <input className="kce-input" value={landingUrl} onChange={e => setLandingUrl(e.target.value)}
+                           placeholder="https://www.meinverein.de" autoCapitalize="none" autoCorrect="off"/>
+                    <p className="text-sm text-muted mt-1">{t('email.landingUrlHint')}</p>
                 </Field>
             </div>
 

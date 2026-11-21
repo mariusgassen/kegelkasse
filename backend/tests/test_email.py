@@ -520,3 +520,34 @@ def test_every_email_links_to_homepage():
     assert 'href="https://kegel.example/"' in html
     _, _, dhtml = build_digest_email(theme, {"member_name": "A"}, "de")
     assert 'href="https://kegel.example/"' in dhtml
+
+
+class TestLandingUrl:
+    """email.landing_url is where every mail's homepage link leads (default: the app)."""
+
+    def test_home_url_prefers_landing_url(self, db, club):
+        from core.config import settings
+        from core.email import build_email_bodies, email_theme
+        _configure_email(db, club, landing_url="https://www.meinverein.de")
+        db.refresh(club)
+        with patch.object(settings, "APP_BASE_URL", "https://app.example.com"):
+            theme = email_theme(club)
+        assert theme["home_url"] == "https://www.meinverein.de"
+        _, html = build_email_bodies("T", "B", "", theme=theme)
+        assert 'href="https://www.meinverein.de"' in html
+
+    def test_home_url_falls_back_to_app(self, db, club):
+        from core.config import settings
+        from core.email import email_theme
+        _configure_email(db, club)
+        db.refresh(club)
+        with patch.object(settings, "APP_BASE_URL", "https://app.example.com"):
+            assert email_theme(club)["home_url"] == "https://app.example.com/"
+
+    def test_patch_saves_and_rejects_bad_scheme(self, client, admin_headers):
+        r = client.patch("/api/v1/club/email-settings", headers=admin_headers,
+                         json={"landing_url": "https://www.meinverein.de"})
+        assert r.status_code == 200 and r.json()["landing_url"] == "https://www.meinverein.de"
+        r = client.patch("/api/v1/club/email-settings", headers=admin_headers,
+                         json={"landing_url": "javascript:alert(1)"})
+        assert r.status_code == 400

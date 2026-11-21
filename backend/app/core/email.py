@@ -18,6 +18,7 @@ Config shape (all optional except host / from_address when enabled)::
         "use_tls": bool,      # STARTTLS (default True)
         "use_ssl": bool,      # implicit TLS (SMTP_SSL); overrides use_tls
         "base_url": str,      # overrides server-wide APP_BASE_URL for this club's email links
+        "landing_url": str,   # club website / landing page linked as "homepage" from every email
     }
 """
 import logging
@@ -34,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 # Fields the API round-trips (password handled separately so it is never leaked).
 EMAIL_CONFIG_FIELDS = ("enabled", "host", "port", "username", "from_address",
-                       "from_name", "use_tls", "use_ssl", "base_url")
+                       "from_name", "use_tls", "use_ssl", "base_url", "landing_url")
 
 DEFAULT_PRIMARY = "#e8a020"
 
@@ -77,19 +78,24 @@ def email_theme(club) -> dict:
     name = "Kegelkasse"
     logo_abs: str | None = None
     base_url = settings.APP_BASE_URL
+    landing_url: str | None = None
     if club is not None:
         name = club.name or name
         s = getattr(club, "settings", None)
         if s is not None:
             primary = s.primary_color or primary
-            club_base_url = ((s.extra or {}).get("email") or {}).get("base_url")
+            email_cfg = (s.extra or {}).get("email") or {}
+            landing_url = email_cfg.get("landing_url") or None
+            club_base_url = email_cfg.get("base_url")
             if club_base_url:
                 base_url = club_base_url
             if s.logo_url and base_url:
                 logo_abs = base_url.rstrip("/") + "/" + s.logo_url.lstrip("/")
     on_primary = "#1a1410" if _luminance(primary) > 0.55 else "#ffffff"
     return {"primary": primary, "on_primary": on_primary, "club_name": name,
-            "logo_url": logo_abs, "base_url": base_url}
+            "logo_url": logo_abs, "base_url": base_url,
+            # Where a mail's "homepage" link leads: the club's landing page, else the app itself.
+            "home_url": landing_url or _abs_link("/", base_url)}
 
 
 def _abs_link(url: str, base_url: str | None = None) -> str | None:
@@ -174,7 +180,7 @@ def _header_html(theme: dict) -> str:
         f'font-size:17px;font-weight:800;color:{escape(theme["on_primary"])}">'
         f'{escape(name)} 🎳</span>'
     )
-    home = _abs_link("/", theme.get("base_url"))
+    home = theme.get("home_url") or _abs_link("/", theme.get("base_url"))
     if home:  # every mail links to the homepage via its header
         inner = f'<a href="{escape(home)}" style="text-decoration:none">{avatar}{label}</a>'
     else:

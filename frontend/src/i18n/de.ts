@@ -1370,6 +1370,8 @@ export const de = {
     "email.useTls": "STARTTLS (Port 587)",
     "email.useSsl": "SSL/TLS (Port 465)",
     "email.baseUrl": "Eigene Domain (optional)",
+    "email.landingUrl": "Vereins-Website / Landing Page (optional)",
+    "email.landingUrlHint": "Wohin der Homepage-Link und der Button in E-Mails führen — z. B. die Website deines Vereins. Leer lassen, um direkt auf die App zu verlinken.",
     "email.baseUrlHint": "Überschreibt die Standard-App-URL für Links in E-Mails dieses Vereins — z. B. bei einer eigenen Domain (CNAME). Leer lassen, um die Standardadresse zu verwenden.",
     "email.sendTest": "Test-E-Mail",
     "email.saved": "E-Mail-Einstellungen gespeichert",
