@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kegelkasse"
-version = "1.81.0"
+version = "1.82.0"
 description = "Kegelkasse Kegelclub Manager backend"
 authors = ["Marius Gassen"]
 package-mode = false

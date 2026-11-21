@@ -1,6 +1,69 @@
 {
   "releases": [
     {
+      "version": "1.82.0",
+      "date": "2026-11-21",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "5849d5e",
+              "pr": 682,
+              "sha": "5849d5e",
+              "text": {
+                "en": "Dokumente mit Frist prüfen und Erinnerungen versenden",
+                "de": "Dokumente mit Frist prüfen und Erinnerungen versenden"
+              }
+            },
+            {
+              "key": "f05cec1",
+              "scope": "roles",
+              "pr": 679,
+              "sha": "f05cec1",
+              "text": {
+                "en": "add role assignment menu to Members, remove VGA tab & Zeugwart assignment",
+                "de": "Neues Menü zum Zuweisen von Rollen bei den Mitgliedern, VGA-Reiter und Zeugwart-Zuweisung entfernt"
+              }
+            },
+            {
+              "key": "30e7387",
+              "scope": "roles",
+              "pr": 681,
+              "sha": "30e7387",
+              "text": {
+                "en": "remove makeAdmin toggle & enforce last active admin guard",
+                "de": "Admin-Schalter entfernt und Schutz für den letzten aktiven Admin eingebaut"
+              }
+            },
+            {
+              "key": "7c8c015",
+              "pr": 684,
+              "sha": "7c8c015",
+              "text": {
+                "en": "Verein kann eine Landing Page für E-Mail-Links festlegen",
+                "de": "Verein kann eine Landing Page für E-Mail-Links festlegen"
+              }
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "a56c758",
+              "pr": 683,
+              "sha": "a56c758",
+              "text": {
+                "en": "Link zur Homepage in allen E-Mails klickbar, auch in der Gäste-Bestätigung",
+                "de": "Link zur Homepage in allen E-Mails klickbar, auch in der Gäste-Bestätigung"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.81.0",
       "date": "2026-11-19",
       "sections": [

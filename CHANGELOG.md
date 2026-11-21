@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.82.0](https://github.com/mariusgassen/kegelkasse/compare/v1.81.0...v1.82.0) (2026-11-21)
+
+
+### Features
+
+* Dokumente mit Frist prüfen und Erinnerungen versenden ([#682](https://github.com/mariusgassen/kegelkasse/issues/682)) ([5849d5e](https://github.com/mariusgassen/kegelkasse/commit/5849d5e9a7bef8a132d6e6454fcbfdc6f75ea273))
+* **roles:** add role assignment menu to Members, remove VGA tab & Zeugwart assignment ([#679](https://github.com/mariusgassen/kegelkasse/issues/679)) ([f05cec1](https://github.com/mariusgassen/kegelkasse/commit/f05cec1925e35efcf831346567c0fd4d8d8a2d5b))
+* **roles:** remove makeAdmin toggle & enforce last active admin guard ([#681](https://github.com/mariusgassen/kegelkasse/issues/681)) ([30e7387](https://github.com/mariusgassen/kegelkasse/commit/30e738796193d9085c032a6905c26bd76f5ab0b6))
+* Verein kann eine Landing Page für E-Mail-Links festlegen ([#684](https://github.com/mariusgassen/kegelkasse/issues/684)) ([7c8c015](https://github.com/mariusgassen/kegelkasse/commit/7c8c01512e192e125ba986fe5a3fd6e22224dac6))
+
+
+### Bug Fixes
+
+* Link zur Homepage in allen E-Mails klickbar, auch in der Gäste-Bestätigung ([#683](https://github.com/mariusgassen/kegelkasse/issues/683)) ([a56c758](https://github.com/mariusgassen/kegelkasse/commit/a56c758490eb5c33a7a6249e7bed5367b72503c4))
+
 ## [1.81.0](https://github.com/mariusgassen/kegelkasse/compare/v1.80.1...v1.81.0) (2026-11-19)
 
 
