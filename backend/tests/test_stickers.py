@@ -1,5 +1,5 @@
 """Tests for the sticker wall: /stickers CRUD and its comment/reaction parent type."""
-from datetime import date, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -82,8 +82,15 @@ def test_create_validation(client: TestClient, auth_headers, club: Club, over):
 
 
 def test_future_date_rejected(client: TestClient, auth_headers, club: Club):
-    d = (date.today() + timedelta(days=3)).isoformat()
+    d = (datetime.now(UTC).date() + timedelta(days=3)).isoformat()
     assert client.post(URL, json=_body(club, stuck_on=d), headers=auth_headers).status_code == 400
+
+
+def test_timezone_ahead_of_utc_accepted(client: TestClient, auth_headers, club: Club):
+    d = (datetime.now(UTC).date() + timedelta(days=1)).isoformat()
+    r = client.post(URL, json=_body(club, stuck_on=d), headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json()["stuck_on"] == d
 
 
 def test_update_by_author(client: TestClient, auth_headers, club: Club):
