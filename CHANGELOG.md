@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.82.1](https://github.com/mariusgassen/kegelkasse/compare/v1.82.0...v1.82.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* **stickers:** Zeitzonen-Toleranz für heutige und EXIF-Daten bei Stickern ([#685](https://github.com/mariusgassen/kegelkasse/issues/685)) ([6e9e367](https://github.com/mariusgassen/kegelkasse/commit/6e9e3673205a08e1973a5cbdfa811964b35926fb))
+
 ## [1.82.0](https://github.com/mariusgassen/kegelkasse/compare/v1.81.0...v1.82.0) (2026-11-21)
 
 
