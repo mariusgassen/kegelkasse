@@ -1,6 +1,6 @@
 """Sticker wall — photos of club stickers put up on trips and holidays, with their location."""
 import logging
-from datetime import UTC, date as date_type, datetime
+from datetime import UTC, date as date_type, datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
@@ -108,7 +108,8 @@ def _parse_day(value: Optional[str]) -> Optional[date_type]:
         d = date_type.fromisoformat(value[:10])
     except ValueError:
         raise HTTPException(400, "Invalid date")
-    if d > datetime.now(UTC).date():
+    # Allow +1 day over UTC to accommodate local/EXIF dates in timezones ahead of UTC (up to UTC+14).
+    if d > datetime.now(UTC).date() + timedelta(days=1):
         raise HTTPException(400, "Date is in the future")
     return d
 
