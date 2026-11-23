@@ -328,7 +328,7 @@ async def test_stdio_bridge_connects_and_refreshes_jwt(db: Session, superadmin, 
                 "create_roadmap_item",
                 {"title": "Via Stdio Bridge", "status": "planned", "is_official": True},
             )
-            data = res.structuredContent or json.loads(res.content[0].text)
+            data = res.structured_content or json.loads(res.content[0].text)
             assert data["title"] == "Via Stdio Bridge"
             assert data["status"] == "planned"
             assert data["is_official"] is True
@@ -354,7 +354,7 @@ async def test_stdio_bridge_connects_and_refreshes_jwt(db: Session, superadmin, 
             bridge_creds.auth._access_token = "expired.jwt.token"
 
             list_res = await bridge_creds.call_tool("list_roadmap_items", {"search": "Stdio Bridge"})
-            listed = list_res.structuredContent or json.loads(list_res.content[0].text)
+            listed = list_res.structured_content or json.loads(list_res.content[0].text)
             assert listed["count"] == 1
             assert bridge_creds.auth._access_token != "expired.jwt.token"
     finally:
