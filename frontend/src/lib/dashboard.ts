@@ -28,7 +28,7 @@ export function nextAppointment(
     )
 }
 
-export type CommunityKind = 'announcement' | 'trip' | 'sticker'
+export type CommunityKind = 'announcement' | 'trip' | 'sticker' | 'document'
 
 export interface CommunityItem {
     kind: CommunityKind
