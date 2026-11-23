@@ -22,6 +22,7 @@ vi.mock('@/api/client.ts', () => ({
     api: {
         listAnnouncements: vi.fn(),
         listTrips: vi.fn(),
+        listClubDocuments: vi.fn(),
         createAnnouncement: vi.fn(),
         deleteAnnouncement: vi.fn(),
         createTrip: vi.fn(),
@@ -125,18 +126,21 @@ async function setupDefaultMocks() {
     const { api } = await import('@/api/client.ts')
     vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
     vi.mocked(api.listTrips).mockResolvedValue([] as any)
+    vi.mocked(api.listClubDocuments).mockResolvedValue({documents: [], member_count: 0, can_upload: false} as any)
 }
 
 async function setupWithAnnouncements() {
     const { api } = await import('@/api/client.ts')
     vi.mocked(api.listAnnouncements).mockResolvedValue(ANNOUNCEMENTS as any)
     vi.mocked(api.listTrips).mockResolvedValue([] as any)
+    vi.mocked(api.listClubDocuments).mockResolvedValue({documents: [], member_count: 0, can_upload: false} as any)
 }
 
 async function setupWithTrips() {
     const { api } = await import('@/api/client.ts')
     vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
     vi.mocked(api.listTrips).mockResolvedValue(TRIPS as any)
+    vi.mocked(api.listClubDocuments).mockResolvedValue({documents: [], member_count: 0, can_upload: false} as any)
 }
 
 async function setupAsAdmin() {

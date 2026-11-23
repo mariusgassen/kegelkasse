@@ -59,7 +59,7 @@ export type HomeSearch = Record<string, string | number | undefined>
 export interface EveningSearch { tab?: 'penalties' | 'games' | 'highlights' | 'manage'; item?: number; comment?: number }
 export interface TreasurySearch { tab?: 'overview' | 'analysis' | 'charts' | 'accounts' | 'bookings' | 'audit'; member?: number; audit?: number; memberName?: string; rid?: number; q?: string }
 export interface ScheduleSearch { evening?: number; event?: number; rsvp?: number; requests?: number }
-export interface CommitteeSearch { tab?: 'announcements' | 'trips' | 'polls'; item?: number; comment?: number }
+export interface CommitteeSearch { tab?: 'announcements' | 'trips' | 'polls' | 'documents'; item?: number; comment?: number }
 export interface ClubSearch { tab?: 'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee' | 'season' | 'backups' }
 export interface DocumentsSearch { item?: number }
 export interface ZeugwartSearch { item?: number }
