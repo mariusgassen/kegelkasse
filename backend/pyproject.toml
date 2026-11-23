@@ -7,7 +7,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
-fastapi = "0.162.6"
+fastapi = "0.165.0"
 uvicorn = {version = ">=0.46,<0.55", extras = ["standard"]}
 sqlalchemy = {version = "^2.0.50", extras = ["asyncio"]}
 alembic = "^1.13.3"
@@ -15,7 +15,7 @@ psycopg2-binary = "^2.9.9"
 asyncpg = ">=0.31,<0.33"
 python-jose = {version = "^3.3.0", extras = ["cryptography"]}
 bcrypt = "5.0.0"
-python-multipart = ">=0.0.24,<0.0.34"
+python-multipart = ">=0.0.24,<0.0.35"
 pydantic = "^2.9.2"
 pydantic-settings = "^2.5.2"
 httpx = "^0.28.1"
@@ -28,7 +28,7 @@ openpyxl = "^3.1"
 pillow = ">=12.2,<14.0"
 anthropic = "^2.5.0"
 boto3 = "^1.40"
-mcp = ">=1.9,<2.0"
+mcp = ">=1.9,<3.0"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^9.0"
