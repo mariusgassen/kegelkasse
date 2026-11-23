@@ -167,10 +167,11 @@ const NEWS_FILTERS: {id: CommunityKind | undefined; label: TKey}[] = [
     {id: 'announcement', label: 'committee.tab.announcements'},
     {id: 'trip', label: 'committee.tab.trips'},
     {id: 'sticker', label: 'nav.stickers'},
+    {id: 'document', label: 'nav.documents'},
 ]
 
 // ── Community news row ─────────────────────────────────────────────────────────
-const COMMUNITY_ICON: Record<CommunityKind, string> = {announcement: '📣', trip: '🚌', sticker: '📍'}
+const COMMUNITY_ICON: Record<CommunityKind, string> = {announcement: '📣', trip: '🚌', sticker: '📍', document: '📄'}
 function CommunityRow({item, locale}: {item: CommunityItem; locale: string}) {
     const icon = COMMUNITY_ICON[item.kind]
     const dateLabel = formatNewsDate(item.date, locale)
@@ -178,10 +179,12 @@ function CommunityRow({item, locale}: {item: CommunityItem; locale: string}) {
     function open() {
         const nav = item.kind === 'sticker'
             ? router.navigate({to: '/stickers', search: {tab: 'feed', item: item.id}})
-            : router.navigate({
-                to: '/committee',
-                search: {tab: item.kind === 'trip' ? 'trips' : 'announcements', item: item.id},
-            })
+            : item.kind === 'document'
+                ? router.navigate({to: '/documents', search: {item: item.id}})
+                : router.navigate({
+                    to: '/committee',
+                    search: {tab: item.kind === 'trip' ? 'trips' : 'announcements', item: item.id},
+                })
         nav.catch(() => {})
     }
     return (
@@ -385,7 +388,9 @@ export function HomePage() {
                 <Section icon="📣" title={t('home.community')} action={t('home.allNews')}
                          onAction={() => (newsFilter === 'sticker'
                              ? router.navigate({to: '/stickers', search: {tab: 'feed'}})
-                             : router.navigate({to: '/committee', search: {tab: newsFilter === 'trip' ? 'trips' : 'announcements'}})
+                             : newsFilter === 'document'
+                                 ? router.navigate({to: '/documents'})
+                                 : router.navigate({to: '/committee', search: {tab: newsFilter === 'trip' ? 'trips' : 'announcements'}})
                          ).catch(() => {})}>
                     <div className="flex flex-wrap gap-1.5 mb-1" role="group" aria-label={t('home.community')}>
                         {NEWS_FILTERS.map(f => (

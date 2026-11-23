@@ -217,6 +217,34 @@ describe('recentCommunity', () => {
         const out = recentCommunity([ann(1, 'A', null), ann(2, 'B', '2026-07-01T10:00')], [], [], 5)
         expect(out.map(i => i.id)).toEqual([2, 1])
     })
+
+    it('includes documents and filters by kind "document"', () => {
+        const doc = {
+            id: 42,
+            group_id: 'g1',
+            title: 'Vereinssatzung 2026',
+            document_type: 'satzung' as const,
+            version: '2.0',
+            decision_date: '2026-06-01',
+            effective_date: null,
+            summary: 'Neue Satzung',
+            change_summary: 'Beitragsanpassung',
+            file_name: 'satzung.pdf',
+            file_size: 1024,
+            uploaded_by_name: 'Admin',
+            uploaded_at: '2026-07-10T12:00:00Z',
+            is_current: true,
+            acknowledged_count: 0,
+            my_response: null,
+            my_confirmed_at: null,
+        }
+        const out = recentCommunity([ann(1, 'A', '2026-07-01T10:00')], [], [], 5, undefined, [doc])
+        expect(out.map(i => `${i.kind}:${i.id}`)).toEqual(['document:42', 'announcement:1'])
+        expect(out[0].subtitle).toBe('Beitragsanpassung')
+
+        const onlyDocs = recentCommunity([ann(1, 'A', '2026-07-01T10:00')], [], [], 5, 'document', [doc])
+        expect(onlyDocs.map(i => `${i.kind}:${i.id}`)).toEqual(['document:42'])
+    })
 })
 
 describe('formatNewsDate', () => {

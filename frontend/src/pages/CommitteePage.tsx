@@ -4,7 +4,7 @@
  * (is_committee) and admins can create/edit/delete Kegelfahrten.
  */
 import {useEffect, useMemo, useState} from 'react'
-import {Plus} from 'lucide-react'
+import {ChevronRight, Plus} from 'lucide-react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
@@ -860,7 +860,7 @@ export function CommitteePage() {
     const user = useAppStore(s => s.user)
     const regularMembers = useAppStore(s => s.regularMembers)
     // `tab` doubles as the post-type filter of the single feed ('all' = everything).
-    const [tab, setTab] = useHashTab<'all' | 'announcements' | 'trips' | 'polls'>('all', ['all', 'announcements', 'trips', 'polls'])
+    const [tab, setTab] = useHashTab<'all' | 'announcements' | 'trips' | 'polls' | 'documents'>('all', ['all', 'announcements', 'trips', 'polls', 'documents'])
     const [deepLink, setDeepLink] = useState<DeepLink | null>(null)
     const [search, setSearch] = useState('')
     const [adding, setAdding] = useState<FeedKind | null>(null)
@@ -875,6 +875,8 @@ export function CommitteePage() {
     const {data: announcements = [], isLoading: l1} = useQuery({queryKey: ['committee-announcements'], queryFn: api.listAnnouncements})
     const {data: trips = [], isLoading: l2} = useQuery({queryKey: ['committee-trips'], queryFn: api.listTrips})
     const {data: polls = [], isLoading: l3} = useQuery({queryKey: ['committee-polls'], queryFn: api.listPolls})
+    const {data: docData, isLoading: l4} = useQuery({queryKey: ['club-documents'], queryFn: api.listClubDocuments})
+    const documents: ClubDocument[] = docData?.documents ?? []
 
     // Parse deep-link params (on mount and whenever the router search changes)
     useEffect(() => {
@@ -891,33 +893,39 @@ export function CommitteePage() {
     }, [hashVersion]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // One chronological feed (newest first): the item components render their cards with a CSS
-    // `order` taken from this ranking, so announcements, polls and trips interleave.
+    // `order` taken from this ranking, so announcements, polls, trips and documents interleave.
     const order = useMemo(() => {
         // Newest first by last change (falls back to the creation date).
         const ts = (x: {created_at: string | null; updated_at?: string | null}) =>
             Date.parse(x.updated_at ?? x.created_at ?? '') || 0
+        const docTs = (d: ClubDocument) =>
+            Date.parse(d.uploaded_at ?? d.decision_date ?? d.effective_date ?? '') || 0
         const all = [
             ...(announcements as ClubAnnouncement[]).map(a => ({key: `announcement-${a.id}`, ts: ts(a)})),
             ...(trips as ClubTrip[]).map(x => ({key: `trip-${x.id}`, ts: ts(x)})),
             ...(polls as ClubPoll[]).map(p => ({key: `poll-${p.id}`, ts: ts(p)})),
+            ...documents.map(d => ({key: `document-${d.id}`, ts: docTs(d)})),
         ].sort((a, b) => b.ts - a.ts)
         return Object.fromEntries(all.map((x, i) => [x.key, i]))
-    }, [announcements, trips, polls])
+    }, [announcements, trips, polls, documents])
 
     const FILTERS = [
         {id: 'all', label: t('home.filter.all')},
         {id: 'announcements', label: t('committee.tab.announcements')},
         {id: 'polls', label: t('committee.tab.polls')},
         {id: 'trips', label: t('committee.tab.trips')},
+        {id: 'documents', label: t('nav.documents')},
     ] as const
 
-    const loading = l1 || l2 || l3
+    const loading = l1 || l2 || l3 || l4
     const sq = search.trim().toLowerCase()
     const match = (...fields: (string | null)[]) => !sq || fields.some(f => (f ?? '').toLowerCase().includes(sq))
+    const filteredDocs = documents.filter(d => match(d.title, d.summary, d.change_summary))
     const empty =
         (tab !== 'all' && tab !== 'announcements' ? 0 : (announcements as ClubAnnouncement[]).filter(a => match(a.title, a.text)).length) +
         (tab !== 'all' && tab !== 'trips' ? 0 : (trips as ClubTrip[]).filter(x => match(x.destination, x.note)).length) +
-        (tab !== 'all' && tab !== 'polls' ? 0 : (polls as ClubPoll[]).filter(p => match(p.title, p.text)).length) === 0
+        (tab !== 'all' && tab !== 'polls' ? 0 : (polls as ClubPoll[]).filter(p => match(p.title, p.text)).length) +
+        (tab !== 'all' && tab !== 'documents' ? 0 : filteredDocs.length) === 0
     const common = {canWrite, search, setSearch, order}
     const shown = (k: typeof tab) => tab === 'all' || tab === k
 
@@ -963,6 +971,35 @@ export function CommitteePage() {
                         addOpen={adding === 'trip'} setAddOpen={v => setAdding(v ? 'trip' : null)}
                         deepLink={deepLink?.kind === 'trip' ? deepLink : null}
                         onDeepLinkHandled={() => setDeepLink(null)}/>
+                    {shown('documents') && filteredDocs.map(doc => {
+                        const dateStr = doc.uploaded_at ?? doc.decision_date ?? doc.effective_date
+                        const summary = doc.change_summary || doc.summary
+                        return (
+                            <button
+                                key={`document-${doc.id}`}
+                                type="button"
+                                style={{order: order[`document-${doc.id}`] ?? 0}}
+                                onClick={() => router.navigate({to: '/documents', search: {item: doc.id}}).catch(() => {})}
+                                className="kce-card p-3.5 text-left w-full flex items-center gap-3 active:opacity-80"
+                            >
+                                <span className="text-xl flex-shrink-0" aria-hidden="true">📄</span>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-sm font-bold text-ink truncate">{doc.title}</span>
+                                        {dateStr && (
+                                            <span className="text-xs text-muted flex-shrink-0">
+                                                {fDateTime(dateStr)}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {summary && (
+                                        <p className="text-xs text-muted mt-1 line-clamp-2">{summary}</p>
+                                    )}
+                                </div>
+                                <ChevronRight size={16} className="text-muted flex-shrink-0" aria-hidden="true"/>
+                            </button>
+                        )
+                    })}
                 </div>
             </div>
 

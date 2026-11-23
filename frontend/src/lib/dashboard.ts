@@ -5,7 +5,7 @@
  * stats/me) — no new backend. These functions do the derivation so the page component stays a
  * thin view and the logic is unit-testable in isolation.
  */
-import type {ClubAnnouncement, ClubTrip, ScheduledEvening, Sticker, ThrowStats} from '../types'
+import type {ClubAnnouncement, ClubDocument, ClubTrip, ScheduledEvening, Sticker, ThrowStats} from '../types'
 
 /**
  * The next upcoming scheduled evening that has not been started yet, or `null`.
@@ -113,6 +113,7 @@ export function recentCommunity(
     stickers: Sticker[],
     limit: number,
     kind?: CommunityKind,
+    documents: ClubDocument[] = [],
 ): CommunityItem[] {
     const items: CommunityItem[] = [
         ...announcements.map(a => {
@@ -167,6 +168,22 @@ export function recentCommunity(
                 lastActivityAt: st.last_activity_at ?? null,
                 commentCount: st.comment_count ?? 0,
                 reactionCount: st.reaction_count ?? 0,
+            })
+        }),
+        ...documents.map(doc => {
+            const postDate = doc.uploaded_at ?? doc.decision_date ?? doc.effective_date ?? null
+            const postTs = tsOf(postDate)
+            return buildCommunityItem({
+                kind: 'document',
+                id: doc.id,
+                title: doc.title,
+                subtitle: doc.change_summary || doc.summary || null,
+                postDate,
+                postTs,
+                tieTs: postTs,
+                lastActivityAt: null,
+                commentCount: 0,
+                reactionCount: 0,
             })
         }),
     ]
