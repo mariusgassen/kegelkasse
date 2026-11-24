@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "mcp>=1.9,<2.0",
+#   "mcp>=2.3,<3.0",
 #   "httpx>=0.28",
 # ]
 # ///
@@ -29,7 +29,7 @@ import httpx
 from mcp.client.session import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 from mcp.server.lowlevel import NotificationOptions, Server
-from mcp.server.models import InitializationOptions
+from mcp.server.context import ServerRequestContext
 from mcp.server.stdio import stdio_server
 import mcp.types as types
 
@@ -166,7 +166,6 @@ class RemoteMcpBridge:
             async with streamable_http_client(self.config.mcp_url, http_client=http_client) as (
                 read_stream,
                 write_stream,
-                _,
             ):
                 async with ClientSession(read_stream, write_stream) as session:
                     await session.initialize()
@@ -178,7 +177,6 @@ class RemoteMcpBridge:
             async with streamable_http_client(self.config.mcp_url, http_client=http_client) as (
                 read_stream,
                 write_stream,
-                _,
             ):
                 async with ClientSession(read_stream, write_stream) as session:
                     await session.initialize()
@@ -187,17 +185,23 @@ class RemoteMcpBridge:
 
 def create_stdio_server(bridge: RemoteMcpBridge) -> Server:
     """Create a low-level MCP Server forwarding tools to ``bridge``."""
-    server = Server("Kegelkasse Roadmap")
 
-    @server.list_tools()
-    async def handle_list_tools() -> list[types.Tool]:
-        return await bridge.list_tools()
+    async def handle_list_tools(
+        _ctx: ServerRequestContext, _params: types.PaginatedRequestParams | None
+    ) -> types.ListToolsResult:
+        return types.ListToolsResult(tools=await bridge.list_tools())
 
-    @server.call_tool(validate_input=False)
-    async def handle_call_tool(name: str, arguments: dict[str, Any]) -> types.CallToolResult:
-        return await bridge.call_tool(name, arguments)
+    async def handle_call_tool(
+        _ctx: ServerRequestContext, params: types.CallToolRequestParams
+    ) -> types.CallToolResult:
+        return await bridge.call_tool(params.name, params.arguments or {})
 
-    return server
+    return Server(
+        "Kegelkasse Roadmap",
+        version="1.0.0",
+        on_list_tools=handle_list_tools,
+        on_call_tool=handle_call_tool,
+    )
 
 
 async def _run_stdio() -> None:
@@ -208,14 +212,7 @@ async def _run_stdio() -> None:
         await server.run(
             read_stream,
             write_stream,
-            InitializationOptions(
-                server_name="Kegelkasse Roadmap",
-                server_version="1.0.0",
-                capabilities=server.get_capabilities(
-                    notification_options=NotificationOptions(),
-                    experimental_capabilities={},
-                ),
-            ),
+            server.create_initialization_options(notification_options=NotificationOptions()),
         )
 
 

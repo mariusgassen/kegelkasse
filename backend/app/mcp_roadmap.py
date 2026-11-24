@@ -1,6 +1,6 @@
 """MCP server for managing the Kegelkasse community & official roadmap.
 
-Exposes two modes from the same FastMCP tool definitions:
+Exposes two modes from the same MCPServer tool definitions:
 1. Remote Streamable-HTTP endpoint mounted at ``/mcp`` in FastAPI (``RoadmapMcpASGI``),
    authenticated via ``Authorization: Bearer <MCP_API_TOKEN or user JWT>``.
 2. Direct local-DB ``stdio`` server when invoked via ``python -m app.mcp_roadmap``.
@@ -18,7 +18,8 @@ import secrets
 from typing import Any, AsyncIterator, Iterator, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from mcp.server.transport_security import TransportSecuritySettings
 from sqlalchemy.orm import Session
@@ -36,7 +37,7 @@ _mcp_db_var: ContextVar[Optional[Session]] = ContextVar("_mcp_db", default=None)
 _mcp_user_var: ContextVar[Optional[User]] = ContextVar("_mcp_user", default=None)
 _session_manager: Optional[StreamableHTTPSessionManager] = None
 
-roadmap_mcp = FastMCP(
+roadmap_mcp = MCPServer(
     "Kegelkasse Roadmap",
     instructions=(
         "Verwalte die Kegelkasse Roadmap (Ideen, geplante Features, laufende Arbeit, "
@@ -44,13 +45,11 @@ roadmap_mcp = FastMCP(
         "Verfuegbare Statuswerte: idea, planned, in_progress, completed, rejected, duplicate. "
         "Verfuegbare Kategorien (Beispiele): feature, improvement, design, evening, kasse, admin."
     ),
-    streamable_http_path="/",
-    stateless_http=True,
-    json_response=True,
-    # Kegelkasse runs behind a reverse proxy (Coolify/Traefik) on custom domains;
-    # auth is enforced by Bearer token / JWT in RoadmapMcpASGI.
-    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
 )
+
+# Kegelkasse runs behind a reverse proxy (Coolify/Traefik) on custom domains;
+# auth is enforced by Bearer token / JWT in RoadmapMcpASGI.
+_transport_security = TransportSecuritySettings(enable_dns_rebinding_protection=False)
 
 
 @asynccontextmanager
@@ -58,10 +57,10 @@ async def mcp_session_lifespan() -> AsyncIterator[None]:
     """Create and run a fresh StreamableHTTPSessionManager for the ASGI lifespan."""
     global _session_manager
     mgr = StreamableHTTPSessionManager(
-        app=roadmap_mcp._mcp_server,
+        app=roadmap_mcp._lowlevel_server,
         json_response=True,
         stateless=True,
-        security_settings=roadmap_mcp.settings.transport_security,
+        security_settings=_transport_security,
     )
     _session_manager = mgr
     try:
@@ -123,8 +122,8 @@ def _coerce_tags(tags: Optional[list[str] | str]) -> Optional[str]:
     return tags
 
 
-def _handle_http_exc(exc: HTTPException) -> ValueError:
-    return ValueError(f"{exc.status_code}: {exc.detail}")
+def _handle_http_exc(exc: HTTPException) -> ToolError:
+    return ToolError(f"{exc.status_code}: {exc.detail}")
 
 
 @roadmap_mcp.tool()
@@ -208,7 +207,7 @@ def list_roadmap_items(
     category: feature | improvement | design | evening | kasse | admin (or custom)
     """
     if status is not None and status not in roadmap_api.ALLOWED_STATUSES:
-        raise ValueError(f"400: Invalid status {status!r}. Allowed: {sorted(roadmap_api.ALLOWED_STATUSES)}")
+        raise ToolError(f"400: Invalid status {status!r}. Allowed: {sorted(roadmap_api.ALLOWED_STATUSES)}")
     clamped_limit = max(1, min(limit, roadmap_api.MAX_PAGE))
     clamped_offset = max(0, offset)
     with _tool_context() as (db, user):
@@ -325,7 +324,7 @@ def move_roadmap_status(
 ) -> dict[str, Any]:
     """Move a roadmap item to another status (idea, planned, in_progress, completed, rejected, duplicate)."""
     if status not in roadmap_api.ALLOWED_STATUSES:
-        raise ValueError(f"400: Invalid status {status!r}. Allowed: {sorted(roadmap_api.ALLOWED_STATUSES)}")
+        raise ToolError(f"400: Invalid status {status!r}. Allowed: {sorted(roadmap_api.ALLOWED_STATUSES)}")
     payload = roadmap_api.RoadmapItemUpdate(
         status=status,
         target_version=target_version,
@@ -364,7 +363,7 @@ def list_roadmap_comments(item_id: int) -> dict[str, Any]:
     """List comments and nested replies on a roadmap item."""
     with _tool_context() as (db, user):
         if not user.club_id and not user.is_superadmin:
-            raise ValueError("403: No club assigned")
+            raise ToolError("403: No club assigned")
         try:
             comments = comments_api.list_comments("roadmap", item_id, db=db, user=user)
         except HTTPException as exc:
@@ -381,7 +380,7 @@ def add_roadmap_comment(
     """Post a comment (or reply when parent_comment_id is set) on a roadmap item."""
     with _tool_context() as (db, user):
         if not user.club_id and not user.is_superadmin:
-            raise ValueError("403: No club assigned")
+            raise ToolError("403: No club assigned")
         try:
             return comments_api.create_comment(
                 "roadmap",
@@ -396,7 +395,7 @@ def add_roadmap_comment(
 
 
 class RoadmapMcpASGI:
-    """ASGI adapter that authenticates Bearer requests and injects DB/user context into FastMCP."""
+    """ASGI adapter that authenticates Bearer requests and injects DB/user context into MCPServer."""
 
     def __init__(self, fastapi_app: FastAPI) -> None:
         self.fastapi_app = fastapi_app
