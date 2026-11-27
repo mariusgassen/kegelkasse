@@ -1,6 +1,55 @@
 {
   "releases": [
     {
+      "version": "1.83.0",
+      "date": "2026-11-27",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "0039a1a",
+              "pr": 687,
+              "sha": "0039a1a",
+              "text": {
+                "en": "add documents to start page news and news tab",
+                "de": "Dokumente zu Neuigkeiten auf der Startseite und im Reiter „Neuigkeiten“ hinzufügen"
+              }
+            }
+          ]
+        },
+        {
+          "type": "deps",
+          "items": [
+            {
+              "key": "ce67b32",
+              "pr": 691,
+              "sha": "ce67b32",
+              "text": {
+                "en": "bump the production-dependencies group in /backend with 8 updates"
+              }
+            },
+            {
+              "key": "b131c04",
+              "pr": 690,
+              "sha": "b131c04",
+              "text": {
+                "en": "bump the production-dependencies group in /frontend with 5 updates"
+              }
+            },
+            {
+              "key": "6ea85fb",
+              "pr": 692,
+              "sha": "6ea85fb",
+              "text": {
+                "en": "update Go stdlib in db and Python security dependencies in app"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.82.1",
       "date": "2026-11-22",
       "sections": [
