@@ -18,7 +18,7 @@ RUN npm run build
 FROM python:3.14-slim
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl build-essential postgresql-client fonts-liberation && rm -rf /var/lib/apt/lists/*
-RUN pip install --no-cache-dir poetry==2.3.2 && \
+RUN pip install --no-cache-dir poetry==2.5.2 && \
     poetry config virtualenvs.create false
 COPY backend/pyproject.toml backend/poetry.lock ./
 RUN poetry install --no-root --only main

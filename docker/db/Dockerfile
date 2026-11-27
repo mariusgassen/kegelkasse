@@ -1,4 +1,15 @@
+# Rebuild gosu against a patched Go stdlib (≥ 1.26.9) so the DB image has no Go stdlib CVEs.
+FROM golang:1.27-alpine AS gosu-builder
+ARG GOSU_VERSION=1.20
+RUN apk add --no-cache git ca-certificates \
+ && git clone --depth 1 --branch "${GOSU_VERSION}" https://github.com/tianon/gosu.git /src \
+ && cd /src \
+ && CGO_ENABLED=0 go build -v -trimpath -ldflags '-d -w' -o /usr/local/bin/gosu . \
+ && /usr/local/bin/gosu --version
+
 FROM postgres:16-alpine
+
+COPY --from=gosu-builder /usr/local/bin/gosu /usr/local/bin/gosu
 
 # Pull pgbackrest and Python from Alpine edge so we get the latest releases
 # (edge community = pgbackrest ≥ 2.58; edge main = Python ≥ 3.14).
