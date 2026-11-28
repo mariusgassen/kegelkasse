@@ -2398,3 +2398,39 @@ describe('TreasuryPage — bars next to the numbers', () => {
         await waitFor(() => expect(container.querySelector('[data-testid="statement-evening-bar"] [style*="width: 50%"]')).not.toBeNull())
     })
 })
+
+describe('TreasuryPage — new design overview', () => {
+    const REQUEST = {id: 3, regular_member_id: 5, member_name: 'Hans', amount: 10, note: 'PayPal', status: 'pending', created_at: '2026-01-12T09:00:00', resolved_at: null}
+
+    async function open(design: 'new' | 'classic') {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: { ...ADMIN_USER, ui_design: design }, regularMembers: REGULAR_MEMBERS,
+        }))
+        await setupWithData()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([REQUEST] as any)
+        vi.mocked(api.confirmPaymentRequest).mockResolvedValue({} as any)
+        await renderTreasuryPage()
+        await waitFor(() => expect(screen.getByTestId('cash-flow-bar')).toBeInTheDocument())
+    }
+
+    it('puts waiting payments first and lets the treasurer confirm them there', async () => {
+        await open('new')
+        const confirm = await screen.findByRole('button', { name: 'paymentRequest.confirm' })
+        const { api } = await import('@/api/client.ts')
+        fireEvent.click(confirm)
+        await waitFor(() => expect(api.confirmPaymentRequest).toHaveBeenCalledWith(3))
+    })
+
+    it('keeps them on the accounts tab in the classic design', async () => {
+        await open('classic')
+        const { api } = await import('@/api/client.ts')
+        await waitFor(() => expect(api.getPaymentRequests).toHaveBeenCalled())
+        expect(screen.queryByRole('button', { name: 'paymentRequest.confirm' })).not.toBeInTheDocument()
+    })
+})
