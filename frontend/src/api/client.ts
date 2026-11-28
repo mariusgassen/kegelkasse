@@ -7,6 +7,7 @@ import {todayDateInput} from '@/lib/datetime.ts'
 import {deliverFile} from '@/lib/deliverFile'
 import {
     ReportData,
+    UiDesign,
     AppIconSettings,
     AppIconVariant,
     Club,
@@ -395,6 +396,8 @@ export const api = {
     logout,
     me: () => request<User>('GET', '/auth/me'),
     updateLocale: (locale: string) => request<void>('PATCH', '/auth/locale', {locale}),
+    /** Resolves to null when the change was only queued (offline). */
+    updateDesign: (design: UiDesign) => request<{ ok: boolean } | null>('PATCH', '/auth/design', {design}),
     updateProfile: async (d: {
         name?: string;
         username?: string;

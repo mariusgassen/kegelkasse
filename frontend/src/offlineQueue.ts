@@ -150,7 +150,7 @@ export function isQueuableMutation(method: string, path: string): boolean {
         // Mark push notifications read
         /^\/push\/notifications\/read$/.test(path) ||
         // Light user preferences
-        /^\/auth\/locale$/.test(path) ||
+        /^\/auth\/(locale|design)$/.test(path) ||
         /^\/push\/preferences$/.test(path)
     )
 }

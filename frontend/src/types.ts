@@ -23,6 +23,9 @@ export type UserRole =
     | 'zeugwart'
     | 'member'
 
+/** Which look a member has chosen for themselves. */
+export type UiDesign = 'classic' | 'new'
+
 export interface User {
     id: number
     email: string
@@ -32,6 +35,7 @@ export interface User {
     roles?: UserRole[]
     club_id: number | null
     preferred_locale: string
+    ui_design?: UiDesign
     avatar: string | null
     regular_member_id: number | null
 }

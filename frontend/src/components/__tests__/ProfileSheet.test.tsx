@@ -80,6 +80,8 @@ vi.mock('@/api/client.ts', () => ({
         createPaymentRequest: vi.fn(),
         getMyPaymentRequests: vi.fn(),
         updateLocale: vi.fn(),
+        updateDesign: vi.fn(),
+        me: vi.fn(),
         testPush: vi.fn(),
         sendDigestNow: vi.fn(),
         getBowlingLeaderboard: vi.fn(),
@@ -1080,6 +1082,66 @@ describe('ProfileSheet — language toggle', () => {
         await waitFor(() => {
             expect(api.updateLocale).toHaveBeenCalledWith('de')
         })
+    })
+})
+
+describe('ProfileSheet — design choice', () => {
+    const setUser = vi.fn()
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupAsMember()
+        await setupApiMocks()
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockImplementation(((sel?: (s: unknown) => unknown) => {
+            const state = { user: MEMBER_USER, setUser, regularMembers: [] }
+            return sel ? sel(state) : state
+        }) as any)
+    })
+
+    async function choose(label: string) {
+        await renderProfileSheet({ tab: 'settings' })
+        await act(async () => { fireEvent.click(screen.getByText(label)) })
+    }
+
+    it('starts on classic for a member who never chose', async () => {
+        await renderProfileSheet({ tab: 'settings' })
+        expect(screen.getByText('settings.design.classic')).toHaveAttribute('aria-pressed', 'true')
+        expect(screen.getByText('settings.design.new')).toHaveAttribute('aria-pressed', 'false')
+    })
+
+    it('switches at once, saves the choice and takes over what the server says', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateDesign).mockResolvedValue({ ok: true })
+        vi.mocked(api.me).mockResolvedValue({ ...MEMBER_USER, ui_design: 'new' } as any)
+        await choose('settings.design.new')
+        expect(api.updateDesign).toHaveBeenCalledWith('new')
+        expect(setUser).toHaveBeenNthCalledWith(1, { ...MEMBER_USER, ui_design: 'new' })
+        expect(setUser).toHaveBeenLastCalledWith({ ...MEMBER_USER, ui_design: 'new' })
+        expect(api.me).toHaveBeenCalled()
+    })
+
+    it('keeps the choice without asking the server again while offline', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateDesign).mockResolvedValue(null)
+        await choose('settings.design.new')
+        expect(setUser).toHaveBeenCalledExactlyOnceWith({ ...MEMBER_USER, ui_design: 'new' })
+        expect(api.me).not.toHaveBeenCalled()
+    })
+
+    it('goes back when saving fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.updateDesign).mockRejectedValue(new Error('nope'))
+        await choose('settings.design.new')
+        expect(setUser).toHaveBeenLastCalledWith(MEMBER_USER)
+        expect(toastError).toHaveBeenCalled()
+    })
+
+    it('does nothing when the current design is picked again', async () => {
+        const { api } = await import('@/api/client.ts')
+        await choose('settings.design.classic')
+        expect(api.updateDesign).not.toHaveBeenCalled()
     })
 })
 

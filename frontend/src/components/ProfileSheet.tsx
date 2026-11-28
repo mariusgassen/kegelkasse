@@ -28,6 +28,8 @@ import {MeBadge} from '@/components/ui/MemberBadges'
 import {StatTile} from '@/components/ui/StatTile'
 import {router} from '@/router'
 import {Tabs} from '@/components/ui/Tabs'
+import {useUiDesign} from '@/lib/design'
+import type {UiDesign} from '@/types'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -147,6 +149,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
     const [whatsNewOpen, setWhatsNewOpen] = useState(false)
     const lastSeenVersion = useWhatsNewStore(s => s.lastSeen)
     const {theme, setTheme} = useThemeStore()
+    const design = useUiDesign()
     const {effectsEnabled, setEffectsEnabled} = useEffectsStore()
     const idleDismissed = useIdleIslandStore(s => s.dismissed)
     const dismissIdle = useIdleIslandStore(s => s.dismiss)
@@ -399,6 +402,19 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
             toastError(e)
         } finally {
             setSaving(false)
+        }
+    }
+
+    async function chooseDesign(next: UiDesign) {
+        const before = user
+        if (!before || next === design) return
+        setUser({...before, ui_design: next}) // switches at once
+        try {
+            // null: offline, the choice is queued and sent later
+            if (await api.updateDesign(next)) setUser(await api.me())
+        } catch (e: unknown) {
+            setUser(before)
+            toastError(e)
         }
     }
 
@@ -727,6 +743,22 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                                 <button key={th} onClick={() => setTheme(th)}
                                         className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${theme === th ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}>
                                     {t(`settings.theme.${th}` as any)}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Classic or new look — a personal choice that follows the member */}
+                    <div className="kce-card p-4 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                            <Caption><span aria-hidden="true">🎨</span> <span>{t('settings.design.title')}</span></Caption>
+                            <div className="text-xs text-muted mt-0.5">{t('settings.design.hint')}</div>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0 kce-segment" role="group" aria-label={t('settings.design.title')}>
+                            {(['classic', 'new'] as const).map(d => (
+                                <button key={d} type="button" aria-pressed={design === d} onClick={() => chooseDesign(d)}
+                                        className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${design === d ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}>
+                                    {t(`settings.design.${d}`)}
                                 </button>
                             ))}
                         </div>
