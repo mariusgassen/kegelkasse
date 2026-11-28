@@ -33,6 +33,7 @@ import {useUiDesign} from '@/lib/design'
 import {useCaptureController} from '@/hooks/useCaptureController.ts'
 import {CaptureBoard} from '@/components/capture/CaptureBoard.tsx'
 import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
+import {ScoreEntry} from '@/components/evening/ScoreEntry.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -1182,7 +1183,13 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 <div className="text-xs text-muted mb-1">
                                     {t('game.scores')}
                                 </div>
-                                <div className="flex flex-col gap-1">
+                                {design === 'new' ? (
+                                    <ScoreEntry key={activeGame.id} values={finishScores}
+                                                rows={activeGame.winner_type === 'team'
+                                                    ? evening!.teams.map(team => ({key: `t:${team.id}`, label: team.name}))
+                                                    : evening!.players.map(p => ({key: `p:${p.id}`, label: dn(p)}))}
+                                                onChange={(key, value) => setFinishScores(prev => ({...prev, [key]: value}))}/>
+                                ) : <div className="flex flex-col gap-1">
                                     {activeGame.winner_type === 'team'
                                         ? evening!.teams.map(team => (
                                             <div key={`t:${team.id}`} className="flex items-center gap-2">
@@ -1211,7 +1218,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             </div>
                                         ))
                                     }
-                                </div>
+                                </div>}
                             </div>
                             {/* Loser penalty preview */}
                             {finishWinnerRef && (

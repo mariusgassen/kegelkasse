@@ -1477,6 +1477,8 @@ export const de = {
     "capture.shotsRound": "Schnapsrunde",
     "capture.bookRound": "Runde buchen",
     "capture.roundsToday": "Runden heute",
+    "score.erase": "Letzte Ziffer löschen",
+    "score.next": "Weiter",
     "quickEntry.title": "Schnellerfassung",
     "quickEntry.open": "Schnellerfassung",
     "quickEntry.selectPlayer": "Spieler wählen…",

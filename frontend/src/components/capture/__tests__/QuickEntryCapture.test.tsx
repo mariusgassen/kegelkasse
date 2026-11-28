@@ -13,7 +13,7 @@ vi.mock('@/i18n', () => ({useT: () => (key: string) => key, t: (key: string) => 
 vi.mock('@/api/client.ts', () => ({
     api: {
         addPenalty: vi.fn(), deletePenalty: vi.fn(), addDrinkRound: vi.fn(), deleteDrinkRound: vi.fn(),
-        setActivePlayer: vi.fn(() => Promise.resolve()),
+        setActivePlayer: vi.fn(() => Promise.resolve()), finishGame: vi.fn(() => Promise.resolve()),
     },
 }))
 vi.mock('@/offlineQueue.ts', () => ({offlineQueue: {getAll: vi.fn(), remove: vi.fn()}}))
@@ -21,7 +21,8 @@ vi.mock('@/utils/error.ts', () => ({toastError: vi.fn()}))
 vi.mock('@/hooks/useClub.ts', () => ({useThrowTracking: () => false, useAudioCallouts: () => false}))
 
 const evening = {
-    id: 42, date: '2026-01-10T00:00:00', venue: 'Stammtisch', is_closed: false, teams: [], games: [], highlights: [],
+    id: 42, date: '2026-01-10T00:00:00', venue: 'Stammtisch', is_closed: false, teams: [], highlights: [],
+    games: [] as object[],
     players: [
         {id: 11, regular_member_id: 2, name: 'Hansi', nickname: null, is_king: false, team_id: null},
         {id: 10, regular_member_id: 1, name: 'Admin', nickname: null, is_king: false, team_id: null},
@@ -67,6 +68,7 @@ beforeEach(() => {
     events.length = 0
     evening.penalty_log = []
     evening.drink_rounds = []
+    evening.games = []
     let id = 100
     vi.mocked(api.addPenalty).mockImplementation(() => Promise.resolve([{id: ++id}] as never))
     vi.mocked(api.deletePenalty).mockResolvedValue(undefined)
@@ -203,6 +205,23 @@ describe('quick entry — new design', () => {
         expect(api.deletePenalty).toHaveBeenCalledTimes(1)
         await tap(screen.getByRole('button', {name: 'capture.confirmDelete'}))
         expect(api.deletePenalty).toHaveBeenLastCalledWith(42, 2)
+    })
+
+    it('takes game results from its own number pad', async () => {
+        evening.games = [{
+            id: 3, name: 'Hausnummer', status: 'running', winner_type: 'individual', turn_mode: null,
+            loser_penalty: 1, per_point_penalty: 0, started_at: '2026-01-10T20:00:00', throws: [], is_deleted: false,
+        }]
+        open()
+        await tap(screen.getByRole('button', {name: /quickEntry\.finishGame/}))
+        const panel = within(screen.getByTestId('finish-panel'))
+        expect(panel.queryByRole('spinbutton')).not.toBeInTheDocument()
+        await tap(panel.getAllByRole('button', {name: 'Hansi'})[0])
+        for (const key of ['4', '2', 'score.next', '7']) await tap(panel.getByRole('button', {name: key}))
+        await tap(panel.getByRole('button', {name: /game\.finish/}))
+        expect(api.finishGame).toHaveBeenCalledWith(42, 3, expect.objectContaining({
+            winner_ref: 'p:11', scores: {'p:11': 42, 'p:10': 7},
+        }))
     })
 
     it('shows the evening total beside the island', () => {

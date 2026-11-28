@@ -1477,6 +1477,8 @@ export const en = {
     "capture.shotsRound": "Shot round",
     "capture.bookRound": "Book round",
     "capture.roundsToday": "Rounds tonight",
+    "score.erase": "Delete last digit",
+    "score.next": "Next",
     "quickEntry.title": "Quick Entry",
     "quickEntry.open": "Quick Entry",
     "quickEntry.selectPlayer": "Select player…",
