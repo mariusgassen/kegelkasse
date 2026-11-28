@@ -812,7 +812,7 @@ export function TreasuryPage() {
                     <button
                         type="button"
                         onClick={() => setShowExportSheet(true)}
-                        className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-surface-2 text-muted hover:bg-surface transition-all">
+                        className="kce-hit flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-surface-2 text-muted hover:bg-surface transition-all">
                         <span aria-hidden="true">📊</span> <span>{t('report.export')}</span>
                     </button>
                 )}

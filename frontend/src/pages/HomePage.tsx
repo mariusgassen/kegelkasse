@@ -13,6 +13,8 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 import {useThrowTracking} from '@/hooks/useClub.ts'
+import {useUiDesign} from '@/lib/design'
+import {LiveEveningHero} from '@/components/home/LiveEveningHero.tsx'
 import {router} from '@/router'
 import {toastError} from '@/utils/error.ts'
 import {SkeletonCard} from '@/components/ui/Skeleton'
@@ -84,7 +86,7 @@ function Section({title, icon, action, onAction, children}: {
                 <h2 className="text-sm font-bold text-ink">{icon && <><span aria-hidden="true">{icon}</span>{' '}</>}<span>{title}</span></h2>
                 {action && (
                     <button onClick={onAction}
-                            className="text-sm font-bold text-accent-fg flex items-center gap-0.5 active:opacity-70">
+                            className="kce-hit text-sm font-bold text-accent-fg flex items-center gap-0.5 active:opacity-70">
                         {action} <ChevronRight size={12} strokeWidth={2.5}/>
                     </button>
                 )}
@@ -261,6 +263,7 @@ export function HomePage() {
     const [newsFilter, setNewsFilter] = useState<CommunityKind | undefined>(undefined)
     const user = useAppStore(s => s.user)
     const activeEveningId = useAppStore(s => s.activeEveningId)
+    const isNewDesign = useUiDesign() === 'new'
     const regularMembers = useAppStore(s => s.regularMembers)
     const rmid = user?.regular_member_id ?? null
 
@@ -330,7 +333,8 @@ export function HomePage() {
             </div>
 
             {/* Active evening callout */}
-            {activeEveningId && (
+            {activeEveningId && isNewDesign && <LiveEveningHero eveningId={activeEveningId}/>}
+            {activeEveningId && !isNewDesign && (
                 <button
                     onClick={() => router.navigate({to: '/evening', search: {tab: 'manage'}}).catch(() => {})}
                     className="w-full kce-card p-3 flex items-center gap-3 text-left active:scale-[0.99] transition-transform"

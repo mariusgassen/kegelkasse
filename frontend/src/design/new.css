@@ -93,6 +93,25 @@ html[data-design="new"] {
         border-radius: 10px;
     }
 
+    /* The ⋮ menu button gets the full target */
+    .kce-icon-button {
+        display: grid;
+        place-items: center;
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* Small controls that should not grow: only the area that answers a tap does */
+    .kce-hit {
+        position: relative;
+    }
+
+    .kce-hit::after {
+        content: '';
+        position: absolute;
+        inset: -10px -6px;
+    }
+
     /* ── Tab strips: underlined text instead of a row of pills ─────────────── */
     .kce-tabs {
         gap: 0;
@@ -194,4 +213,24 @@ html[data-design="new"] {
     .verein-subnav {
         padding-block: 0;
     }
+}
+
+/* Small controls across the pages (reaction pills, filter chips, inline links) keep their size, and
+   the area that answers a tap grows to 44px in height. In a layer, so that a button positioned by a
+   utility class stays where it is. */
+@layer components {
+    html[data-design="new"] .app-main button {
+        position: relative;
+    }
+
+    html[data-design="new"] .app-main button::after {
+        content: '';
+        position: absolute;
+        inset: min(0px, calc(50% - 22px)) 0;
+    }
+}
+
+/* A horizontal scroller clips that area, so the buttons in one grow instead */
+html[data-design="new"] .app-main .overflow-x-auto > button {
+    min-height: 40px;
 }

@@ -104,6 +104,7 @@ export const en = {
     "home.greeting": "Hi, {name}",
     "home.greetingNoName": "Welcome",
     "home.subtitle": "Your overview for today",
+    "home.openEvening": "Open the evening",
     "home.eveningLive.title": "Evening in progress",
     "home.eveningLive.sub": "Jump to the active evening",
     "home.nextAppointment": "Next appointment",

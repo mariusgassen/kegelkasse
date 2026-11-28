@@ -104,6 +104,7 @@ export const de = {
     "home.greeting": "Hallo, {name}",
     "home.greetingNoName": "Willkommen",
     "home.subtitle": "Dein Überblick für heute",
+    "home.openEvening": "Zum Abend",
     "home.eveningLive.title": "Kegelabend läuft",
     "home.eveningLive.sub": "Zum aktiven Abend springen",
     "home.nextAppointment": "Nächster Termin",
