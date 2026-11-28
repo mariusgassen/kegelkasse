@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.83.0](https://github.com/mariusgassen/kegelkasse/compare/v1.82.1...v1.83.0) (2026-11-27)
+
+
+### Features
+
+* add documents to start page news and news tab ([#687](https://github.com/mariusgassen/kegelkasse/issues/687)) ([0039a1a](https://github.com/mariusgassen/kegelkasse/commit/0039a1a689e0f27848d96bf8aa07cd3e53e1baad))
+
+
+### Dependencies
+
+* bump the production-dependencies group in /backend with 8 updates ([#691](https://github.com/mariusgassen/kegelkasse/issues/691)) ([ce67b32](https://github.com/mariusgassen/kegelkasse/commit/ce67b329c03fb57feeafe1817fa116627df71c96))
+* bump the production-dependencies group in /frontend with 5 updates ([#690](https://github.com/mariusgassen/kegelkasse/issues/690)) ([b131c04](https://github.com/mariusgassen/kegelkasse/commit/b131c0487ba864431cc105da48b963a7cce03aa6))
+* update Go stdlib in db and Python security dependencies in app ([#692](https://github.com/mariusgassen/kegelkasse/issues/692)) ([6ea85fb](https://github.com/mariusgassen/kegelkasse/commit/6ea85fbd99072aac4a89107a6addd9038759ae6a))
+
 ## [1.82.1](https://github.com/mariusgassen/kegelkasse/compare/v1.82.0...v1.82.1) (2026-11-22)
 
 
