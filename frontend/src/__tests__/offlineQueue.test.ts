@@ -47,6 +47,18 @@ describe('offlineQueue.count', () => {
     })
 })
 
+describe('offlineQueue.update', () => {
+    it('rewrites a queued request without changing its place in the replay order', async () => {
+        await offlineQueue.enqueue('POST', '/evening/1/penalties', {player_ids: [1, 2]})
+        await offlineQueue.enqueue('POST', '/evening/1/drinks', {})
+        const [first] = await offlineQueue.getAll()
+        await offlineQueue.update({...first, body: {player_ids: [1]}})
+        const items = await offlineQueue.getAll()
+        expect(items.map(i => i.path)).toEqual(['/evening/1/penalties', '/evening/1/drinks'])
+        expect(items[0].body).toEqual({player_ids: [1]})
+    })
+})
+
 describe('offlineQueue.remove', () => {
     it('removes a specific item by id', async () => {
         await offlineQueue.enqueue('POST', '/evening/1/penalties', {})
