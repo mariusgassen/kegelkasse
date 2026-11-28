@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -880,6 +880,31 @@ describe('TabletQuickEntryPage — finish game flow', () => {
         fireEvent.click(screen.getByText('action.cancel'))
         expect(screen.queryByTestId('finish-panel')).not.toBeInTheDocument()
         expect(screen.getByText('penalty.who').closest('.hidden')).toBeNull()
+    })
+
+    // Another device can finish the game while the panel is open here. Nothing of it may carry over.
+    it('drops a half-filled panel when its game ends elsewhere', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const show = (...games: object[]) => vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, games } as any, invalidate: vi.fn(),
+        } as any)
+        const { TabletQuickEntryPage } = await import('../TabletQuickEntryPage')
+        const element = () => <TabletQuickEntryPage eveningId={42} players={PLAYERS as any} onClose={vi.fn()} />
+        const view = await renderTabletQuickEntry()
+
+        fireEvent.click(screen.getByText(/quickEntry\.finishGame/))
+        fireEvent.click(within(screen.getByTestId('finish-panel')).getByRole('button', {name: 'Hansi'}))
+
+        show({ ...RUNNING_GAME, status: 'finished' }, { ...RUNNING_GAME, id: 2, status: 'open' })
+        view.rerender(element())
+        expect(screen.queryByTestId('finish-panel')).not.toBeInTheDocument()
+
+        show({ ...RUNNING_GAME, status: 'finished' }, { ...RUNNING_GAME, id: 2 })
+        view.rerender(element())
+        expect(screen.queryByTestId('finish-panel')).not.toBeInTheDocument()
+        fireEvent.click(screen.getByText(/quickEntry\.finishGame/))
+        expect(within(screen.getByTestId('finish-panel')).getByRole('button', {name: 'Hansi'})).not.toHaveClass('active')
+        expect(screen.getByText(/game\.finish/)).toBeDisabled()
     })
 
     it('calls api.finishGame when winner selected and confirm clicked', async () => {

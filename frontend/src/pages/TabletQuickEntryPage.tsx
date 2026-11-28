@@ -313,6 +313,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const overviewPrevTopRef = useRef<Map<number, number>>(new Map())
     useLayoutEffect(() => {
         const prev = overviewPrevTopRef.current
+        // The finish panel hides this column, where every row measures 0: keep the visible positions
+        if (finishGameOpen) return
         const next = new Map<number, number>()
         overviewRowRefs.current.forEach((el, id) => {
             next.set(id, el.getBoundingClientRect().top)
@@ -330,9 +332,17 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             }
         })
         overviewPrevTopRef.current = next
-    }, [overviewSortedPlayers])
+    }, [overviewSortedPlayers, finishGameOpen])
     // Keep `runningGame` as alias for the finish-game actions (only valid when actually running)
     const runningGame = activeGame?.status === 'running' ? activeGame : undefined
+
+    // A half-filled finish panel belongs to one game. Another device can finish or delete that game,
+    // and its winner and scores must not reappear for whatever is running next.
+    useEffect(() => {
+        setFinishGameOpen(false)
+        setFinishWinnerRef('')
+        setFinishScores({})
+    }, [runningGame?.id])
 
     // Turn order — mode is fixed on the game, not a runtime choice
     const teams = evening?.teams ?? []
@@ -711,8 +721,9 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
     const noSelection = selectedPlayerIds.length === 0
     // The finish panel takes over the rest of the screen: with a full table its lists are taller than
-    // a tablet, so they scroll inside the panel while the confirm button stays on screen.
-    const finishing = finishGameOpen && !!activeGame
+    // a tablet, so they scroll inside the panel while the confirm button stays on screen. Everything
+    // that is not needed to finish steps aside, so that short landscape phones have room too.
+    const finishing = finishGameOpen && !!runningGame
     const lastThrow = liveThrows.length > 0 ? liveThrows[liveThrows.length - 1] : null
 
     // Shared button style helpers
@@ -742,7 +753,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 style={{
                     background: 'var(--surface)',
                     borderBottom: '1px solid var(--line)',
-                    paddingBottom: '8px',
+                    // While finishing, the header reaches the bottom edge: stay clear of the home indicator
+                    paddingBottom: finishing ? 'max(env(safe-area-inset-bottom), 8px)' : '8px',
                     paddingLeft: 'max(env(safe-area-inset-left), 12px)',
                     paddingRight: 'max(env(safe-area-inset-right), 12px)',
                 }}
@@ -800,7 +812,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         </div>
 
                         {/* Teams required warning — every game needs teams set up on the evening first */}
-                        {teams.length === 0 && (
+                        {!finishing && teams.length === 0 && (
                             <div
                                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium"
                                 style={{
@@ -815,7 +827,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         )}
 
                         {/* Unassigned-players warning — teams exist but not all players are on one */}
-                        {teams.length > 0 && unassignedPlayers.length > 0 && (
+                        {!finishing && teams.length > 0 && unassignedPlayers.length > 0 && (
                             <div
                                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium"
                                 style={{
@@ -832,7 +844,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         )}
 
                         {/* Turn order — current + queue + switch/advance (camera/throw-tracking feature) */}
-                        {throwTracking && turnOrder.length > 0 && (
+                        {!finishing && throwTracking && turnOrder.length > 0 && (
                             <div className="flex items-center gap-1.5 flex-wrap pt-1.5 border-t border-line">
                                 {/* Current player badge */}
                                 <div
@@ -877,7 +889,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         )}
 
                         {/* Throw history strip + heatmap toggle */}
-                        {throwTracking && liveThrows.length > 0 && (
+                        {!finishing && throwTracking && liveThrows.length > 0 && (
                             <div className="pt-1.5 border-t border-line">
                                 <div className="flex gap-1.5 overflow-x-auto pb-0.5 items-center no-scrollbar">
                                     {[...liveThrows].reverse().map(th => {
@@ -1100,7 +1112,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 )}
 
                 {/* Drawer: finish game panel */}
-                {finishing && (
+                {finishing && activeGame && (
                     <div
                         data-testid="finish-panel"
                         className="mt-2 p-3 rounded-xl border border-line flex flex-col flex-1 min-h-0"
