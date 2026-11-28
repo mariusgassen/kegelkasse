@@ -1635,3 +1635,96 @@ describe('ProtocolPage — admin edit date input', () => {
         expect(dateInput.value).toBe('2026-02-15T20:00')
     })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// New design
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('ProtocolPage — new design', () => {
+    const GAME = {id: 7, name: 'Hausnummer', status: 'finished', started_at: null, finished_at: null, winner_name: 'Admin'}
+    const loser = (id: number, player_id: number, player_name: string) => ({
+        ...PENALTY_LOG[1], id, player_id, player_name, game_id: 7, penalty_type_name: 'Spielstrafe',
+    })
+    const onQuickEntry = vi.fn()
+
+    async function open(evening: object = {}) {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, penalty_log: PENALTY_LOG, ...evening }, invalidate: vi.fn(),
+        } as any)
+        return renderProtocolPage({ onQuickEntry })
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupDefaultMocks()
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockImplementation(((sel?: any) => {
+            const store = {
+                user: { ...ADMIN_USER, ui_design: 'new' }, penaltyTypes: PENALTY_TYPES,
+                setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null,
+            }
+            return sel ? sel(store) : store
+        }) as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.addPenalty).mockResolvedValue([{ id: 1 }] as any)
+    })
+
+    it('leads with the total and keeps the absence calculation off the protocol', async () => {
+        await open()
+        expect(screen.getByText('3,50 €')).toBeInTheDocument()
+        expect(screen.queryByText(/penalty\.absence/)).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole('button', { name: 'quickEntry.open' }))
+        expect(onQuickEntry).toHaveBeenCalled()
+    })
+
+    it('puts the filters behind one button and offers to clear them again', async () => {
+        await open()
+        expect(screen.queryByRole('button', { name: 'Hansi' })).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole('button', { name: 'protocol.filter' }))
+        fireEvent.click(within(screen.getByTestId('sheet')).getByRole('button', { name: 'Hansi' }))
+        fireEvent.click(screen.getByText('action.done'))
+        expect(screen.queryByText('Bier', { exact: false })).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole('button', { name: 'protocol.clearFilter' }))
+        expect(screen.getByText('Admin')).toBeInTheDocument()
+    })
+
+    it('folds the loser penalties of a game into one line', async () => {
+        await open({ games: [GAME], penalty_log: [loser(201, 10, 'Admin'), loser(202, 11, 'Hansi')] })
+        const line = screen.getByRole('button', { name: /2 protocol\.loserPenalties/ })
+        expect(line).toHaveAttribute('aria-expanded', 'false')
+        expect(screen.queryByText('Hansi')).not.toBeInTheDocument()
+        fireEvent.click(line)
+        expect(screen.getByText('Hansi')).toBeInTheDocument()
+        expect(screen.getAllByLabelText(/^action\.more/)).toHaveLength(2)
+    })
+
+    it('records penalties in the capture sheet, person first', async () => {
+        const { api } = await import('@/api/client.ts')
+        await open()
+        fireEvent.click(screen.getByRole('button', { name: 'protocol.addPenalty' }))
+        const sheet = within(screen.getByTestId('sheet'))
+        const people = within(sheet.getByRole('group', { name: 'penalty.who' }))
+        expect(people.getAllByRole('button')[0].textContent).toContain('Admin')  // me first
+        fireEvent.click(people.getByRole('button', { name: 'Hansi' }))
+        fireEvent.click(sheet.getByRole('button', { name: /Strafe/ }))
+        await waitFor(() => expect(api.addPenalty).toHaveBeenCalledWith(42, expect.objectContaining({
+            player_ids: [11], penalty_type_name: 'Strafe', amount: 1, mode: 'count', unit_amount: 0.5,
+        })))
+    })
+
+    it('asks before closing the capture sheet with unsaved penalties', async () => {
+        await open()
+        fireEvent.click(screen.getByRole('button', { name: 'protocol.addPenalty' }))
+        fireEvent.click(within(screen.getByTestId('sheet')).getByRole('button', { name: /Bier/ }))
+        fireEvent.click(screen.getByText('close-sheet'))
+        expect(screen.getByText('capture.discardMessage')).toBeInTheDocument()
+    })
+
+    it('hands over to the full form for a custom penalty', async () => {
+        await open()
+        fireEvent.click(screen.getByRole('button', { name: 'protocol.addPenalty' }))
+        fireEvent.click(within(screen.getByTestId('sheet')).getByRole('button', { name: 'capture.custom' }))
+        expect(screen.getByTestId('sheet-title').textContent).toBe('penalty.enter')
+    })
+})

@@ -41,6 +41,7 @@ const sidebars: SidebarsConfig = {
         'funktionen/pins',
         'funktionen/push',
         'funktionen/darstellung',
+        'funktionen/neues-design',
         'funktionen/tv-scoreboard',
         'funktionen/app-icon',
         'funktionen/sticker-wand',

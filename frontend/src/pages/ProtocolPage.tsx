@@ -25,6 +25,10 @@ import {PinBadges} from '@/components/ui/MemberBadges.tsx'
 import {Button} from '@/components/ui/Button.tsx'
 import {gameBandColor, gameBandIndex} from '@/lib/protocolTimeline.ts'
 import {Field} from '@/components/ui/Field.tsx'
+import {Beer, ChevronDown, ListFilter, Plus, X, Zap} from 'lucide-react'
+import {useUiDesign} from '@/lib/design'
+import {AbsencePenalties} from '@/components/evening/AbsencePenalties.tsx'
+import {CaptureSheet} from '@/components/capture/CaptureSheet.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -120,9 +124,11 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
     })
     const [filterGame, setFilterGame] = useState<number | null>(null)
 
-    // Absence penalties
-    const [absenceLoading, setAbsenceLoading] = useState(false)
-    const [absenceResult, setAbsenceResult] = useState<{ avg: number; absent_count: number } | null>(null)
+    // New design: capture sheet, filters behind one button, folded loser penalties
+    const isNew = useUiDesign() === 'new'
+    const [captureOpen, setCaptureOpen] = useState(false)
+    const [filterOpen, setFilterOpen] = useState(false)
+    const [openLosers, setOpenLosers] = useState<number[]>([])
 
     // Edit sheet
     const [editEntry, setEditEntry] = useState<PenaltyLogEntry | null>(null)
@@ -185,8 +191,8 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
 
     const selectedPenaltyType = penaltyTypes.find(pt => pt.id === selectedType)
 
-    function openSheet() {
-        setTab('quick')
+    function openSheet(initialTab: 'quick' | 'custom' = 'quick') {
+        setTab(initialTab)
         const first = penaltyTypes[0] ?? null
         setSelectedType(first?.id ?? null)
         setPlayerIds([])
@@ -356,29 +362,6 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
         }
     }
 
-    async function doCalculateAbsence() {
-        setAbsenceLoading(true)
-        try {
-            const result = await api.calculateAbsencePenalties(evening!.id)
-            setAbsenceResult(result)
-            invalidate()
-            // The calculation books (and re-books) penalties, so the accounts move with it.
-            qc.invalidateQueries({queryKey: ['member-balances']})
-            qc.invalidateQueries({queryKey: ['guest-balances']})
-            // Recalculating often changes nothing visible in the log (same absentees, same
-            // amounts), so say out loud what happened instead of leaving the tap unanswered.
-            if (result.absent_count > 0) {
-                showToast(`🏠 ${result.absent_count} ${t('penalty.absence.result')} · Ø ${fe(result.avg)}`)
-            } else {
-                showToast(t('penalty.absence.none'), 'info')
-            }
-        } catch (e: unknown) {
-            toastError(e)
-        } finally {
-            setAbsenceLoading(false)
-        }
-    }
-
     const allLog = [...evening.penalty_log].reverse()
     const logByPlayer = filterPlayer !== null
         ? allLog.filter(l => l.player_id === filterPlayer)
@@ -412,7 +395,6 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
     const gamesWithPenalties = evening.games.filter(g => evening.penalty_log.some(l => l.game_id === g.id))
     const hasManualPenalties = evening.penalty_log.some(l => l.game_id === null)
     const showGameFilter = gamesWithPenalties.length > 0
-    const hasAbsenceEntries = evening.penalty_log.some(l => l.player_id === null && l.penalty_type_name === 'Abwesenheit')
 
     // Build merged timeline (only when no player filter active)
     type TimelineEvent =
@@ -433,49 +415,72 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
     const drinkRounds = [...evening.drink_rounds].reverse()
     const editPenaltyType = penaltyTypes.find(pt => pt.id === editType)
 
-    return (
-        <div className="page-scroll px-3 py-3 pb-24">
+    const renderEntry = (entry: PenaltyLogEntry) => {
+            const isAbsence = entry.player_id === null && entry.penalty_type_name === 'Abwesenheit'
+            const entryGame = entry.game_id ? evening.games.find(g => g.id === entry.game_id) : null
+            const entryPlayer = players.find(p => p.id === entry.player_id)
+            const entryMember = regularMembers.find(m => m.id === entryPlayer?.regular_member_id)
+            const playerTotal = entryMember?.is_guest && guestPenaltyCap != null
+                ? evening.penalty_log
+                    .filter(l => l.player_id === entry.player_id)
+                    .reduce((s, l) => s + entryEuroValue(l), 0)
+                : null
+            const isCapped = playerTotal != null && playerTotal > guestPenaltyCap!
+            const isPendingEntry = entry.id < 0
+            const band = isAbsence || isNew ? null : gameBandIndex(evening.games, entry.client_timestamp, entry.game_id)
+            return (
+                <div key={`p-${entry.id}`} data-band={band ?? undefined}
+                     className={`kce-card p-3 mb-2 flex items-center gap-3 ${isAbsence ? 'opacity-70' : ''}`}
+                     style={band != null ? {borderLeft: `4px solid ${gameBandColor(band)}`} : undefined}>
+                    <span className="text-xl flex-shrink-0">{entry.icon}</span>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold truncate flex items-center gap-1.5">
+                            <span className="truncate">{entry.player_name}</span>
+                            {isPendingEntry && (
+                                <span className="text-xs px-1.5 py-0.5 rounded font-bold flex-shrink-0"
+                                      style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>
+                                    ⏳ {t('sync.pendingBadge')}
+                                </span>
+                            )}
+                        </div>
+                        <div className="text-xs text-muted truncate flex items-center gap-1">
+                            {entry.penalty_type_name}
+                            {entryGame && <span className="text-muted">· {entryGame.name}</span>}
+                            {isCapped && <span className="text-accent-fg">· ≤ {fe(guestPenaltyCap!)}</span>}
+                        </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                        {entry.mode === 'euro'
+                            ? <span className="text-sm font-bold text-danger-fg">{fe(entry.amount)}</span>
+                            : <span className="text-sm font-bold text-danger-fg">
+                            {entry.unit_amount != null
+                                ? `${entry.amount} × ${fe(entry.unit_amount)}`
+                                : `×${entry.amount}`}
+                          </span>
+                        }
+                        <div className="text-xs text-muted">{fTime(entry.client_timestamp)}</div>
+                    </div>
+                    <CardActionMenu
+                        title={`${entry.icon} ${entry.penalty_type_name} · ${entry.player_name}`}
+                        label={`${t('action.more')}: ${entry.penalty_type_name} · ${entry.player_name}`}
+                        actions={[
+                            // A queued entry has no server row yet, so there is nothing to edit —
+                            // only the queued creation itself can be cancelled.
+                            ...(isPendingEntry ? [] : [{
+                                icon: '✏️', label: t('action.edit'),
+                                onClick: () => openEditSheet(entry),
+                            }]),
+                            {
+                                icon: '🗑️', label: t('action.delete'), danger: true,
+                                onClick: () => setConfirmDeleteId(entry.id),
+                            },
+                        ]}/>
+                </div>
+            )
+    }
 
-            {/* ── Header: total + action buttons ── */}
-            <div className="kce-card p-3 mb-3">
-                <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-extrabold text-muted uppercase tracking-wider">{t('penalty.total')}</span>
-                    <span className="font-display font-bold text-accent-fg text-xl">{fe(euroTotal)}</span>
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="primary" className="flex-1" onClick={openSheet}>
-                        ⚠️ + Strafe
-                    </Button>
-                    {players.length > 0 && (
-                        <Button variant="secondary" className="flex-1" onClick={openDrinkSheet}>
-                            🍺 + Getränk
-                        </Button>
-                    )}
-                    {onQuickEntry && players.length > 0 && (
-                        <Button variant="secondary" className="flex-shrink-0" onClick={onQuickEntry}>
-                            ⚡ {t('quickEntry.open')}
-                        </Button>
-                    )}
-                </div>
-                <div className="mt-2">
-                    <button
-                        className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-2 ${hasAbsenceEntries ? 'border-accent text-accent-fg bg-accent/10' : 'border-line text-muted'}`}
-                        onClick={doCalculateAbsence}
-                        disabled={absenceLoading}>
-                        🏠 {absenceLoading
-                            ? t('action.loading')
-                            : hasAbsenceEntries ? t('penalty.absence.recalculate') : t('penalty.absence.calculate')}
-                    </button>
-                    {absenceResult && !absenceLoading && (
-                        <p className="text-xs text-muted text-center mt-1">
-                            {absenceResult.absent_count > 0
-                                ? `${absenceResult.absent_count} ${t('penalty.absence.result')} · Ø ${fe(absenceResult.avg)}`
-                                : t('penalty.absence.none')}
-                        </p>
-                    )}
-                </div>
-            </div>
-
+    const filters = (
+        <>
             {/* ── Player filter chips ── */}
             {players.length > 1 && (
                 <div className="flex flex-wrap gap-1.5 mb-3">
@@ -516,14 +521,75 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                     )}
                 </div>
             )}
+        </>
+    )
+
+    const loserGroups = new Map<number, PenaltyLogEntry[]>()
+    if (isNew) {
+        for (const l of log) {
+            if (l.game_id !== null) loserGroups.set(l.game_id, [...(loserGroups.get(l.game_id) ?? []), l])
+        }
+    }
+
+    return (
+        <div className={`page-scroll px-3 pt-3 ${isNew ? 'flex flex-col' : 'pb-24'}`}>
+
+            {isNew ? (
+                <div className="mb-2 flex items-center gap-3">
+                    <p className="font-display text-4xl font-bold">{fe(euroTotal)}</p>
+                    <p className="flex-1 text-sm text-muted">{evening.penalty_log.length} {t('capture.penalties')}</p>
+                    {(players.length > 1 || showGameFilter) && (
+                        <Button variant="secondary" onClick={() => setFilterOpen(true)}>
+                            <ListFilter size={18} strokeWidth={2} aria-hidden="true"/> {t('protocol.filter')}
+                        </Button>
+                    )}
+                </div>
+            ) : (
+                <>
+                    {/* ── Header: total + action buttons ── */}
+                    <div className="kce-card p-3 mb-3">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs font-extrabold text-muted uppercase tracking-wider">{t('penalty.total')}</span>
+                            <span className="font-display font-bold text-accent-fg text-xl">{fe(euroTotal)}</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button variant="primary" className="flex-1" onClick={() => openSheet()}>
+                                ⚠️ + Strafe
+                            </Button>
+                            {players.length > 0 && (
+                                <Button variant="secondary" className="flex-1" onClick={openDrinkSheet}>
+                                    🍺 + Getränk
+                                </Button>
+                            )}
+                            {onQuickEntry && players.length > 0 && (
+                                <Button variant="secondary" className="flex-shrink-0" onClick={onQuickEntry}>
+                                    ⚡ {t('quickEntry.open')}
+                                </Button>
+                            )}
+                        </div>
+                        <div className="mt-2">
+                            <AbsencePenalties evening={evening} onDone={invalidate}/>
+                        </div>
+                    </div>
+
+                    {filters}
+                </>
+            )}
 
             {/* ── STRAFEN section heading ── */}
-            <div className="flex items-center justify-between mb-2">
-                <div className="text-xs font-extrabold text-muted uppercase tracking-wider">
-                    ⚠️ {t('nav.penalties')} ({log.length})
-                </div>
+            <div className="flex items-center justify-between gap-2 mb-2">
+                {isNew ? (isFiltered && (
+                    <Button variant="secondary" size="xs"
+                            onClick={() => { setFilterPlayer(null); setFilterGame(null) }}>
+                        <X size={14} strokeWidth={2.5} aria-hidden="true"/> {t('protocol.clearFilter')}
+                    </Button>
+                )) : (
+                    <div className="text-xs font-extrabold text-muted uppercase tracking-wider">
+                        ⚠️ {t('nav.penalties')} ({log.length})
+                    </div>
+                )}
                 {isFiltered && (
-                    <div className="text-xs font-extrabold text-accent-fg">
+                    <div className="ml-auto text-xs font-extrabold text-accent-fg">
                         {t('penalty.filteredTotal')}: {fe(filteredEuroTotal)}
                     </div>
                 )}
@@ -565,65 +631,28 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                         )
                     }
                     const entry = event.entry
-                    const isAbsence = entry.player_id === null && entry.penalty_type_name === 'Abwesenheit'
-                    const entryGame = entry.game_id ? evening.games.find(g => g.id === entry.game_id) : null
-                    const entryPlayer = players.find(p => p.id === entry.player_id)
-                    const entryMember = regularMembers.find(m => m.id === entryPlayer?.regular_member_id)
-                    const playerTotal = entryMember?.is_guest && guestPenaltyCap != null
-                        ? evening.penalty_log
-                            .filter(l => l.player_id === entry.player_id)
-                            .reduce((s, l) => s + entryEuroValue(l), 0)
-                        : null
-                    const isCapped = playerTotal != null && playerTotal > guestPenaltyCap!
-                    const isPendingEntry = entry.id < 0
-                    const band = isAbsence ? null : gameBandIndex(evening.games, entry.client_timestamp, entry.game_id)
+                    const losers = entry.game_id !== null ? loserGroups.get(entry.game_id) : undefined
+                    if (!losers || losers.length < 2) return renderEntry(entry)
+                    // The group is shown once, where its newest entry would be
+                    if (losers[0].id !== entry.id) return null
+                    const gameId = entry.game_id!
+                    const open = openLosers.includes(gameId)
                     return (
-                        <div key={`p-${entry.id}`} data-band={band ?? undefined}
-                             className={`kce-card p-3 mb-2 flex items-center gap-3 ${isAbsence ? 'opacity-70' : ''}`}
-                             style={band != null ? {borderLeft: `4px solid ${gameBandColor(band)}`} : undefined}>
-                            <span className="text-xl flex-shrink-0">{entry.icon}</span>
-                            <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold truncate flex items-center gap-1.5">
-                                    <span className="truncate">{entry.player_name}</span>
-                                    {isPendingEntry && (
-                                        <span className="text-xs px-1.5 py-0.5 rounded font-bold flex-shrink-0"
-                                              style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>
-                                            ⏳ {t('sync.pendingBadge')}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="text-xs text-muted truncate flex items-center gap-1">
-                                    {entry.penalty_type_name}
-                                    {entryGame && <span className="text-muted">· {entryGame.name}</span>}
-                                    {isCapped && <span className="text-accent-fg">· ≤ {fe(guestPenaltyCap!)}</span>}
-                                </div>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                                {entry.mode === 'euro'
-                                    ? <span className="text-sm font-bold text-danger-fg">{fe(entry.amount)}</span>
-                                    : <span className="text-sm font-bold text-danger-fg">
-                                    {entry.unit_amount != null
-                                        ? `${entry.amount} × ${fe(entry.unit_amount)}`
-                                        : `×${entry.amount}`}
-                                  </span>
-                                }
-                                <div className="text-xs text-muted">{fTime(entry.client_timestamp)}</div>
-                            </div>
-                            <CardActionMenu
-                                title={`${entry.icon} ${entry.penalty_type_name} · ${entry.player_name}`}
-                                label={`${t('action.more')}: ${entry.penalty_type_name} · ${entry.player_name}`}
-                                actions={[
-                                    // A queued entry has no server row yet, so there is nothing to edit —
-                                    // only the queued creation itself can be cancelled.
-                                    ...(isPendingEntry ? [] : [{
-                                        icon: '✏️', label: t('action.edit'),
-                                        onClick: () => openEditSheet(entry),
-                                    }]),
-                                    {
-                                        icon: '🗑️', label: t('action.delete'), danger: true,
-                                        onClick: () => setConfirmDeleteId(entry.id),
-                                    },
-                                ]}/>
+                        <div key={`lg-${gameId}`} className="kce-card mb-2">
+                            <button type="button" aria-expanded={open}
+                                    className="flex min-h-14 w-full items-center gap-3 text-left"
+                                    onClick={() => setOpenLosers(ids => open ? ids.filter(i => i !== gameId) : [...ids, gameId])}>
+                                <span className="text-xl" aria-hidden="true">🏆</span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-sm font-bold">{losers.length} {t('protocol.loserPenalties')}</span>
+                                    <span className="block truncate text-xs text-muted">
+                                        {evening.games.find(g => g.id === gameId)?.name} · {fTime(entry.client_timestamp)}
+                                    </span>
+                                </span>
+                                <span className="text-sm font-bold text-danger-fg">{fe(losers.reduce((s, l) => s + entryEuroValue(l), 0))}</span>
+                                <ChevronDown size={18} strokeWidth={2} aria-hidden="true" className={`text-muted ${open ? 'rotate-180' : ''}`}/>
+                            </button>
+                            {open && <div className="pl-8">{losers.map(renderEntry)}</div>}
                         </div>
                     )
                 })
@@ -674,18 +703,52 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                 })
             }
 
+            {/* New design: the capture buttons stay within the thumb's reach */}
+            {isNew && (
+                <div className="sticky bottom-0 z-10 -mx-3 mt-auto flex flex-shrink-0 gap-2 border-t border-line bg-canvas px-3 py-2.5">
+                    <Button variant="primary" className="flex-1 !min-h-12" onClick={() => setCaptureOpen(true)}>
+                        <Plus size={20} strokeWidth={2.5} aria-hidden="true"/> {t('protocol.addPenalty')}
+                    </Button>
+                    {players.length > 0 && (
+                        <Button variant="secondary" className="!min-h-12" onClick={openDrinkSheet}>
+                            <Beer size={20} strokeWidth={2} aria-hidden="true"/> {t('protocol.addDrink')}
+                        </Button>
+                    )}
+                    {onQuickEntry && players.length > 0 && (
+                        <Button variant="secondary" className="!min-h-12" aria-label={t('quickEntry.open')} onClick={onQuickEntry}>
+                            <Zap size={20} strokeWidth={2} aria-hidden="true"/>
+                        </Button>
+                    )}
+                </div>
+            )}
+
             {/* Delete drink round confirm */}
             {confirmDeleteDrinkId !== null && (
                 <ConfirmSheet open onClose={() => setConfirmDeleteDrinkId(null)} title={t('action.delete')}
                               message={t('drinks.deleteConfirm')} onConfirm={() => confirmDeleteDrink(confirmDeleteDrinkId)}/>
             )}
 
+            {isNew && filterOpen && (
+                <Sheet open onClose={() => setFilterOpen(false)} title={t('protocol.filter')}>
+                    {filters}
+                    <Button variant="primary" block onClick={() => setFilterOpen(false)}>{t('action.done')}</Button>
+                </Sheet>
+            )}
+            {isNew && captureOpen && (
+                <CaptureSheet evening={evening} invalidate={invalidate} cancelPendingItem={cancelPendingItem}
+                              onClose={() => setCaptureOpen(false)}
+                              onCustom={() => {
+                                  setCaptureOpen(false)
+                                  openSheet('custom')
+                              }}/>
+            )}
+
             {/* Add penalty sheet */}
             <Sheet open={sheet} onClose={() => setSheet(false)} title={t('penalty.enter')}
                    onSubmit={tab === 'quick' ? submitQuick : submitCustom}>
-                <div className="flex gap-1 mb-3">
+                <div className="kce-segment flex gap-1 mb-3">
                     {([['quick', '⚡', t('penalty.quick')], ['custom', '✏️', t('penalty.custom')]] as const).map(([id, icon, label]) => (
-                        <button key={id} type="button"
+                        <button key={id} type="button" aria-pressed={tab === id}
                                 className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                 onClick={() => setTab(id)}><span aria-hidden="true">{icon}</span> <span>{label}</span>
                         </button>
@@ -818,9 +881,9 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
             {/* Drink sheet */}
             <Sheet open={drinkSheet} onClose={() => setDrinkSheet(false)} title={t('drinks.round')}>
                 <div className="flex flex-col gap-3">
-                    <div className="flex gap-1">
+                    <div className="kce-segment flex gap-1">
                         {(['beer', 'shots'] as const).map(dt => (
-                            <button key={dt} type="button"
+                            <button key={dt} type="button" aria-pressed={drinkType === dt}
                                     className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${drinkType === dt ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                     onClick={() => setDrinkType(dt)}>
                                 {dt === 'beer' ? `🍺 ${t('drinks.beer')}` : `🥃 ${t('drinks.shots')}`}
@@ -860,9 +923,9 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                    onSubmit={submitEdit}>
                 <div className="flex flex-col gap-3">
                     {/* Quick / custom toggle */}
-                    <div className="flex gap-1">
+                    <div className="kce-segment flex gap-1">
                         {([['quick', '⚡', t('penalty.quick')], ['custom', '✏️', t('penalty.custom')]] as const).map(([id, icon, label]) => (
-                            <button key={id} type="button"
+                            <button key={id} type="button" aria-pressed={editTab === id}
                                     className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${editTab === id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                     onClick={() => setEditTab(id)}><span aria-hidden="true">{icon}</span> <span>{label}</span>
                             </button>

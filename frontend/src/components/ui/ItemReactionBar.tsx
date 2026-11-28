@@ -17,7 +17,7 @@ import type {Comment, ItemReaction} from '@/types'
 const PICKER_W = 300
 const PICKER_H = 380
 
-const PILL = 'flex items-center gap-1 text-sm px-2.5 py-1 rounded-full border leading-none transition-colors cursor-pointer'
+const PILL = 'kce-pill flex items-center gap-1 text-sm px-2.5 py-1 rounded-full border leading-none transition-colors cursor-pointer'
 
 function ReactionPicker({onPick}: {onPick: (emoji: string) => void}) {
     const t = useT()

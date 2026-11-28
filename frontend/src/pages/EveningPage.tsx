@@ -23,10 +23,13 @@ import {Button} from '@/components/ui/Button.tsx'
 import {Field} from '@/components/ui/Field.tsx'
 import {Markdown} from '@/components/ui/Markdown.tsx'
 import {MarkdownField} from '@/components/ui/MarkdownField.tsx'
+import {AbsencePenalties} from '@/components/evening/AbsencePenalties.tsx'
+import {useUiDesign} from '@/lib/design'
 
 export function EveningPage() {
     const t = useT()
-    const {evening, invalidate, activeEveningId, isPending} = useActiveEvening()
+    const {evening, invalidate, activeEveningId, isPending, cancelPendingItem} = useActiveEvening()
+    const isNewDesign = useUiDesign() === 'new'
     const {regularMembers, user} = useAppStore()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
     const {closeConfirm, setCloseConfirm, closing, closeEndedAt, setCloseEndedAt, openCloseConfirm, confirmClose, reopen} =
@@ -217,6 +220,13 @@ export function EveningPage() {
                 </div>
             </div>
 
+            {/* New design: kept here, out of the way of the capture buttons on the protocol */}
+            {isNewDesign && (
+                <div className="mb-3">
+                    <AbsencePenalties evening={evening} onDone={invalidate}/>
+                </div>
+            )}
+
             {/* Close-confirm sheet */}
             {closeConfirm && (
                 <Sheet
@@ -250,7 +260,8 @@ export function EveningPage() {
             {players.length > 0 && pins.length > 0 && !evening.is_closed && (
                 <PinsAlert pins={pins} evening={evening} players={players}
                            regularMembers={regularMembers}
-                           pinPenalty={club?.settings?.pin_penalty ?? 0} onPenaltyLogged={invalidate}/>
+                           pinPenalty={club?.settings?.pin_penalty ?? 0} onPenaltyLogged={invalidate}
+                           onCancelPending={logId => cancelPendingItem(logId, 'penalty')}/>
             )}
 
             {/* ── Teams (first, so they're set up before players are assigned) ── */}
@@ -950,13 +961,15 @@ function missingPinsLabel(pins: ClubPin[], text: string): string {
     return `${pins.map(p => p.icon).join('')} ${text}`
 }
 
-function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenaltyLogged}: {
+function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenaltyLogged, onCancelPending}: {
     pins: ClubPin[]
-    evening: { id: number; penalty_log: { id: number; player_name: string; penalty_type_name: string }[] }
+    evening: { id: number; penalty_log: { id: number; player_id: number | null; penalty_type_name: string }[] }
     players: EveningPlayer[]
     regularMembers: RegularMember[]
     pinPenalty: number
     onPenaltyLogged: () => void
+    /** Removes a penalty that is still waiting in the offline queue. */
+    onCancelPending: (logId: number) => Promise<void>
 }) {
     const t = useT()
     // Only show pins that have a holder who is playing tonight
@@ -990,6 +1003,10 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
 
     async function undoMissingPin(pin: ClubPin, logId: number) {
         try {
+            if (logId < 0) {
+                await onCancelPending(logId)
+                return
+            }
             await api.deletePenalty(evening.id, logId)
             onPenaltyLogged()
         } catch (e) {
@@ -1009,7 +1026,8 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
                 const holderPlayer = players.find(p => p.regular_member_id === holderId)
                 const logEntry = holderPlayer
                     ? evening.penalty_log.find(l =>
-                        l.player_name === holderPlayer.name && (
+                        // By id: an entry still waiting offline carries the nickname, not the name
+                        l.player_id === holderPlayer.id && (
                             l.penalty_type_name === missingPinsLabel(holderPins, t('pin.missingPenalty')) ||
                             holderPins.some(hp => l.penalty_type_name.startsWith(hp.icon) && l.penalty_type_name.includes(hp.name))
                         )

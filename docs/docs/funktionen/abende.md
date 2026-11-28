@@ -48,6 +48,12 @@ gewohnt zuerst das Protokoll.
 
 ### Live-Insel 🏝️ & Schnellerfassungs-Cockpit
 
+:::tip Neues Design
+Im [neuen Design](./neues-design) enthält die Abend-Reiterleiste nur die Reiter: Die Schnellerfassung
+startest du aus dem Live-Reiter oder dem Protokoll, **Abend beenden** liegt unter ⚙️ **Verwalten**.
+Nach einer Buchung bietet die Insel zusätzlich **Rückgängig** an.
+:::
+
 Am oberen Bildschirmrand sitzt durchgehend eine **Live-Insel** (auch über der Schnellerfassung sichtbar):
 
 - **Laufender Abend & Spiel-Timer**: zeigt die laufende Spielzeit (`m:ss`), solange ein Spiel läuft; läuft bei geöffnetem Abend gerade **kein Spiel**, zeigt die Insel kompakt ein ruhiges, gelb abgesetztes **„Pause“** (mit abgedunkeltem Kegel-Symbol, statt rotem Alarm) damit sofort auffällt, dass noch kein Spiel läuft, ohne die Header-Buttons zu berühren. Langes Drücken klappt Lokal, aktuelles Spiel / Spieler am Zug sowie Kasse, Bier- und Schnapsrunden auf – bzw. direkt den Knopf zum Spielstart; Antippen springt direkt zum Abend.

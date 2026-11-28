@@ -1356,7 +1356,7 @@ export function StatsPage() {
                             const isActive = e.id === activeEveningId
                             const isSelected = e.id === effectiveId
                             return (
-                                <button key={e.id} type="button"
+                                <button key={e.id} type="button" aria-pressed={isSelected}
                                         className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isSelected ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                         onClick={() => setPickedId(e.id)}>
                                     {isActive ? '🎳 ' : ''}{fDate(e.date)}{e.venue ? ` · ${e.venue}` : ''}
@@ -1562,9 +1562,9 @@ export function StatsPage() {
             {/* Year picker — shared by the Jahr tab and the Statistik-Labor. */}
             {tab !== 'evening' && (
             <div className="flex items-center justify-end mb-2">
-                <div className="flex gap-1">
+                <div className="kce-segment flex gap-1">
                     {yearsWithEvenings.map(y => (
-                        <button key={y} type="button"
+                        <button key={y} type="button" aria-pressed={year === y}
                                 className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${year === y ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                 onClick={() => setYear(y)}>
                             {y}

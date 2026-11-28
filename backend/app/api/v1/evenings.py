@@ -479,6 +479,20 @@ def update_penalty(eid: int, lid: int, data: PenaltyUpdate, db: Session = Depend
     return {"ok": True}
 
 
+# A booking taken back right away is a slip of the finger. Count bookings (quick entry) are not
+# announced when they are made, so announcing only their cancellation would tell the member about
+# something they never heard of.
+QUICK_CORRECTION_SECONDS = 60
+
+
+def _is_quick_correction(entry: PenaltyLog) -> bool:
+    if entry.mode != PenaltyMode.count or entry.created_at is None:
+        return False
+    # SQLite hands back naive timestamps; the column default is UTC either way
+    created = entry.created_at if entry.created_at.tzinfo else entry.created_at.replace(tzinfo=UTC)
+    return (datetime.now(UTC) - created).total_seconds() < QUICK_CORRECTION_SECONDS
+
+
 @router.delete("/{eid}/penalties/{lid}")
 def delete_penalty(eid: int,
                    lid: int,
@@ -489,7 +503,7 @@ def delete_penalty(eid: int,
     l = db.query(PenaltyLog).filter(PenaltyLog.id == lid, PenaltyLog.evening_id == e.id).first()
     if not l: raise HTTPException(404)
     notify_member_id = None
-    if not l.is_deleted:
+    if not l.is_deleted and not _is_quick_correction(l):
         notify_member_id = l.regular_member_id
         if not notify_member_id and l.player_id:
             player = db.query(EveningPlayer).filter(EveningPlayer.id == l.player_id).first()

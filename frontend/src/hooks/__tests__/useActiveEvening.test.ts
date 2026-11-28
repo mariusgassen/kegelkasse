@@ -41,11 +41,13 @@ vi.mock('@/api/client.ts', () => ({
 
 const mockOfflineQueueGetAll = vi.fn().mockResolvedValue([])
 const mockOfflineQueueRemove = vi.fn().mockResolvedValue(undefined)
+const mockOfflineQueueRemovePlayer = vi.fn().mockResolvedValue(undefined)
 
 vi.mock('@/offlineQueue.ts', () => ({
     offlineQueue: {
         getAll: mockOfflineQueueGetAll,
         remove: mockOfflineQueueRemove,
+        removePlayer: mockOfflineQueueRemovePlayer,
         count: vi.fn().mockResolvedValue(0),
     },
     SYNC_FLUSHED_EVENT: 'kegelkasse:sync-flushed',
@@ -330,6 +332,70 @@ describe('useActiveEvening — pending penalties appear in merged evening', () =
         const { useActiveEvening } = await import('../useEvening')
         const { result } = renderHook(() => useActiveEvening())
         expect(typeof result.current.cancelPendingItem).toBe('function')
+    })
+})
+
+// The id a pending entry is shown with has to lead back to exactly the queued request it came from.
+describe('useActiveEvening — cancelling a pending penalty', () => {
+    const evening = {
+        id: 5, date: '2025-03-01', venue: null, is_closed: false, season_closed: false,
+        players: [
+            {id: 1, name: 'Alice', nickname: null, regular_member_id: 10, team_id: null, is_king: false},
+            {id: 2, name: 'Bob', nickname: null, regular_member_id: 11, team_id: null, is_king: false},
+        ],
+        teams: [], games: [], highlights: [], penalty_log: [], drink_rounds: [],
+    }
+    const booking = (id: number, player_ids: number[]) => ({
+        id,
+        method: 'POST',
+        path: '/evening/5/penalties',
+        body: {player_ids, penalty_type_name: 'Verspätung', icon: '⏰', amount: 1, mode: 'count', unit_amount: 0.5, client_timestamp: id},
+        timestamp: id,
+    })
+
+    async function renderPending(items: ReturnType<typeof booking>[]) {
+        const { useQuery } = await import('@tanstack/react-query')
+        vi.mocked(useQuery).mockReturnValue({data: evening, isLoading: false, isError: false, error: null} as any)
+        mockOfflineQueueGetAll.mockResolvedValue(items)
+        const { useActiveEvening } = await import('../useEvening')
+        const hook = renderHook(() => useActiveEvening())
+        await act(async () => {})
+        return hook
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        mockOfflineQueueRemovePlayer.mockResolvedValue(true)
+        mockActiveEveningId = 5
+    })
+
+    afterEach(async () => {
+        const { useQuery } = await import('@tanstack/react-query')
+        vi.mocked(useQuery).mockReset()
+    })
+
+    // The sync was faster: the booking is on the server, so nothing may look as if it were cancelled
+    it('says so and refetches when there is nothing left to cancel', async () => {
+        mockOfflineQueueRemovePlayer.mockResolvedValue(false)
+        const { result } = await renderPending([booking(2, [1])])
+        const entry = result.current.evening!.penalty_log[0]
+        await expect(result.current.cancelPendingItem(entry.id, 'penalty')).rejects.toThrow()
+        expect(mockInvalidateQueries).toHaveBeenCalledWith({queryKey: ['evening', 5]})
+    })
+
+    it.each([3, 25, 1234])('cancels in the queued booking %i it belongs to', async (queueId) => {
+        const { result } = await renderPending([booking(2, [1]), booking(queueId, [2])])
+        const entry = result.current.evening!.penalty_log.find(l => l.client_timestamp === queueId)!
+        await act(() => result.current.cancelPendingItem(entry.id, 'penalty'))
+        expect(mockOfflineQueueRemovePlayer).toHaveBeenCalledExactlyOnceWith(queueId, 2)
+    })
+
+    it('keeps the ids of the other players stable once one has left the booking', async () => {
+        const first = await renderPending([booking(4, [1, 2])])
+        const bobBefore = first.result.current.evening!.penalty_log.find(l => l.player_id === 2)!.id
+        first.unmount()
+        const after = await renderPending([booking(4, [2])])
+        expect(after.result.current.evening!.penalty_log.map(l => l.id)).toEqual([bobBefore])
     })
 })
 

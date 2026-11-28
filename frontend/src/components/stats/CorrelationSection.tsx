@@ -576,10 +576,10 @@ export function CorrelationSection({year, myMemberId, t}: {
             </div>
             <div className="text-xs text-muted mb-2">{t('stats.correlation.subtitle')}</div>
 
-            <div className="flex gap-1 overflow-x-auto pb-1 mb-3" style={{scrollbarWidth: 'none'}}>
+            <div className="kce-tabs flex gap-1 overflow-x-auto pb-1 mb-3" style={{scrollbarWidth: 'none'}}>
                 {tabs.map(({key, labelKey}) => (
                     <button
-                        key={key} type="button"
+                        key={key} type="button" aria-current={tab === key ? 'page' : undefined}
                         className={`flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg transition-all ${tab === key ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                         onClick={() => setTab(key)}
                     >

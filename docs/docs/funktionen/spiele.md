@@ -54,6 +54,11 @@ Ein Wurf mit 0 Kegeln löst keinen eigenen Ton mehr aus — stattdessen wird der
 anderer Sound) einem passenden Strafentyp zugewiesen und spielt automatisch beim Eintragen dieser
 Strafe. Siehe [Strafen → Audio-Ansagen](strafen.md#audio-ansagen-).
 
+## Ergebnisse eintragen
+
+Beim Beenden trägst du die Ergebnisse je Person oder Team ein. Im [neuen Design](./neues-design)
+erscheint dafür ein eigenes Zahlenfeld statt der Systemtastatur.
+
 ## Strafen manuell festlegen
 
 In der **Spielvorlage** (Verein → Spielvorlagen) schaltet **„Strafen manuell festlegen"** die automatische Berechnung ab: Der Gewinner (Team oder Einzelspieler) bleibt, aber im Beenden-Dialog trägst du pro Spieler den Strafbetrag (€) selbst ein, statt Verlierer- und Punktestrafe berechnen zu lassen. Die Beträge werden als Spielstrafen gebucht; beim erneuten Bearbeiten ersetzen die neuen Beträge die alten.

@@ -424,7 +424,8 @@
         .kce-skeleton,
         .kce-deeplink-flash,
         .kce-booked-flash,
-        .kce-booked-chip {
+        .kce-booked-chip,
+        .kce-hold {
             animation: none;
         }
 
@@ -492,6 +493,24 @@
 
     .kce-booked-chip {
         animation: booked-chip var(--motion-base) var(--ease-spring) both;
+    }
+
+    /* Capture (new design): the bar under a selected person drains until the selection lets go.
+       Its duration is the hold time itself and is set by the component. */
+    .kce-hold {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 5px;
+        background: var(--on-accent);
+        opacity: .55;
+        transform-origin: left;
+        animation: hold-drain linear forwards;
+    }
+
+    @keyframes hold-drain {
+        to { transform: scaleX(0); }
     }
 
     @keyframes booked-chip {

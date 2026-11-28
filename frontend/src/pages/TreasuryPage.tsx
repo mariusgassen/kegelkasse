@@ -33,6 +33,7 @@ import {BarLegend, ProportionBar} from '@/components/ui/ProportionBar.tsx'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {buildAccountStatement, statementMonths} from '@/lib/accountStatement.ts'
 import type {ClubTrip} from '@/types.ts'
+import {useUiDesign} from '@/lib/design'
 import {Tabs} from '@/components/ui/Tabs'
 import {Button} from '@/components/ui/Button.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
@@ -146,6 +147,7 @@ export function TreasuryPage() {
     const regularMembers = useAppStore(s => s.regularMembers)
     const hasClubTreasurer = regularMembers.some(m => m.is_treasurer)
     const admin = isTreasurer(user) || (isAdmin(user) && !hasClubTreasurer)
+    const isNewDesign = useUiDesign() === 'new'
 
     // Übersicht is the glance level (one card per core question); Analyse is the drill-in
     // destination that owns the player filter, the itemized money flow and the history graph.
@@ -767,6 +769,35 @@ export function TreasuryPage() {
         </>
     )
 
+    /** Payments members reported that wait for the treasurer. */
+    const pendingRequests = admin && paymentRequests.length > 0 && (
+            <div className="mb-4">
+                <div className="sec-heading"><span aria-hidden="true">⏳</span> <span>{t('paymentRequest.pendingTitle')}</span></div>
+                {paymentRequests.map(r => (
+                    <div key={r.id} className={`kce-card p-3 mb-2 flex items-center gap-3 ${deepLinkRid === r.id ? 'ring-2 ring-accent' : ''}`}>
+                        <div className="flex-1 min-w-0">
+                            <div className="text-sm font-bold truncate">{r.member_name}</div>
+                            <div className="text-xs text-muted">
+                                {r.created_at ? new Date(r.created_at).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit'}) : ''}
+                                {r.note ? ` · ${r.note}` : ''}
+                            </div>
+                        </div>
+                        <span className="font-bold text-accent-fg flex-shrink-0">{fe(r.amount)}</span>
+                        <Button
+                            variant="primary" size="sm" className="flex-shrink-0 text-xs px-2 py-1"
+                            onClick={() => confirmRequest(r.id, r.regular_member_id)}>
+                            {t('paymentRequest.confirm')}
+                        </Button>
+                        <Button
+                            variant="secondary" size="sm" className="flex-shrink-0 text-xs px-2 py-1"
+                            onClick={() => rejectRequest(r.id)}>
+                            {t('paymentRequest.reject')}
+                        </Button>
+                    </div>
+                ))}
+            </div>
+    )
+
     const isClubBooking = bookingTarget === 'club'
     const showAsExpense = !isClubBooking && bookingDirection === 'in'
     const bookingValid = parseAmount(bookingAmount) > 0
@@ -781,7 +812,7 @@ export function TreasuryPage() {
                     <button
                         type="button"
                         onClick={() => setShowExportSheet(true)}
-                        className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-surface-2 text-muted hover:bg-surface transition-all">
+                        className="kce-hit flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-surface-2 text-muted hover:bg-surface transition-all">
                         <span aria-hidden="true">📊</span> <span>{t('report.export')}</span>
                     </button>
                 )}
@@ -792,7 +823,9 @@ export function TreasuryPage() {
 
             {/* ── Übersicht ── */}
             {tab === 'overview' && (
-                <div>
+                <div className={isNewDesign ? 'flex flex-col' : undefined}>
+                    {/* New design: what waits for you first, then the till, then your own account */}
+                    {isNewDesign && pendingRequests && <div style={{order: -2}}>{pendingRequests}</div>}
                     {/* Mein Konto — own status first: what did I pay, what is still open? */}
                     {myBalanceEntry && (
                         <div className="kce-card p-4 mb-3">
@@ -914,7 +947,8 @@ export function TreasuryPage() {
                     {/* Was ist in der Kasse? — the club's money at a glance. The rows state the
                         flow; the itemized bookings behind each row live in the Analyse tab. */}
                     <div className="kce-card p-4 mb-3"
-                         style={{background: 'linear-gradient(135deg, var(--surface), var(--surface-2))'}}>
+                         style={isNewDesign ? {order: -1}
+                             : {background: 'linear-gradient(135deg, var(--surface), var(--surface-2))'}}>
                         <div className="flex items-center justify-between">
                             <div>
                                 <Caption className="mb-0.5">💰
@@ -1174,34 +1208,7 @@ export function TreasuryPage() {
             {/* ── Konten ── */}
             {tab === 'accounts' && (
                 <div>
-                    {/* Pending payment requests (admin only) */}
-                    {admin && paymentRequests.length > 0 && (
-                        <div className="mb-4">
-                            <div className="sec-heading"><span aria-hidden="true">⏳</span> <span>{t('paymentRequest.pendingTitle')}</span></div>
-                            {paymentRequests.map(r => (
-                                <div key={r.id} className={`kce-card p-3 mb-2 flex items-center gap-3 ${deepLinkRid === r.id ? 'ring-2 ring-accent' : ''}`}>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-bold truncate">{r.member_name}</div>
-                                        <div className="text-xs text-muted">
-                                            {r.created_at ? new Date(r.created_at).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit'}) : ''}
-                                            {r.note ? ` · ${r.note}` : ''}
-                                        </div>
-                                    </div>
-                                    <span className="font-bold text-accent-fg flex-shrink-0">{fe(r.amount)}</span>
-                                    <Button
-                                        variant="primary" size="sm" className="flex-shrink-0 text-xs px-2 py-1"
-                                        onClick={() => confirmRequest(r.id, r.regular_member_id)}>
-                                        {t('paymentRequest.confirm')}
-                                    </Button>
-                                    <Button
-                                        variant="secondary" size="sm" className="flex-shrink-0 text-xs px-2 py-1"
-                                        onClick={() => rejectRequest(r.id)}>
-                                        {t('paymentRequest.reject')}
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                    {pendingRequests}
                     {admin && paymentRequests.length === 0 && (
                         <div className="text-xs text-muted text-center py-2 mb-3">
                             {t('paymentRequest.none')}

@@ -40,7 +40,7 @@ export function MarkdownField({
 
     return (
         <Field label={label} htmlFor={id} hint={hint ?? t('markdown.hint')} className={className}>
-            <div className="flex gap-1 mb-1">
+            <div className="kce-segment flex gap-1 mb-1">
                 <button type="button" aria-pressed={!preview} className={tab(!preview)}
                         data-testid={`${id}-write-tab`}
                         onClick={() => setPreview(false)}>{t('markdown.write')}</button>

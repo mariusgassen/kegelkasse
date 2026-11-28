@@ -43,6 +43,13 @@ class UpdateLocaleRequest(TrimmedModel):
     locale: str  # "de" | "en"
 
 
+UI_DESIGNS = ("classic", "new")
+
+
+class UpdateDesignRequest(TrimmedModel):
+    design: str  # one of UI_DESIGNS
+
+
 def _user_dict(u: User) -> dict:
     return {
         "id": u.id,
@@ -53,6 +60,7 @@ def _user_dict(u: User) -> dict:
         "roles": sorted(list(u.all_roles)),
         "club_id": u.club_id,
         "preferred_locale": u.preferred_locale,
+        "ui_design": u.ui_design or "classic",
         "avatar": u.avatar,
         "regular_member_id": u.regular_member_id,
     }
@@ -136,6 +144,17 @@ def get_me(current_user: User = Depends(get_current_user)):
 def update_locale(req: UpdateLocaleRequest, db: Session = Depends(get_db),
                   current_user: User = Depends(get_current_user)):
     current_user.preferred_locale = req.locale
+    db.commit()
+    return {"ok": True}
+
+
+@router.patch("/design")
+def update_design(req: UpdateDesignRequest, db: Session = Depends(get_db),
+                  current_user: User = Depends(get_current_user)):
+    """Each member picks the classic or the new look for themselves; it follows them across devices."""
+    if req.design not in UI_DESIGNS:
+        raise HTTPException(400, "Unknown design")
+    current_user.ui_design = req.design
     db.commit()
     return {"ok": True}
 

@@ -60,6 +60,34 @@ export const offlineQueue = {
         })
     },
 
+    /**
+     * Takes one player out of a queued booking, dropping the request once nobody is left. It keeps its
+     * place in the replay order. Reading and writing happen in one transaction: two quick cancels
+     * cannot overwrite each other, and a request the sync has just sent cannot be written back.
+     * Resolves to false when the player is no longer waiting in that request.
+     */
+    async removePlayer(id: number, playerId: number): Promise<boolean> {
+        const db = await openDb()
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE, 'readwrite')
+            const store = tx.objectStore(STORE)
+            const req = store.get(id)
+            let found = false
+            req.onsuccess = () => {
+                const item = req.result as QueuedRequest | undefined
+                if (!item) return
+                const body = item.body as {player_ids?: number[]}
+                found = (body.player_ids ?? []).includes(playerId)
+                if (!found) return
+                const others = (body.player_ids ?? []).filter(p => p !== playerId)
+                if (others.length) store.put({...item, body: {...body, player_ids: others}})
+                else store.delete(id)
+            }
+            tx.oncomplete = () => { db.close(); resolve(found) }
+            tx.onerror = () => { db.close(); reject(tx.error) }
+        })
+    },
+
     async remove(id: number): Promise<void> {
         const db = await openDb()
         return new Promise((resolve, reject) => {
@@ -126,7 +154,7 @@ export function isQueuableMutation(method: string, path: string): boolean {
         // Mark push notifications read
         /^\/push\/notifications\/read$/.test(path) ||
         // Light user preferences
-        /^\/auth\/locale$/.test(path) ||
+        /^\/auth\/(locale|design)$/.test(path) ||
         /^\/push\/preferences$/.test(path)
     )
 }

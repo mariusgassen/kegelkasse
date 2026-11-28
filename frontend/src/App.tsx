@@ -23,6 +23,7 @@ import {WifiOff} from 'lucide-react'
 import {hexToHsl, hslToHex} from './lib/color'
 import {DEFAULT_DARK_BG, deriveTokens} from './lib/tokens'
 import {applyAppIcon} from './lib/appIcon'
+import {applyUiDesign, getUiDesign} from './lib/design'
 import {Button} from '@/components/ui/Button.tsx'
 
 export {hexToHsl, hslToHex}
@@ -265,6 +266,11 @@ export default function App() {
             setLocale(user.preferred_locale as Locale)
         }
     }, [user?.preferred_locale])
+
+    // The member's chosen look; styles under `html[data-design="new"]` apply only to it
+    useEffect(() => {
+        applyUiDesign(getUiDesign(user))
+    }, [user])
 
     // Resets the on-device bowling Easter-egg state (#80) when a different user takes over a
     // shared device, so a member never inherits another member's "discovered" flag/high score.

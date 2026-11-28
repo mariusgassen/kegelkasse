@@ -4,9 +4,11 @@ import {pendingStore} from '@/pendingStore'
 import {persistTokenForSW} from '@/lib/tokenStore'
 import type {ScoreboardData} from '@/lib/scoreboard'
 import {todayDateInput} from '@/lib/datetime.ts'
+import {withQueueLock} from '@/lib/queueLock.ts'
 import {deliverFile} from '@/lib/deliverFile'
 import {
     ReportData,
+    UiDesign,
     AppIconSettings,
     AppIconVariant,
     Club,
@@ -395,6 +397,8 @@ export const api = {
     logout,
     me: () => request<User>('GET', '/auth/me'),
     updateLocale: (locale: string) => request<void>('PATCH', '/auth/locale', {locale}),
+    /** Resolves to null when the change was only queued (offline). */
+    updateDesign: (design: UiDesign) => request<{ ok: boolean } | null>('PATCH', '/auth/design', {design}),
     updateProfile: async (d: {
         name?: string;
         username?: string;
@@ -1220,80 +1224,84 @@ export async function flushOfflineQueue(): Promise<{ applied: number; errors: nu
     if (_flushInProgress) return {applied: 0, errors: 0}
     _flushInProgress = true
     try {
-        const queued = await offlineQueue.getAll()
-        if (queued.length === 0) return {applied: 0, errors: 0}
-
-        if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent(SYNC_STARTED_EVENT, {detail: {total: queued.length}}))
-        }
-
-        const sorted = [...queued].sort((a, b) => a.timestamp - b.timestamp)
-        let applied = 0
-        let errors = 0
-
-        // tempId (string) → realId (string) mapping built up as items are processed
-        const tempIdMap: Record<string, string> = {}
-
-        function rewrite(value: string): string {
-            let result = value
-            for (const [tempId, realId] of Object.entries(tempIdMap)) {
-                result = result.split(tempId).join(realId)
-            }
-            return result
-        }
-
-        _bypassQueue = true
-        try {
-            for (const item of sorted) {
-                try {
-                    const resolvedPath = rewrite(item.path)
-                    const resolvedBody = item.body != null
-                        ? JSON.parse(rewrite(JSON.stringify(item.body)))
-                        : item.body
-
-                    const result = await request<unknown>(item.method, resolvedPath, resolvedBody)
-
-                    // If this item created a resource with a temp ID, record the mapping
-                    // and notify the rest of the app so the UI can update live.
-                    if (
-                        item.tempId !== undefined &&
-                        result != null &&
-                        typeof result === 'object' &&
-                        'id' in (result as object)
-                    ) {
-                        const realId = (result as {id: number}).id
-                        tempIdMap[String(item.tempId)] = String(realId)
-                        window.dispatchEvent(new CustomEvent('kegelkasse:temp-id-resolved', {
-                            detail: {tempId: item.tempId, realId},
-                        }))
-                        // Clean up the pending evening record if applicable
-                        if (item.tempId < 0) {
-                            pendingStore.remove(item.tempId).catch(() => {})
-                        }
-                    }
-
-                    if (item.id !== undefined) await offlineQueue.remove(item.id)
-                    applied++
-                } catch (e) {
-                    if (e instanceof NetworkError) {
-                        // Still offline — stop flushing
-                        break
-                    }
-                    // Server rejected (404, conflict, etc.) — discard and continue
-                    if (item.id !== undefined) await offlineQueue.remove(item.id)
-                    errors++
-                }
-            }
-        } finally {
-            _bypassQueue = false
-        }
-
-        window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
-        if (applied > 0) {
-            window.dispatchEvent(new CustomEvent('kegelkasse:sync-flushed', {detail: {applied}}))
-        }
-        return {applied, errors}
+        return await withQueueLock(replayQueue)
     } finally {
         _flushInProgress = false
     }
+}
+
+async function replayQueue(): Promise<{ applied: number; errors: number }> {
+    const queued = await offlineQueue.getAll()
+    if (queued.length === 0) return {applied: 0, errors: 0}
+
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(SYNC_STARTED_EVENT, {detail: {total: queued.length}}))
+    }
+
+    const sorted = [...queued].sort((a, b) => a.timestamp - b.timestamp)
+    let applied = 0
+    let errors = 0
+
+    // tempId (string) → realId (string) mapping built up as items are processed
+    const tempIdMap: Record<string, string> = {}
+
+    function rewrite(value: string): string {
+        let result = value
+        for (const [tempId, realId] of Object.entries(tempIdMap)) {
+            result = result.split(tempId).join(realId)
+        }
+        return result
+    }
+
+    _bypassQueue = true
+    try {
+        for (const item of sorted) {
+            try {
+                const resolvedPath = rewrite(item.path)
+                const resolvedBody = item.body != null
+                    ? JSON.parse(rewrite(JSON.stringify(item.body)))
+                    : item.body
+
+                const result = await request<unknown>(item.method, resolvedPath, resolvedBody)
+
+                // If this item created a resource with a temp ID, record the mapping
+                // and notify the rest of the app so the UI can update live.
+                if (
+                    item.tempId !== undefined &&
+                    result != null &&
+                    typeof result === 'object' &&
+                    'id' in (result as object)
+                ) {
+                    const realId = (result as {id: number}).id
+                    tempIdMap[String(item.tempId)] = String(realId)
+                    window.dispatchEvent(new CustomEvent('kegelkasse:temp-id-resolved', {
+                        detail: {tempId: item.tempId, realId},
+                    }))
+                    // Clean up the pending evening record if applicable
+                    if (item.tempId < 0) {
+                        pendingStore.remove(item.tempId).catch(() => {})
+                    }
+                }
+
+                if (item.id !== undefined) await offlineQueue.remove(item.id)
+                applied++
+            } catch (e) {
+                if (e instanceof NetworkError) {
+                    // Still offline — stop flushing
+                    break
+                }
+                // Server rejected (404, conflict, etc.) — discard and continue
+                if (item.id !== undefined) await offlineQueue.remove(item.id)
+                errors++
+            }
+        }
+    } finally {
+        _bypassQueue = false
+    }
+
+    window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+    if (applied > 0) {
+        window.dispatchEvent(new CustomEvent('kegelkasse:sync-flushed', {detail: {applied}}))
+    }
+    return {applied, errors}
 }

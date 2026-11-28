@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -864,6 +864,69 @@ describe('TabletQuickEntryPage — finish game flow', () => {
         })
     })
 
+    // With a full table the winner and score lists are taller than a tablet: they have to scroll
+    // while the confirm button stays put, and the capture columns give up their space meanwhile.
+    it('keeps the confirm button outside the scrolling lists and yields the screen to the panel', async () => {
+        await renderTabletQuickEntry()
+        expect(screen.getByText('penalty.who').closest('.hidden')).toBeNull()
+
+        fireEvent.click(screen.getByText(/quickEntry\.finishGame/))
+        const body = await screen.findByTestId('finish-panel-body')
+        expect(body).toHaveClass('overflow-y-auto', 'min-h-0')
+        expect(body).not.toContainElement(screen.getByText(/game\.finish/))
+        expect(screen.getByTestId('finish-panel')).toContainElement(screen.getByText(/game\.finish/))
+        expect(screen.getByText('penalty.who').closest('.hidden')).not.toBeNull()
+
+        fireEvent.click(screen.getByText('action.cancel'))
+        expect(screen.queryByTestId('finish-panel')).not.toBeInTheDocument()
+        expect(screen.getByText('penalty.who').closest('.hidden')).toBeNull()
+    })
+
+    // Another device can finish the game while the panel is open here. Nothing of it may carry over.
+    it('drops a half-filled panel when its game ends elsewhere', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const show = (...games: object[]) => vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, games } as any, invalidate: vi.fn(),
+        } as any)
+        const { TabletQuickEntryPage } = await import('../TabletQuickEntryPage')
+        const element = () => <TabletQuickEntryPage eveningId={42} players={PLAYERS as any} onClose={vi.fn()} />
+        const view = await renderTabletQuickEntry()
+
+        fireEvent.click(screen.getByText(/quickEntry\.finishGame/))
+        fireEvent.click(within(screen.getByTestId('finish-panel')).getByRole('button', {name: 'Hansi'}))
+
+        show({ ...RUNNING_GAME, status: 'finished' }, { ...RUNNING_GAME, id: 2, status: 'open' })
+        view.rerender(element())
+        expect(screen.queryByTestId('finish-panel')).not.toBeInTheDocument()
+
+        show({ ...RUNNING_GAME, status: 'finished' }, { ...RUNNING_GAME, id: 2 })
+        view.rerender(element())
+        expect(screen.queryByTestId('finish-panel')).not.toBeInTheDocument()
+        fireEvent.click(screen.getByText(/quickEntry\.finishGame/))
+        expect(within(screen.getByTestId('finish-panel')).getByRole('button', {name: 'Hansi'})).not.toHaveClass('active')
+        expect(screen.getByText(/game\.finish/)).toBeDisabled()
+    })
+
+    it('keeps the panel input when an offline game gets its real id on sync', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const show = (...games: object[]) => vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, games } as any, invalidate: vi.fn(),
+        } as any)
+        const { TabletQuickEntryPage } = await import('../TabletQuickEntryPage')
+        const element = () => <TabletQuickEntryPage eveningId={42} players={PLAYERS as any} onClose={vi.fn()} />
+        show({ ...RUNNING_GAME, id: -1700000000000 })
+        const view = await renderTabletQuickEntry()
+        fireEvent.click(screen.getByText(/quickEntry\.finishGame/))
+        fireEvent.click(within(screen.getByTestId('finish-panel')).getByRole('button', {name: 'Hansi'}))
+
+        show()  // the queue is empty, the evening not yet refetched
+        view.rerender(element())
+        show({ ...RUNNING_GAME, id: 7 })
+        view.rerender(element())
+
+        expect(within(screen.getByTestId('finish-panel')).getByRole('button', {name: 'Hansi'})).toHaveClass('active')
+    })
+
     it('calls api.finishGame when winner selected and confirm clicked', async () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
@@ -1354,6 +1417,24 @@ describe('TabletQuickEntryPage — recent event deletion', () => {
         fireEvent.click(screen.getByText('quickEntry.recent'))
         await waitFor(() => expect(screen.queryByText('🗑')).not.toBeInTheDocument())
         expect(api.deletePenalty).not.toHaveBeenCalled()
+    })
+
+    it('shows why a pending entry could not be cancelled instead of reporting it as removed', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const cancelPendingItem = vi.fn(() => Promise.reject(new Error('already sent')))
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...EVENING_WITH_LOG, penalty_log: [{ ...EVENING_WITH_LOG.penalty_log[0], id: -3000000001 }] } as any,
+            invalidate: vi.fn(), cancelPendingItem,
+        } as any)
+        const { toastError } = await import('@/utils/error.ts')
+        const receipts = vi.fn()
+        window.addEventListener('kegelkasse:quick-entry-event', receipts)
+        await renderTabletQuickEntry()
+        const adminBtns = screen.getAllByRole('button', { name: /Admin/ })
+        fireEvent.click(adminBtns[adminBtns.length - 1])
+        await waitFor(() => expect(toastError).toHaveBeenCalledWith(new Error('already sent')))
+        expect(receipts).not.toHaveBeenCalled()
+        window.removeEventListener('kegelkasse:quick-entry-event', receipts)
     })
 
     it('cancels delete confirmation on Escape key', async () => {

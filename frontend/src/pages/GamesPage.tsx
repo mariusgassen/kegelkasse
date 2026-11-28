@@ -2,6 +2,8 @@ import {useState} from 'react'
 import {Camera} from 'lucide-react'
 import {router} from '@/router'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
+import {useUiDesign} from '@/lib/design'
+import {ScoreEntry} from '@/components/evening/ScoreEntry.tsx'
 import {useAppStore, isAdmin} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
@@ -43,6 +45,7 @@ const STATUS_COLOR: Record<string, string> = {
 export function GamesPage() {
     const t = useT()
     const {evening, invalidate, cancelPendingItem} = useActiveEvening()
+    const isNewDesign = useUiDesign() === 'new'
     const gameTemplates = useAppStore(s => s.gameTemplates)
     const user = useAppStore(s => s.user)
 
@@ -635,7 +638,13 @@ export function GamesPage() {
                         {(players.length > 0 || teams.length > 0) && (
                             <div>
                                 <div className="field-label">{t('game.scores')}</div>
-                                <div className="flex flex-col gap-1.5">
+                                {isNewDesign ? (
+                                    <ScoreEntry key={finishTarget.id} values={scoresInput}
+                                                rows={finishTarget.winner_type === 'team'
+                                                    ? teams.map(team => ({key: `t:${team.id}`, label: team.name}))
+                                                    : players.map(p => ({key: `p:${p.id}`, label: playerLabel(p)}))}
+                                                onChange={(key, value) => setScoresInput(prev => ({...prev, [key]: value}))}/>
+                                ) : <div className="flex flex-col gap-1.5">
                                     {finishTarget.winner_type === 'team'
                                         ? teams.map(team => (
                                             <div key={`t:${team.id}`} className="flex items-center gap-2">
@@ -662,7 +671,7 @@ export function GamesPage() {
                                             </div>
                                         ))
                                     }
-                                </div>
+                                </div>}
                             </div>
                         )}
 

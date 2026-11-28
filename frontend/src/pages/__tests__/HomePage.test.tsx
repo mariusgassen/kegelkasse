@@ -1,4 +1,4 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 import {render, screen, fireEvent, waitFor} from '@testing-library/react'
 import React from 'react'
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
@@ -37,6 +37,7 @@ const api = {
     getMemberPenalties: vi.fn(),
     setRsvp: vi.fn(),
     removeRsvp: vi.fn(),
+    getEvening: vi.fn(),
 }
 vi.mock('@/api/client.ts', () => ({api: {
     listScheduledEvenings: (...a: unknown[]) => api.listScheduledEvenings(...a),
@@ -48,6 +49,7 @@ vi.mock('@/api/client.ts', () => ({api: {
     getMemberPenalties: (...a: unknown[]) => api.getMemberPenalties(...a),
     setRsvp: (...a: unknown[]) => api.setRsvp(...a),
     removeRsvp: (...a: unknown[]) => api.removeRsvp(...a),
+    getEvening: (...a: unknown[]) => api.getEvening(...a),
 }}))
 
 function se(overrides: Record<string, unknown> = {}) {
@@ -269,5 +271,25 @@ describe('HomePage', () => {
         await renderHome()
         await waitFor(() => expect(screen.getByText('home.greeting')).toBeInTheDocument())
         expect(screen.queryByText('home.recentPenalties')).not.toBeInTheDocument()
+    })
+})
+
+describe('HomePage — new design', () => {
+    afterEach(() => {
+        storeState.user = {regular_member_id: 7, name: 'Rudi', preferred_locale: 'de'}
+        storeState.activeEveningId = null
+    })
+
+    it('opens on the running evening with its total and leads to the protocol', async () => {
+        storeState.user = {...storeState.user, ui_design: 'new'}
+        storeState.activeEveningId = 5
+        api.getEvening.mockResolvedValue({
+            id: 5, players: [{id: 1, name: 'Bine', nickname: null, team_id: null}], teams: [], games: [], drink_rounds: [],
+            penalty_log: [{id: 1, player_id: 1, amount: 3, unit_amount: 0.5}, {id: 2, player_id: 1, amount: 2, unit_amount: null}],
+        })
+        await renderHome()
+        expect(await screen.findByText('3,50 €')).toBeInTheDocument()
+        fireEvent.click(screen.getByRole('button', {name: 'home.openEvening'}))
+        expect(mockNavigate).toHaveBeenCalledWith({to: '/evening', search: {tab: 'penalties'}})
     })
 })

@@ -69,6 +69,12 @@ anschließend automatisch neu geladen.
 
 ## Schnellerfassung am Tablet ⚡
 
+:::tip Neues Design
+Wer im Profil auf das [neue Design](./neues-design) umgestellt hat, erfasst anders: Person und
+Strafen in beliebiger Reihenfolge, mehrere Strafen nacheinander, **Rückgängig** direkt nach der
+Buchung. Der folgende Abschnitt beschreibt das klassische Design.
+:::
+
 Die Schnellerfassung zeigt beim Buchen sofort, was passiert ist:
 
 - **Klare Strafen-Knöpfe ohne Zahlen-Ballast**: Die Knöpfe zeigen nur Icon, Name und Einzelbetrag; wie oft eine Strafenart heute insgesamt vergeben wurde (`×3`), steht übersichtlich im **🔴 Live**-Reiter
@@ -95,6 +101,10 @@ Die Animationen folgen der Systemeinstellung „Bewegung reduzieren“; Zahl und
 Tippe auf das **⋮**-Menü der Strafe → **Löschen** (rot) und bestätige im Sicherheits-Dialog.
 
 Strafen werden **weich gelöscht** (Soft-Delete) — der Eintrag bleibt in der Datenbank, wird aber aus der Ansicht entfernt. Dies ermöglicht ein Rückgängigmachen.
+
+Die betroffene Person erhält eine Mitteilung **„Strafe storniert“**. Ausnahme: Wird eine Buchung im
+Anzahl-Modus (z. B. aus der Schnellerfassung) **innerhalb einer Minute** wieder gelöscht, bleibt es
+still — auch über die Buchung wurde nichts verschickt.
 
 ## Audio-Ansagen 🔊
 

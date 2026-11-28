@@ -4,6 +4,8 @@ import {api, authState, NetworkError, flushOfflineQueue} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 import {pendingStore} from '@/pendingStore.ts'
 import {offlineQueue, SYNC_FLUSHED_EVENT, type QueuedRequest} from '@/offlineQueue.ts'
+import {QUEUE_WAIT_MS, QueueBusyError, withQueueLock} from '@/lib/queueLock.ts'
+import {t as tl} from '@/i18n'
 import type {
     DrinkRound,
     Evening,
@@ -13,6 +15,17 @@ import type {
     TurnMode,
     WinnerType,
 } from '@/types.ts'
+
+/**
+ * A pending penalty has no server id yet. It is shown with a negative one that names both the queued
+ * request and the player, because one request can book several players. Naming the player (not their
+ * position) keeps the ids of the others valid after one of them has been cancelled.
+ *
+ * Relies on evening player ids being server ids (positive and far below the factor): players cannot
+ * be added to an evening under a temporary id. Pending penalty ids are only ever compared with other
+ * penalty ids.
+ */
+const PENDING_PENALTY_FACTOR = 1_000_000_000
 
 export function useActiveEvening() {
     const activeEveningId = useAppStore(s => s.activeEveningId)
@@ -155,11 +168,10 @@ export function useActiveEvening() {
                         unit_amount?: number
                         client_timestamp?: number
                     }
-                    for (let i = 0; i < (b.player_ids ?? []).length; i++) {
-                        const pid = b.player_ids![i]
+                    for (const pid of b.player_ids ?? []) {
                         const player = serverEvening.players.find(p => p.id === pid)
                         pendingPenalties.push({
-                            id: -((item.id ?? 0) * 100 + i),
+                            id: -((item.id ?? 0) * PENDING_PENALTY_FACTOR + pid),
                             player_id: pid,
                             team_id: null,
                             player_name: player?.nickname || player?.name || '?',
@@ -393,37 +405,55 @@ export function useActiveEvening() {
      * resource was never created).
      *
      * Fake ID encoding used by the pending-merge logic:
-     *   penalty  → -(queueItemId * 1000 + playerIndex)
+     *   penalty  → -(queueItemId * PENDING_PENALTY_FACTOR + playerId)
      *   drink    → -(queueItemId)
      *   game     → item.tempId  (large negative timestamp, e.g. -1745678901234)
      *
      * For game cancellation all related operations (start, finish, etc.) whose path
      * contains the temp game ID string are also removed.
+     *
+     * Waits briefly for a running sync. Throws, with a message for the user, when the sync takes too
+     * long or when there is nothing left to cancel because it has already sent the entry.
      */
-    async function cancelPendingItem(fakeId: number, type: 'penalty' | 'drink' | 'game') {
+    async function cancelPendingItem(fakeId: number, type: 'penalty' | 'drink' | 'game'): Promise<void> {
+        let cancelled = false
         try {
-            if (type === 'penalty') {
-                // Recover the queue item ID from the encoded fake penalty ID
-                const queueItemId = Math.floor(Math.abs(fakeId) / 1000)
-                if (queueItemId > 0) await offlineQueue.remove(queueItemId)
-            } else if (type === 'drink') {
-                const queueItemId = Math.abs(fakeId)
-                if (queueItemId > 0) await offlineQueue.remove(queueItemId)
-            } else {
-                // Game: remove the creation item and all subsequent operations that
-                // reference this temp ID in their path (start, finish, etc.)
-                const all = await offlineQueue.getAll()
-                const tempIdStr = String(fakeId)
-                for (const item of all) {
-                    const isCreation = item.tempId === fakeId
-                    const isRelated = item.path.includes(tempIdStr)
-                    if ((isCreation || isRelated) && item.id !== undefined) {
-                        await offlineQueue.remove(item.id)
+            await withQueueLock(async () => {
+                if (type === 'penalty') {
+                    const queueItemId = Math.floor(Math.abs(fakeId) / PENDING_PENALTY_FACTOR)
+                    const playerId = Math.abs(fakeId) % PENDING_PENALTY_FACTOR
+                    // A booking for several players stays queued for everyone else
+                    if (queueItemId > 0) cancelled = await offlineQueue.removePlayer(queueItemId, playerId)
+                } else if (type === 'drink') {
+                    const queueItemId = Math.abs(fakeId)
+                    if ((await offlineQueue.getAll()).some(item => item.id === queueItemId)) {
+                        await offlineQueue.remove(queueItemId)
+                        cancelled = true
+                    }
+                } else {
+                    // Game: remove the creation item and all subsequent operations that
+                    // reference this temp ID in their path (start, finish, etc.)
+                    const all = await offlineQueue.getAll()
+                    const tempIdStr = String(fakeId)
+                    for (const item of all) {
+                        const isCreation = item.tempId === fakeId
+                        const isRelated = item.path.includes(tempIdStr)
+                        if ((isCreation || isRelated) && item.id !== undefined) {
+                            await offlineQueue.remove(item.id)
+                            cancelled = true
+                        }
                     }
                 }
-            }
-        } catch { /* IndexedDB unavailable */ }
+            }, QUEUE_WAIT_MS)
+        } catch (e) {
+            if (e instanceof QueueBusyError) throw e
+            /* otherwise IndexedDB is unavailable */
+        }
         window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+        if (!cancelled) {
+            invalidate()
+            throw new Error(tl('sync.notPending'))
+        }
     }
 
     return {evening, isLoading, invalidate, activeEveningId, isPending, cancelPendingItem}

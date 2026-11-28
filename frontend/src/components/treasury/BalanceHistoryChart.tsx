@@ -256,9 +256,9 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
     return (
         <div className="kce-card p-3 mb-3">
             <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex gap-1">
+                <div className="kce-segment flex gap-1">
                     {(['month', 'year', 'all'] as const).map(g => (
-                        <button key={g} type="button"
+                        <button key={g} type="button" aria-pressed={granularity === g}
                                 className={`px-2.5 py-1 rounded-lg text-sm font-bold transition-all ${granularity === g ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                 onClick={() => changeGranularity(g)}>
                             {t(`treasury.history.${g}` as 'treasury.history.month' | 'treasury.history.year' | 'treasury.history.all')}

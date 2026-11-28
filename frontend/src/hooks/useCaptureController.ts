@@ -1,0 +1,317 @@
+import {useCallback, useEffect, useRef, useState} from 'react'
+import {useQueryClient} from '@tanstack/react-query'
+import {api} from '@/api/client.ts'
+import {useT} from '@/i18n'
+import {offlineQueue} from '@/offlineQueue.ts'
+import {QUEUE_WAIT_MS, withQueueLock} from '@/lib/queueLock.ts'
+import {captureStep, countTray, EMPTY_CAPTURE, HOLD_MS, type Booking, type CaptureAction, type CaptureState} from '@/lib/capture.ts'
+import {announceQuickEntryEvent} from '@/lib/quickEntryEvents.ts'
+import {playSound} from '@/lib/soundboard'
+import {haptic} from '@/lib/haptics.ts'
+import {useAudioCallouts} from '@/hooks/useClub.ts'
+import {toastError} from '@/utils/error.ts'
+import type {Evening, EveningPlayer, PenaltyType} from '@/types.ts'
+
+export type DrinkKind = 'beer' | 'shots'
+
+/** A booking younger than this was never announced to the member, so removing it needs no question
+ *  (mirrors `QUICK_CORRECTION_SECONDS` on the server). */
+export const FRESH_MS = 60_000
+
+/** A booking that has been sent but is not part of the evening data yet. */
+export interface SavingBooking {
+    ts: number
+    playerIds: number[]
+    type: PenaltyType
+    count: number
+}
+
+/** `null`: queued offline. `'failed'`: never saved. */
+type SaveResult = number[] | null | 'failed'
+
+interface Sent {
+    /** Kept per request: another evening may be open by the time it is taken back. */
+    eveningId: number
+    ts: number
+    kind: 'penalties' | 'drinks'
+    done: Promise<SaveResult>
+}
+
+/** Everything one tap booked, so that it can be taken back as a whole. */
+export interface PenaltyBooking {
+    sent: Sent[]
+    playerIds: number[]
+    items: Array<{type: PenaltyType; count: number}>
+    /** Set when a collected tray was handed out. */
+    trayNo?: number
+}
+
+export interface CaptureControllerOptions {
+    eveningId: number
+    evening: Evening | null | undefined
+    invalidate: () => Promise<unknown> | void
+    cancelPendingItem: (id: number, type: 'penalty' | 'drink') => Promise<void>
+    players: EveningPlayer[]
+    penaltyTypes: PenaltyType[]
+    displayName: (p: EveningPlayer) => string
+    /** Format an amount in euros. */
+    money: (amount: number) => string
+    /** Whether the island receipt offers to take the booking back (default yes). */
+    receiptUndo?: boolean
+}
+
+let lastTimestamp = 0
+/** Strictly increasing, so that every booking can be found again by its client timestamp. */
+function nextTimestamp(): number {
+    lastTimestamp = Math.max(Date.now(), lastTimestamp + 1)
+    return lastTimestamp
+}
+
+/**
+ * Everything behind the new capture screens: the selection model with its hold timer, saving each
+ * booking the moment it is made (taps are never dropped while another is still saving), and taking
+ * bookings back — whether they already reached the server, are still on their way or wait offline.
+ */
+export function useCaptureController(options: CaptureControllerOptions) {
+    const t = useT()
+    const qc = useQueryClient()
+    const audioCallouts = useAudioCallouts()
+    const optionsRef = useRef(options)
+    optionsRef.current = options
+
+    const [state, setState] = useState<CaptureState>(EMPTY_CAPTURE)
+    // Mirrors `state` synchronously: two taps can arrive before React has rendered the first
+    const stateRef = useRef(state)
+    /** Changes with every tap on a selection; restarts the hold timer and its bar. */
+    const [holdKey, setHoldKey] = useState(0)
+    const [saving, setSaving] = useState<SavingBooking[]>([])
+    /** Client timestamps booked to the current selection, newest last. */
+    const [session, setSession] = useState<number[]>([])
+    /** Penalty bookings made here and not taken back, newest last. */
+    const [history, setHistory] = useState<PenaltyBooking[]>([])
+    const [undoing, setUndoing] = useState(false)
+
+    const commit = useCallback((next: CaptureState) => {
+        stateRef.current = next
+        setState(next)
+    }, [])
+
+    const refresh = useCallback(async () => {
+        await optionsRef.current.invalidate()
+        qc.invalidateQueries({queryKey: ['member-balances']})
+        qc.invalidateQueries({queryKey: ['guest-balances']})
+    }, [qc])
+
+    /** Whom a booking went to, for the receipt. */
+    const nameOf = useCallback((ids: number[]) => {
+        if (ids.length > 1) return `${ids.length} ${t('capture.people')}`
+        const p = optionsRef.current.players.find(pl => pl.id === ids[0])
+        return p ? optionsRef.current.displayName(p) : '?'
+    }, [t])
+
+    /** Takes one sent request back, wherever it is by now. */
+    const takeBack = useCallback(async (sent: Sent) => {
+        const ids = await sent.done
+        if (ids === 'failed') return
+        const {eveningId, kind, ts} = sent
+        const remove = (id: number) => kind === 'penalties'
+            ? api.deletePenalty(eveningId, id)
+            : api.deleteDrinkRound(eveningId, id)
+        if (ids) {
+            await Promise.all(ids.map(remove))
+        } else {
+            // Queued offline. Waits for a running sync and keeps the next one off the queue meanwhile
+            const dequeued = await withQueueLock(async () => {
+                const queued = (await offlineQueue.getAll()).filter(q =>
+                    q.path === `/evening/${eveningId}/${kind}`
+                    && (q.body as {client_timestamp?: number}).client_timestamp === ts)
+                for (const q of queued) await offlineQueue.remove(q.id!)
+                return queued.length
+            }, QUEUE_WAIT_MS)
+            if (dequeued) {
+                window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+            } else {
+                // Synced in the meantime. Only the server knows the ids: the cached evening may be
+                // older than the sync
+                const evening = await api.getEvening(eveningId)
+                const entries = (kind === 'penalties' ? evening.penalty_log : evening.drink_rounds)
+                    .filter(e => e.client_timestamp === ts)
+                // Never report "taken back" for something that could not be found
+                if (!entries.length) throw new Error(t('capture.undoNotFound'))
+                await Promise.all(entries.map(e => remove(e.id)))
+            }
+        }
+        qc.invalidateQueries({queryKey: ['evening', eveningId]})
+        await refresh()
+    }, [qc, refresh, t])
+
+    const announceUndo = useCallback((sent: Sent[], booking?: Pick<PenaltyBooking, 'playerIds' | 'trayNo'>) => async () => {
+        const results = await Promise.allSettled(sent.map(takeBack))
+        const stillBooked = (_: unknown, i: number) => results[i].status === 'rejected'
+        const left = sent.filter(stillBooked)
+        // What could not be taken back stays the booking "undo last" means, so a retry hits it again
+        setHistory(list => list.flatMap(b => {
+            if (b.sent !== sent) return [b]
+            return left.length ? [{...b, sent: left, items: b.items.filter(stillBooked)}] : []
+        }))
+        const failure = results.find(r => r.status === 'rejected')
+        if (failure) {
+            toastError(failure.reason)
+            return
+        }
+        if (booking?.trayNo !== undefined) {
+            commit(captureStep(stateRef.current, {type: 'unapply', playerIds: booking.playerIds, trayNo: booking.trayNo}).state)
+        }
+        announceQuickEntryEvent({kind: 'undo', icon: '↩️', title: t('capture.undone'), subtitle: '', badge: '✕'})
+    }, [commit, takeBack, t])
+
+    const book = useCallback((booking: Booking) => {
+        const {eveningId, penaltyTypes, money} = optionsRef.current
+        const items = countTray(booking.penaltyTypeIds).flatMap(({penaltyTypeId, count}) => {
+            const type = penaltyTypes.find(pt => pt.id === penaltyTypeId)
+            return type ? [{type, count}] : []
+        })
+        if (!items.length) return [] as number[]
+        const sent: Sent[] = items.map(({type, count}) => {
+            const ts = nextTimestamp()
+            setSaving(list => [...list, {ts, playerIds: booking.playerIds, type, count}])
+            const done: Promise<SaveResult> = api.addPenalty(eveningId, {
+                player_ids: booking.playerIds,
+                penalty_type_name: type.name,
+                icon: type.icon,
+                amount: count,
+                mode: 'count',
+                unit_amount: type.default_amount,
+                client_timestamp: ts,
+            }).then(
+                created => created ? created.map(c => c.id) : null,
+                (e: unknown) => {
+                    toastError(e)
+                    return 'failed' as const
+                },
+            )
+            done.then(refresh).catch(() => {}).finally(() => setSaving(list => list.filter(s => s.ts !== ts)))
+            return {eveningId, ts, kind: 'penalties', done}
+        })
+        setHistory(list => [...list, {sent, items, playerIds: booking.playerIds, trayNo: booking.trayNo}])
+        if (audioCallouts) playSound(items[items.length - 1].type.sound_key)
+        haptic('success')
+        const total = items.reduce((sum, i) => sum + i.type.default_amount * i.count, 0) * booking.playerIds.length
+        const one = items.length === 1 && items[0].count === 1
+        const pieces = items.reduce((sum, i) => sum + i.count, 0)
+        announceQuickEntryEvent({
+            kind: 'penalty',
+            icon: items.length === 1 ? items[0].type.icon : '🎳',
+            title: one || items.length === 1
+                ? `${items[0].type.name}${items[0].count > 1 ? ` ×${items[0].count}` : ''}`
+                : `${pieces} ${t('capture.penalties')}`,
+            subtitle: nameOf(booking.playerIds),
+            badge: `+${money(total)}`,
+            undo: optionsRef.current.receiptUndo === false ? undefined : announceUndo(sent, booking),
+        })
+        return sent.map(s => s.ts)
+    }, [audioCallouts, announceUndo, nameOf, refresh, t])
+
+    // `useT` is new on every render, and so is `book`. `dispatch` must not be: the hold timer below
+    // depends on it and would start over whenever anything re-renders the page
+    const bookRef = useRef(book)
+    bookRef.current = book
+
+    const dispatch = useCallback((action: CaptureAction) => {
+        const before = stateRef.current
+        const result = captureStep(before, action)
+        commit(result.state)
+        if (action.type !== 'prune') setHoldKey(k => k + 1)
+        const sameSelection = before.selected.join() === result.state.selected.join()
+        if (!sameSelection) setSession([])
+        if (result.booking) {
+            const stamps = bookRef.current(result.booking)
+            // Only what was booked to a standing selection belongs to its list
+            if (result.state.selected.length && sameSelection) setSession(list => [...list, ...stamps])
+        }
+    }, [commit])
+
+    const holding = state.selected.length > 0
+    useEffect(() => {
+        if (!holding) return
+        const timer = setTimeout(() => dispatch({type: 'release'}), HOLD_MS)
+        return () => clearTimeout(timer)
+    }, [holding, holdKey, dispatch])
+
+    const playerIds = options.players.map(p => p.id).join()
+    const typeIds = options.penaltyTypes.map(pt => pt.id).join()
+    useEffect(() => {
+        const {players, penaltyTypes} = optionsRef.current
+        if (!players.length || !penaltyTypes.length) return  // still loading
+        dispatch({type: 'prune', playerIds: players.map(p => p.id), penaltyTypeIds: penaltyTypes.map(pt => pt.id)})
+    }, [playerIds, typeIds, dispatch])
+
+    const bookDrinks = useCallback((kind: DrinkKind, participantIds: number[]) => {
+        const {eveningId} = optionsRef.current
+        const ts = nextTimestamp()
+        const done: Promise<SaveResult> = api.addDrinkRound(eveningId, {
+            drink_type: kind, participant_ids: participantIds, client_timestamp: ts,
+        }).then(
+            round => round ? [round.id] : null,
+            (e: unknown) => {
+                toastError(e)
+                return 'failed' as const
+            },
+        )
+        done.then(refresh).catch(() => {})
+        haptic('success')
+        announceQuickEntryEvent({
+            kind: 'drink',
+            icon: kind === 'beer' ? '🍺' : '🥃',
+            title: t(kind === 'beer' ? 'drinks.beer' : 'drinks.shots'),
+            subtitle: nameOf(participantIds),
+            badge: `${participantIds.length}×`,
+            undo: announceUndo([{eveningId, ts, kind: 'drinks', done}]),
+        })
+    }, [announceUndo, nameOf, refresh, t])
+
+    /** Removes one saved or queued entry (the list rows' ✕). */
+    const removeEntry = useCallback(async (id: number, kind: 'penalty' | 'drink') => {
+        const {eveningId, cancelPendingItem} = optionsRef.current
+        try {
+            if (id < 0) {
+                await cancelPendingItem(id, kind)
+            } else {
+                await (kind === 'penalty' ? api.deletePenalty(eveningId, id) : api.deleteDrinkRound(eveningId, id))
+                await refresh()
+            }
+            announceQuickEntryEvent({kind: 'undo', icon: '↩️', title: t('capture.undone'), subtitle: '', badge: '✕'})
+        } catch (e: unknown) {
+            toastError(e)
+        }
+    }, [refresh, t])
+
+    const last = history.length ? history[history.length - 1] : null
+
+    /** Takes back everything the latest tap booked; again for the one before. */
+    const undoLast = () => {
+        if (!last || undoing) return  // a double tap must not take back two bookings
+        setUndoing(true)
+        announceUndo(last.sent, last)().finally(() => setUndoing(false))
+    }
+
+    return {
+        last,
+        undoLast,
+        undoing,
+        state,
+        holdKey,
+        saving,
+        session,
+        tapPenalty: (penaltyTypeId: number) => dispatch({type: 'penalty', penaltyTypeId}),
+        tapPlayer: (playerId: number) => dispatch({type: 'player', playerId}),
+        toggleMulti: () => dispatch({type: 'toggleMulti'}),
+        release: () => dispatch({type: 'release'}),
+        discard: () => dispatch({type: 'discard'}),
+        untray: (index: number) => dispatch({type: 'untray', index}),
+        bookDrinks,
+        removeEntry,
+    }
+}
+
+export type CaptureController = ReturnType<typeof useCaptureController>

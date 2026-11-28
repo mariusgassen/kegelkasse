@@ -11,6 +11,11 @@ beim Laden schon ihre Umrisse, eine angetippte Zeile wächst zu ihrem Detailfens
 gibt bei bestätigten Aktionen ein kurzes Vibrationssignal. Diese Seite erklärt, was du wo siehst —
 und wie du es abschalten kannst, wenn dir das zu viel ist.
 
+## Design: Klassisch oder Neu
+
+Unter **Profil → Einstellungen → Design** wählst du zwischen dem gewohnten und dem
+[neuen Design](./neues-design). Die Wahl gilt nur für dich, auf all deinen Geräten.
+
 ## Ladezustände: Umrisse statt „Lade…"
 
 Listen, Konten und Diagramme zeigen beim Nachladen **Platzhalter in der Form des kommenden

@@ -1254,7 +1254,7 @@ describe('EveningPage — PinsAlert sub-component', () => {
         vi.mocked(useActiveEvening).mockReturnValue({
             evening: {
                 ...ACTIVE_EVENING,
-                penalty_log: [{ id: 99, player_name: 'Admin', penalty_type_name: '📌 Silbernadel missing' }],
+                penalty_log: [{ id: 99, player_id: 10, player_name: 'Admin', penalty_type_name: '📌 Silbernadel missing' }],
             } as any,
             invalidate: vi.fn(),
             activeEveningId: 42,
@@ -1270,7 +1270,7 @@ describe('EveningPage — PinsAlert sub-component', () => {
 
 describe('EveningPage — PinsAlert error and undo', () => {
     const PIN_WITH_HOLDER = { id: 5, icon: '📌', name: 'Silbernadel', holder_regular_member_id: 1, holder_name: 'Admin' }
-    const PENALTY_LOG_WITH_PIN = [{ id: 99, player_name: 'Admin', penalty_type_name: '📌 Silbernadel missing' }]
+    const PENALTY_LOG_WITH_PIN = [{ id: 99, player_id: 10, player_name: 'Admin', penalty_type_name: '📌 Silbernadel missing' }]
 
     async function setupPinsAlertMocks(penaltyLog: any[] = []) {
         const { useActiveEvening } = await import('@/hooks/useEvening.ts')
@@ -1311,6 +1311,28 @@ describe('EveningPage — PinsAlert error and undo', () => {
         await waitFor(() => screen.getByText('action.undo'))
         fireEvent.click(screen.getByText('action.undo'))
         await waitFor(() => expect(api.deletePenalty).toHaveBeenCalledWith(42, 99))
+    })
+
+    it('recognises a pin penalty that carries the nickname instead of the name', async () => {
+        await setupPinsAlertMocks([{ ...PENALTY_LOG_WITH_PIN[0], player_name: 'Chefkegler' }])
+        await renderEveningPage()
+        await waitFor(() => expect(screen.getByText('action.undo')).toBeTruthy())
+    })
+
+    // A penalty recorded offline has no server id: it leaves the queue instead of being sent a DELETE
+    it('removes a queued pin penalty from the offline queue on undo', async () => {
+        await setupPinsAlertMocks([{ ...PENALTY_LOG_WITH_PIN[0], id: -3000000001 }])
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const cancelPendingItem = vi.fn(() => Promise.resolve())
+        vi.mocked(useActiveEvening).mockReturnValue({
+            ...vi.mocked(useActiveEvening)(), cancelPendingItem,
+        } as any)
+        const { api } = await import('@/api/client.ts')
+        await renderEveningPage()
+        await waitFor(() => screen.getByText('action.undo'))
+        fireEvent.click(screen.getByText('action.undo'))
+        await waitFor(() => expect(cancelPendingItem).toHaveBeenCalledWith(-3000000001, 'penalty'))
+        expect(api.deletePenalty).not.toHaveBeenCalled()
     })
 
     it('calls toastError when undoMissingPin deletePenalty fails', async () => {
@@ -1883,5 +1905,22 @@ describe('EveningPage — edit sheet onChange handlers', () => {
         // Submit
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => expect(api.updateEvening).toHaveBeenCalled())
+    })
+})
+
+describe('EveningPage — new design', () => {
+    beforeEach(() => { vi.clearAllMocks() })
+
+    it('offers the absence calculation on the manage page', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, penalty_log: [] } as any, invalidate: vi.fn(), activeEveningId: 42, isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        const state = { user: { ...ADMIN_USER, ui_design: 'new' }, regularMembers: [], setActiveEveningId: vi.fn() }
+        vi.mocked(useAppStore).mockImplementation(((sel?: any) => sel ? sel(state) : state) as any)
+        await setupDefaultApiMocks()
+        await renderEveningPage()
+        expect(screen.getByRole('button', { name: /penalty\.absence\.calculate/ })).toBeInTheDocument()
     })
 })

@@ -6,9 +6,10 @@
  * to a separate top-level page.
  */
 import {useEffect, useState} from 'react'
-import {Plus} from 'lucide-react'
+import {Plus, Settings} from 'lucide-react'
 import {useT} from '@/i18n'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
+import {useUiDesign} from '@/lib/design'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
 import {api} from '@/api/client.ts'
@@ -39,6 +40,7 @@ export function EveningHubPage() {
     const {closeConfirm, setCloseConfirm, closing, closeEndedAt, setCloseEndedAt, openCloseConfirm, confirmClose, reopen} =
         useCloseReopenEvening(evening?.id, invalidate)
     const hasRunningGame = !!evening?.games?.some(g => g.status === 'running')
+    const design = useUiDesign()
     const [quickEntryOpen, setQuickEntryOpen] = useState(false)
     const [highlightText, setHighlightText] = useState('')
     const [highlightMediaUrl, setHighlightMediaUrl] = useState<string | null>(null)
@@ -87,11 +89,13 @@ export function EveningHubPage() {
 
     // The Live cockpit is only meaningful for a running evening; a closed evening falls back to
     // the protocol as before.
+    // The new design lets the words carry the strip and folds "manage" into an icon, so all five fit
+    const emoji = (e: string) => design === 'new' ? '' : `${e} `
     const TABS: { id: SubTab; label: string; icon?: string }[] = [
-        ...(!isClosed ? [{id: 'live' as const, label: `🔴 ${t('live.tab')}`}] : []),
-        {id: 'penalties', label: `📋 ${t('evening.tab.log')}`},
-        {id: 'games', label: `🏆 ${t('nav.games')}`},
-        {id: 'highlights', label: `✨ ${t('evening.tab.highlights')}`},
+        ...(!isClosed ? [{id: 'live' as const, label: `${emoji('🔴')}${t('live.tab')}`}] : []),
+        {id: 'penalties', label: `${emoji('📋')}${t('evening.tab.log')}`},
+        {id: 'games', label: `${emoji('🏆')}${t('nav.games')}`},
+        {id: 'highlights', label: `${emoji('✨')}${t('evening.tab.highlights')}`},
         {id: 'manage', label: t('evening.manage'), icon: '⚙️'},
     ]
 
@@ -116,43 +120,54 @@ export function EveningHubPage() {
         }
     }
 
+    // Classic only: quick entry and end/reopen in the tab bar. The new design keeps the bar to the
+    // tabs; quick entry sits with the capture buttons and ending the evening on the manage tab.
+    const eveningActions = (
+        <>
+            {!isClosed && (evening?.players.length ?? 0) > 0 && (
+                <Button
+                    variant="primary" size="xs" className="flex-shrink-0 ml-auto"
+                    data-testid="hub-quick-entry-btn"
+                    onClick={() => setQuickEntryOpen(true)}>
+                    ⚡ {t('quickEntry.open')}
+                </Button>
+            )}
+
+            {/* End / reopen evening */}
+            {!isClosed ? (
+                <Button
+                    variant="secondary" size="xs" className="flex-shrink-0 ml-1"
+                    onClick={() => openCloseConfirm(evening?.ended_at)}>
+                    {t('evening.end')}
+                </Button>
+            ) : (
+                <Button
+                    variant="secondary" size="xs" className="flex-shrink-0 ml-1"
+                    disabled={closing}
+                    onClick={reopen}>
+                    {t('evening.reopen')}
+                </Button>
+            )}
+        </>
+    )
+
     return (
         <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column'}}>
             {/* Sub-tab strip */}
-            <div className="flex items-center gap-1 px-2 pt-2 pb-1.5 flex-shrink-0 overflow-x-auto"
+            <div className={`kce-tabs flex items-center gap-1 px-2 flex-shrink-0 overflow-x-auto ${design === 'new' ? '' : 'pt-2 pb-1.5'}`}
                  style={{background: 'var(--canvas)', borderBottom: '1px solid var(--line)'}}>
                 {TABS.map(tb => (
-                    <button key={tb.id} type="button"
+                    <button key={tb.id} type="button" aria-current={effectiveTab === tb.id ? 'page' : undefined}
+                            aria-label={design === 'new' && tb.id === 'manage' ? tb.label : undefined}
                             className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${effectiveTab === tb.id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                             onClick={() => setSubTab(tb.id)}>
-                        {tb.label}
+                        {design === 'new' && tb.id === 'manage'
+                            ? <Settings size={18} aria-hidden="true"/>
+                            : tb.label}
                     </button>
                 ))}
 
-                {!isClosed && (evening?.players.length ?? 0) > 0 && (
-                    <Button
-                        variant="primary" size="xs" className="flex-shrink-0 ml-auto"
-                        data-testid="hub-quick-entry-btn"
-                        onClick={() => setQuickEntryOpen(true)}>
-                        ⚡ {t('quickEntry.open')}
-                    </Button>
-                )}
-
-                {/* End / reopen evening — always accessible in the tab bar */}
-                {!isClosed ? (
-                    <Button
-                        variant="secondary" size="xs" className="flex-shrink-0 ml-1"
-                        onClick={() => openCloseConfirm(evening?.ended_at)}>
-                        {t('evening.end')}
-                    </Button>
-                ) : (
-                    <Button
-                        variant="secondary" size="xs" className="flex-shrink-0 ml-1"
-                        disabled={closing}
-                        onClick={reopen}>
-                        {t('evening.reopen')}
-                    </Button>
-                )}
+                {design === 'classic' && eveningActions}
             </div>
 
             {/* Close-confirm sheet */}
