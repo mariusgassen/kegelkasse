@@ -60,6 +60,17 @@ export const offlineQueue = {
         })
     },
 
+    /** Rewrites a queued request in place, keeping its position in the replay order. */
+    async update(item: QueuedRequest): Promise<void> {
+        const db = await openDb()
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE, 'readwrite')
+            tx.objectStore(STORE).put(item)
+            tx.oncomplete = () => { db.close(); resolve() }
+            tx.onerror = () => { db.close(); reject(tx.error) }
+        })
+    },
+
     async remove(id: number): Promise<void> {
         const db = await openDb()
         return new Promise((resolve, reject) => {
