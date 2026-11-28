@@ -619,3 +619,36 @@ class TestRequestPasswordReset:
             assert resp.status_code == 200
             assert resp.json() == {"ok": True}
         assert self._count_tokens(db, user) == 3
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/v1/auth/design
+# ---------------------------------------------------------------------------
+
+class TestUpdateDesign:
+    def test_everyone_starts_with_the_classic_design(self, client: TestClient, user, auth_headers):
+        resp = client.get("/api/v1/auth/me", headers=auth_headers)
+        assert resp.json()["ui_design"] == "classic"
+
+    @pytest.mark.parametrize("design", ["new", "classic"])
+    def test_member_chooses_a_design(self, client: TestClient, db, user, auth_headers, design):
+        resp = client.patch("/api/v1/auth/design", json={"design": design}, headers=auth_headers)
+        assert resp.status_code == 200
+        db.refresh(user)
+        assert user.ui_design == design
+        assert client.get("/api/v1/auth/me", headers=auth_headers).json()["ui_design"] == design
+
+    def test_choice_is_personal(self, client: TestClient, db, user, second_user, auth_headers):
+        client.patch("/api/v1/auth/design", json={"design": "new"}, headers=auth_headers)
+        db.refresh(second_user)
+        assert second_user.ui_design is None
+
+    def test_unknown_design_is_rejected(self, client: TestClient, db, user, auth_headers):
+        resp = client.patch("/api/v1/auth/design", json={"design": "neon"}, headers=auth_headers)
+        assert resp.status_code == 400
+        db.refresh(user)
+        assert user.ui_design is None
+
+    def test_requires_auth(self, client: TestClient):
+        resp = client.patch("/api/v1/auth/design", json={"design": "new"})
+        assert resp.status_code == 401

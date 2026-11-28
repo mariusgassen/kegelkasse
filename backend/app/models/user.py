@@ -73,6 +73,7 @@ class User(Base):
     avatar_legacy = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     preferred_locale = Column(String, default="de")
+    ui_design = Column(String, nullable=True)  # "classic" | "new"; NULL = classic (migration 083)
     push_preferences = Column(JSON, nullable=True)  # {penalties, evenings, schedule, payments, games, members}
     last_digest_at = Column(DateTime(timezone=True), nullable=True)  # last personalized email digest sent
     ical_token = Column(String, unique=True, index=True, nullable=True)  # personal calendar-feed secret (migration 061)

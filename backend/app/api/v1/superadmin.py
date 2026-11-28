@@ -187,6 +187,7 @@ def switch_club(club_id: int, db: Session = Depends(get_db),
             "roles": sorted(list(user.all_roles)),
             "club_id": user.club_id,
             "preferred_locale": user.preferred_locale,
+            "ui_design": user.ui_design or "classic",
         }
     }
 

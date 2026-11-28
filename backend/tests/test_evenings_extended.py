@@ -16,7 +16,8 @@ Focuses on:
 """
 import time
 import pytest
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -1003,3 +1004,49 @@ class TestAbsencePenaltiesExtended:
             headers=auth_headers,
         )
         assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Quick corrections stay quiet
+# ---------------------------------------------------------------------------
+
+class TestQuickCorrection:
+    @pytest.fixture()
+    def linked_player(self, db: Session, evening: Evening, regular_member: RegularMember):
+        p = EveningPlayer(evening_id=evening.id, name="Hans", regular_member_id=regular_member.id)
+        db.add(p)
+        db.commit()
+        db.refresh(p)
+        return p
+
+    def _delete(self, client, db, headers, evening, player, mode, age_seconds):
+        log = PenaltyLog(
+            evening_id=evening.id, player_id=player.id, player_name=player.name,
+            penalty_type_name="Gosse", icon="🚫", amount=1.0, unit_amount=0.1, mode=mode,
+            client_timestamp=time.time() * 1000, created_by=1,
+            created_at=datetime.now(UTC) - timedelta(seconds=age_seconds),
+        )
+        db.add(log)
+        db.commit()
+        db.refresh(log)
+        with patch("api.v1.evenings.push_to_regular_member") as push:
+            resp = client.delete(f"/api/v1/evening/{evening.id}/penalties/{log.id}", headers=headers)
+        assert resp.status_code == 200
+        db.refresh(log)
+        assert log.is_deleted is True
+        return push
+
+    def test_fresh_count_booking_is_taken_back_silently(
+            self, client: TestClient, db: Session, auth_headers: dict, evening: Evening, linked_player):
+        push = self._delete(client, db, auth_headers, evening, linked_player, "count", age_seconds=5)
+        push.assert_not_called()
+
+    def test_older_count_booking_still_notifies(
+            self, client: TestClient, db: Session, auth_headers: dict, evening: Evening, linked_player):
+        push = self._delete(client, db, auth_headers, evening, linked_player, "count", age_seconds=300)
+        push.assert_called_once()
+
+    def test_euro_booking_was_announced_so_its_removal_is_too(
+            self, client: TestClient, db: Session, auth_headers: dict, evening: Evening, linked_player):
+        push = self._delete(client, db, auth_headers, evening, linked_player, "euro", age_seconds=5)
+        push.assert_called_once()
