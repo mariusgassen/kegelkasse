@@ -894,11 +894,9 @@ describe('EveningHubPage — new design', () => {
         expect(within(strip).getByRole('button', {name: 'evening.tab.log'})).toHaveAttribute('aria-current', 'page')
     })
 
-    it('offers ending the evening under manage', async () => {
+    it('leaves ending the evening to the manage tab and quick entry to the capture buttons', async () => {
         await renderHubPage()
-        const end = screen.getByText('evening.end')
-        expect(screen.getByTestId('evening-page').parentElement!.parentElement).toContainElement(end)
-        fireEvent.click(end)
-        expect(screen.getByText('evening.endConfirm')).toBeInTheDocument()
+        expect(screen.queryByText('evening.end')).not.toBeInTheDocument()
+        expect(screen.queryByTestId('hub-quick-entry-btn')).not.toBeInTheDocument()
     })
 })

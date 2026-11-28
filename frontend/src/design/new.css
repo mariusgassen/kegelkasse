@@ -64,7 +64,7 @@ html[data-design="new"] {
     }
 
     .btn-secondary {
-        border-color: transparent;
+        border-color: var(--hairline);
         color: var(--ink);
     }
 
@@ -141,6 +141,37 @@ html[data-design="new"] {
         > button[aria-pressed="true"] {
             background: var(--surface-2);
             color: var(--ink);
+        }
+    }
+
+    /* ── Quick entry: the game cockpit in one flat band ────────────────────── */
+    .kce-cockpit {
+        margin-top: 0;
+        padding: 0 0 2px;
+        border: 0;
+        border-radius: 0;
+        background: transparent !important;
+    }
+
+    @media (min-width: 1024px) {
+        /* Name, turn order and actions share a row, leaving the height to the capture board */
+        .kce-cockpit {
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: center;
+            column-gap: 16px;
+
+            > :nth-child(2) {
+                flex: 1;
+                min-width: 0;
+                padding-top: 0;
+                border-top: 0;
+            }
+
+            > :first-child {
+                flex: 0 0 auto;
+                gap: 16px;
+            }
         }
     }
 

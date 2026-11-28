@@ -310,6 +310,19 @@ describe('EveningIsland', () => {
         expect(screen.getAllByText('Hans, Max').length).toBeGreaterThan(0)
     })
 
+    it('opens a receipt that can be undone and takes the booking back from there', async () => {
+        const undo = vi.fn()
+        renderIsland(evening())
+        await act(async () => {
+            announceQuickEntryEvent({
+                kind: 'penalty', icon: '🧱', title: 'Pudelkönig', subtitle: 'Hans', badge: '+0,50 €', undo,
+            })
+        })
+        const button = await screen.findByRole('button', {name: 'action.undo'}, {timeout: 3000})
+        await act(async () => { fireEvent.click(button) })
+        expect(undo).toHaveBeenCalledOnce()
+    })
+
     it('shows the next scheduled evening in idle mode without balance and supports 1-tap RSVP', async () => {
         useAppStore.setState({user: mockUser})
         renderIsland(undefined, null, (qc) => {

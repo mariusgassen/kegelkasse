@@ -1,8 +1,8 @@
 /**
  * Quick Entry overlay — fullscreen panel for fast penalty logging.
  * Sticky header carries the full game zone (identity, turn order, throw strip,
- * finish/new-game drawers).
- * Body below is three columns: players (selection) | penalties + drinks | per-player overview.
+ * finish/new-game drawers). The new design replaces the body below with
+ * `components/capture/CaptureBoard`; the classic body is three columns: players (selection) | penalties + drinks | per-player overview.
  * Drink rounds live as 🍺/🥃 buttons in the middle panel and reuse the same
  * player multi-selection as penalties (no separate sheet / hidden CTA).
  * Fully respects iOS safe-area insets (notch, home indicator, rounded corners).
@@ -29,6 +29,10 @@ import {ProportionBar} from '@/components/ui/ProportionBar.tsx'
 import {CountUp} from '@/components/ui/CountUp.tsx'
 import {drinkTimeline} from '@/lib/quickEntryVisuals.ts'
 import {announceQuickEntryEvent, QUICK_ENTRY_GAME_ACTION_EVENT} from '@/lib/quickEntryEvents.ts'
+import {useUiDesign} from '@/lib/design'
+import {useCaptureController} from '@/hooks/useCaptureController.ts'
+import {CaptureBoard} from '@/components/capture/CaptureBoard.tsx'
+import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -162,6 +166,14 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
     // Heatmap toggle
     const [showHeatmap, setShowHeatmap] = useState(false)
+
+    // The new design captures through its own model (see lib/capture.ts); the classic one is above
+    const design = useUiDesign()
+    const capture = useCaptureController({
+        eveningId, evening, invalidate, cancelPendingItem, players, penaltyTypes, displayName: dn, money: fe,
+    })
+    const [confirmClose, setConfirmClose] = useState(false)
+    const requestClose = () => capture.state.tray.length ? setConfirmClose(true) : onClose()
 
     // Sort: current user first, then alphabetical
     const sortedPlayers = useMemo(() =>
@@ -425,6 +437,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     }, [liveThrows.length, activeGame?.id, activeGame?.active_player_id])
 
     function advanceTurn() {
+        capture.release()  // moving on by hand ends the selection; the camera advancing does not
         setCurrentTurnIdx(prev => prev + 1)
     }
 
@@ -433,6 +446,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     }
 
     function switchTeam() {
+        capture.release()
         setBlockTeamIdx(prev => (prev + 1) % Math.max(teams.length, 1))
         setCurrentTurnIdx(0)
     }
@@ -768,15 +782,28 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             >
                 {/* Tier 1 (56px island bar): [✕] on the far left; center + right left clear for Dynamic Island */}
                 <div className="h-14 flex-shrink-0 flex items-center justify-between gap-2">
-                    <Button type="button" variant="secondary" size="xs" onClick={onClose} aria-label={t('action.close')}>
+                    <Button type="button" variant="secondary" size="xs" onClick={requestClose} aria-label={t('action.close')}>
                         ✕
                     </Button>
+                    {design === 'new' && (
+                        // Right of the island; the classic design shows these under its overview column
+                        <dl className="hidden md:flex gap-5 text-right">
+                            <div>
+                                <dt className="text-xs text-muted">{t('quickEntry.totalPenalty')}</dt>
+                                <dd className="font-display text-lg font-bold" data-testid="capture-total">{fe(overviewTotalEuro)}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted">{t('quickEntry.averagePenalty')}</dt>
+                                <dd className="font-display text-lg font-bold">{fe(overviewAvgEuro)}</dd>
+                            </div>
+                        </dl>
+                    )}
                 </div>
 
                 {/* Tier 2: Unified Game Cockpit & Mode Strip (sits cleanly below the 56px island band) */}
                 {activeGame ? (
                     <div
-                        className="mt-1 flex-shrink-0 rounded-xl border border-line px-3 py-2 flex flex-col gap-2"
+                        className="kce-cockpit mt-1 flex-shrink-0 rounded-xl border border-line px-3 py-2 flex flex-col gap-2"
                         style={{background: 'var(--surface-2)'}}
                     >
                         {/* Game identity, mode & primary CTA row */}
@@ -1275,7 +1302,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
                 {/* Mobile phone mode switcher (< lg): sleek segmented pill control inside the header */}
                 <div
-                    className={`lg:hidden mt-2 p-0.5 rounded-xl border border-line items-center gap-1 ${finishing ? 'hidden' : 'flex'}`}
+                    className={`lg:hidden mt-2 p-0.5 rounded-xl border border-line items-center gap-1 ${finishing || design === 'new' ? 'hidden' : 'flex'}`}
                     style={{background: 'var(--surface-2)'}}
                 >
                     <button
@@ -1317,8 +1344,21 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 </div>
             </header>
 
+            {design === 'new' && !finishing && evening && (
+                <CaptureBoard capture={capture} evening={evening} players={sortedPlayers}
+                              penaltyGroups={penaltyGroups} penaltyTypes={penaltyTypes} overview={playerOverview}
+                              currentPlayerId={throwTracking ? currentPlayer?.id ?? null : null}
+                              isMe={p => user?.regular_member_id != null && p.regular_member_id === user.regular_member_id}
+                              displayName={dn} money={fe} time={fTime}/>
+            )}
+            {confirmClose && (
+                <ConfirmSheet open withCancel title={t('capture.discardTitle')} message={t('capture.discardMessage')}
+                              confirmLabel={t('capture.discard')}
+                              onClose={() => setConfirmClose(false)} onConfirm={onClose}/>
+            )}
+
             {/* ── Three-column body on wide landscape tablets (`lg`), dedicated mobile phone layout below `lg` — respects side safe areas ── */}
-            <div className={finishing ? 'hidden' : 'flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden'} style={{
+            {design === 'classic' && <div className={finishing ? 'hidden' : 'flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden'} style={{
                 paddingLeft: 'env(safe-area-inset-left)',
                 paddingRight: 'env(safe-area-inset-right)',
             }}>
@@ -1574,10 +1614,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         </div>
                     </div>
                 </div>
-            </div>
+            </div>}
 
             {/* ── Recent entries bar — respects bottom + side safe areas ── */}
-            {!finishing && recentEvents.length > 0 && (
+            {design === 'classic' && !finishing && recentEvents.length > 0 && (
                 <div
                     className="flex-shrink-0 px-3 pt-2"
                     style={{

@@ -1,0 +1,216 @@
+/** The new design's quick entry: the page, the capture model and the booking, with a mocked server. */
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {act, fireEvent, render, screen, within} from '@testing-library/react'
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
+import {api} from '@/api/client.ts'
+import {offlineQueue} from '@/offlineQueue.ts'
+import {useAppStore} from '@/store/app.ts'
+import {HOLD_MS} from '@/lib/capture.ts'
+import {QUICK_ENTRY_EVENT, type QuickEntryEventDetail} from '@/lib/quickEntryEvents.ts'
+import {TabletQuickEntryPage} from '@/pages/TabletQuickEntryPage.tsx'
+
+vi.mock('@/i18n', () => ({useT: () => (key: string) => key, t: (key: string) => key}))
+vi.mock('@/api/client.ts', () => ({
+    api: {
+        addPenalty: vi.fn(), deletePenalty: vi.fn(), addDrinkRound: vi.fn(), deleteDrinkRound: vi.fn(),
+        setActivePlayer: vi.fn(() => Promise.resolve()),
+    },
+}))
+vi.mock('@/offlineQueue.ts', () => ({offlineQueue: {getAll: vi.fn(), remove: vi.fn()}}))
+vi.mock('@/utils/error.ts', () => ({toastError: vi.fn()}))
+vi.mock('@/hooks/useClub.ts', () => ({useThrowTracking: () => false, useAudioCallouts: () => false}))
+
+const evening = {
+    id: 42, date: '2026-01-10T00:00:00', venue: 'Stammtisch', is_closed: false, teams: [], games: [], highlights: [],
+    players: [
+        {id: 11, regular_member_id: 2, name: 'Hansi', nickname: null, is_king: false, team_id: null},
+        {id: 10, regular_member_id: 1, name: 'Admin', nickname: null, is_king: false, team_id: null},
+    ],
+    penalty_log: [] as object[], drink_rounds: [] as object[],
+}
+const invalidate = vi.fn(() => Promise.resolve())
+const cancelPendingItem = vi.fn(() => Promise.resolve())
+vi.mock('@/hooks/useEvening.ts', () => ({
+    useActiveEvening: () => ({evening, invalidate, cancelPendingItem}),
+}))
+
+const PENALTY_TYPES = [
+    {id: 1, icon: '🚫', name: 'Gosse', default_amount: 0.1, sound_key: null},
+    {id: 2, icon: '💥', name: 'Bande', default_amount: 0.5, sound_key: null},
+]
+
+const events: QuickEntryEventDetail[] = []
+const collect = (e: Event) => events.push((e as CustomEvent<QuickEntryEventDetail>).detail)
+const last = () => events[events.length - 1]
+const onClose = vi.fn()
+
+function open() {
+    const client = new QueryClient()
+    render(
+        <QueryClientProvider client={client}>
+            <TabletQuickEntryPage eveningId={42} players={evening.players as never} onClose={onClose}/>
+        </QueryClientProvider>,
+    )
+}
+
+const board = () => within(screen.getByTestId('capture-board'))
+const person = (name: string) => within(board().getByRole('region', {name: 'penalty.who'})).getByRole('button', {name: new RegExp(`^${name}`)})
+const penalty = (name: string) => within(board().getByRole('region', {name: 'capture.penalties'})).getByRole('button', {name: new RegExp(name)})
+const tap = (element: HTMLElement) => act(async () => { fireEvent.click(element) })
+const wait = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms) })
+const sent = () => vi.mocked(api.addPenalty).mock.calls.map(([, body]) =>
+    [body.player_ids, body.penalty_type_name, body.amount])
+
+beforeEach(() => {
+    vi.useFakeTimers()
+    vi.clearAllMocks()
+    events.length = 0
+    evening.penalty_log = []
+    evening.drink_rounds = []
+    let id = 100
+    vi.mocked(api.addPenalty).mockImplementation(() => Promise.resolve([{id: ++id}] as never))
+    vi.mocked(api.deletePenalty).mockResolvedValue(undefined)
+    vi.mocked(api.addDrinkRound).mockResolvedValue({id: 7} as never)
+    useAppStore.setState({
+        user: {id: 1, ui_design: 'new', regular_member_id: 1} as never,
+        penaltyTypes: PENALTY_TYPES as never, regularMembers: [], gameTemplates: [],
+    })
+    window.addEventListener(QUICK_ENTRY_EVENT, collect)
+})
+
+afterEach(() => {
+    window.removeEventListener(QUICK_ENTRY_EVENT, collect)
+    useAppStore.setState({user: null, penaltyTypes: [], regularMembers: [], gameTemplates: []})
+    vi.useRealTimers()
+})
+
+describe('quick entry — new design', () => {
+    it('replaces the classic columns and lists the signed-in member first', () => {
+        open()
+        const people = within(board().getByRole('region', {name: 'penalty.who'})).getAllByRole('button', {pressed: false})
+        expect(people.map(b => b.textContent?.slice(0, 5))).toContain('Admin')
+        expect(people.findIndex(b => b.textContent?.startsWith('Admin'))).toBeLessThan(people.findIndex(b => b.textContent?.startsWith('Hansi')))
+        expect(screen.getByTestId('quick-entry-tab-overview').parentElement).toHaveClass('hidden')
+        expect(screen.queryByText('quickEntry.overview')).not.toBeInTheDocument()
+    })
+
+    it('books every tap for the selected person at once, also while earlier ones are still saving', async () => {
+        vi.mocked(api.addPenalty).mockReturnValue(new Promise(() => {}))
+        open()
+        await tap(person('Hansi'))
+        await tap(penalty('Gosse'))
+        await tap(penalty('Gosse'))
+        await tap(penalty('Bande'))
+        expect(sent()).toEqual([[[11], 'Gosse', 1], [[11], 'Gosse', 1], [[11], 'Bande', 1]])
+        expect(vi.mocked(api.addPenalty).mock.calls[0][1]).toMatchObject({mode: 'count', unit_amount: 0.1})
+        const stamps = vi.mocked(api.addPenalty).mock.calls.map(c => c[1].client_timestamp)
+        expect(new Set(stamps).size).toBe(3)
+        expect(person('Hansi')).toHaveAttribute('aria-pressed', 'true')
+        expect(within(screen.getByTestId('capture-status')).getAllByText('capture.saving')).toHaveLength(3)
+    })
+
+    it('lets the selection go after a pause, and then collects instead of booking', async () => {
+        open()
+        await tap(person('Hansi'))
+        await wait(HOLD_MS - 100)
+        await tap(penalty('Gosse'))  // a tap starts the pause over
+        await wait(HOLD_MS - 100)
+        expect(person('Hansi')).toHaveAttribute('aria-pressed', 'true')
+        await wait(200)
+        expect(person('Hansi')).toHaveAttribute('aria-pressed', 'false')
+        await tap(penalty('Bande'))
+        expect(api.addPenalty).toHaveBeenCalledTimes(1)
+    })
+
+    it('collects penalties and saves them all with the tap on a person', async () => {
+        open()
+        await tap(penalty('Gosse'))
+        await tap(penalty('Bande'))
+        await tap(penalty('Gosse'))
+        expect(api.addPenalty).not.toHaveBeenCalled()
+        expect(screen.getByText('capture.unsaved')).toBeInTheDocument()
+        await tap(person('Hansi'))
+        expect(sent()).toEqual([[[11], 'Gosse', 2], [[11], 'Bande', 1]])
+        expect(person('Hansi')).toHaveAttribute('aria-pressed', 'false')
+    })
+
+    it('asks before closing with collected penalties that are not saved', async () => {
+        open()
+        await tap(penalty('Gosse'))
+        await tap(screen.getByRole('button', {name: 'action.close'}))
+        expect(onClose).not.toHaveBeenCalled()
+        expect(screen.getByText('capture.discardMessage')).toBeInTheDocument()
+        await tap(within(screen.getByRole('dialog')).getByRole('button', {name: 'capture.discard'}))
+        expect(onClose).toHaveBeenCalled()
+    })
+
+    it('takes a booking back from the receipt', async () => {
+        open()
+        await tap(person('Hansi'))
+        await tap(penalty('Gosse'))
+        expect(last()).toMatchObject({kind: 'penalty', title: 'Gosse', subtitle: 'Hansi'})
+        await act(async () => { last().undo!() })
+        expect(api.deletePenalty).toHaveBeenCalledWith(42, 101)
+    })
+
+    it('takes back a booking that is still on its way once it has arrived', async () => {
+        let arrive!: (value: unknown) => void
+        vi.mocked(api.addPenalty).mockReturnValue(new Promise(r => { arrive = r }) as never)
+        open()
+        await tap(person('Hansi'))
+        await tap(penalty('Gosse'))
+        await act(async () => { last().undo!() })
+        expect(api.deletePenalty).not.toHaveBeenCalled()
+        await act(async () => { arrive([{id: 500}]) })
+        expect(api.deletePenalty).toHaveBeenCalledWith(42, 500)
+    })
+
+    it('removes an offline booking from the queue instead of asking the server', async () => {
+        vi.mocked(api.addPenalty).mockResolvedValue(null as never)
+        open()
+        await tap(person('Hansi'))
+        await tap(penalty('Gosse'))
+        const stamp = vi.mocked(api.addPenalty).mock.calls[0][1].client_timestamp
+        vi.mocked(offlineQueue.getAll).mockResolvedValue([
+            {id: 3, method: 'POST', path: '/evening/42/penalties', body: {client_timestamp: stamp - 1}, timestamp: 0},
+            {id: 4, method: 'POST', path: '/evening/42/penalties', body: {client_timestamp: stamp}, timestamp: 0},
+        ])
+        await act(async () => { last().undo!() })
+        expect(offlineQueue.remove).toHaveBeenCalledExactlyOnceWith(4)
+        expect(api.deletePenalty).not.toHaveBeenCalled()
+    })
+
+    it('books a drink round for everyone who was not tapped away', async () => {
+        open()
+        await tap(board().getByRole('button', {name: /capture\.beerRound/}))
+        expect(screen.getByText('2 capture.drinkOf 2')).toBeInTheDocument()
+        await tap(person('Hansi'))
+        await tap(screen.getByRole('button', {name: /capture\.bookRound · 1/}))
+        expect(api.addDrinkRound).toHaveBeenCalledWith(42, expect.objectContaining({drink_type: 'beer', participant_ids: [10]}))
+        expect(board().getByRole('region', {name: 'capture.penalties'})).toBeInTheDocument()
+    })
+
+    it('removes a fresh entry with one tap but asks for an older one', async () => {
+        const entry = {player_id: 11, player_name: 'Hansi', icon: '🚫', amount: 1, unit_amount: 0.1, mode: 'count', game_id: null}
+        evening.penalty_log = [
+            {...entry, id: 1, penalty_type_name: 'Gosse', client_timestamp: Date.now() - 1000},
+            {...entry, id: 2, penalty_type_name: 'Bande', client_timestamp: Date.now() - 600_000},
+        ]
+        open()
+        await tap(screen.getByRole('button', {name: /capture\.remove: Hansi, Gosse/}))
+        expect(api.deletePenalty).toHaveBeenLastCalledWith(42, 1)
+        await tap(screen.getByRole('button', {name: /capture\.remove: Hansi, Bande/}))
+        expect(api.deletePenalty).toHaveBeenCalledTimes(1)
+        await tap(screen.getByRole('button', {name: 'capture.confirmDelete'}))
+        expect(api.deletePenalty).toHaveBeenLastCalledWith(42, 2)
+    })
+
+    it('shows the evening total beside the island', () => {
+        evening.penalty_log = [{
+            id: 1, player_id: 11, player_name: 'Hansi', penalty_type_name: 'Gosse', icon: '🚫',
+            amount: 3, unit_amount: 0.1, mode: 'count', game_id: null, client_timestamp: 1,
+        }]
+        open()
+        expect(screen.getByTestId('capture-total').textContent).toContain('0,30')
+    })
+})

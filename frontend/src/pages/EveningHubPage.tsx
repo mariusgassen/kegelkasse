@@ -120,6 +120,8 @@ export function EveningHubPage() {
         }
     }
 
+    // Classic only: quick entry and end/reopen in the tab bar. The new design keeps the bar to the
+    // tabs; quick entry sits with the capture buttons and ending the evening on the manage tab.
     const eveningActions = (
         <>
             {!isClosed && (evening?.players.length ?? 0) > 0 && (
@@ -165,8 +167,6 @@ export function EveningHubPage() {
                     </button>
                 ))}
 
-                {/* Classic: quick entry and end/reopen live in the tab bar. The new design keeps the
-                    bar to the tabs and offers both under "manage". */}
                 {design === 'classic' && eveningActions}
             </div>
 
@@ -225,13 +225,8 @@ export function EveningHubPage() {
                 <div style={{position: 'absolute', inset: 0, display: effectiveTab === 'games' ? 'block' : 'none'}}>
                     <GamesPage/>
                 </div>
-                <div style={{position: 'absolute', inset: 0, display: effectiveTab === 'manage' ? 'flex' : 'none', flexDirection: 'column'}}>
-                    {design === 'new' && (
-                        <div className="flex items-center justify-end gap-2 px-3 pt-3 flex-shrink-0">{eveningActions}</div>
-                    )}
-                    <div style={{flex: 1, minHeight: 0, position: 'relative'}}>
-                        <EveningPage/>
-                    </div>
+                <div style={{position: 'absolute', inset: 0, display: effectiveTab === 'manage' ? 'block' : 'none'}}>
+                    <EveningPage/>
                 </div>
 
                 {/* Highlights tab */}

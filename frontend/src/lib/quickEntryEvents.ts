@@ -6,6 +6,8 @@ export interface QuickEntryEventDetail {
     title: string
     subtitle: string
     badge?: string
+    /** Offered as a button on the receipt (new design). */
+    undo?: () => void
 }
 
 export function announceQuickEntryEvent(detail: QuickEntryEventDetail): void {

@@ -84,6 +84,7 @@ const EVENING_ID = 'evening'
 const IDLE_STATUS_ID = 'idle-status'
 const CELEBRATE_ID = 'celebration'
 const QUICK_ENTRY_ID = 'quick-entry'
+const UNDO_RECEIPT_MS = 5000
 const UPLOAD_ID = 'upload'
 const SYNC_ID = 'offline-sync'
 const ACCENT = 'var(--accent)'
@@ -723,7 +724,8 @@ function QuickEntryActivity() {
             if (!detail) return
             setActive(detail)
             if (timerRef.current) window.clearTimeout(timerRef.current)
-            timerRef.current = window.setTimeout(() => setActive(null), 2600)
+            // A receipt that can be undone stays long enough to be read and tapped
+            timerRef.current = window.setTimeout(() => setActive(null), detail.undo ? UNDO_RECEIPT_MS : 2600)
         }
         window.addEventListener(QUICK_ENTRY_EVENT, onEvent)
         return () => {
@@ -754,9 +756,12 @@ function QuickEntryActivity() {
                 {active.badge ?? active.subtitle}
             </CompactText>
         )
+        const undo = active.undo
         island.start({
             id: QUICK_ENTRY_ID,
             priority: 2,
+            // Opens by itself when there is something to do about it
+            alert: !!undo,
             label,
             compact: {
                 leading: leadingIcon,
@@ -784,13 +789,25 @@ function QuickEntryActivity() {
                     </SensorRow>
                 ) : undefined,
                 bottom: (
-                    <ExpandedBottom reach="lift">
+                    <ExpandedBottom reach={undo ? 'action' : 'lift'} gap={undo ? 10 : 8}>
                         <TitleStack
                             title={active.title}
                             subtitle={active.subtitle || undefined}
                             titleLines={2}
                             subtitleLines={2}
                         />
+                        {undo && (
+                            <IslandButton
+                                size="compact"
+                                tone={{kind: 'accent', color: ACCENT, text: 'var(--on-accent)'}}
+                                onPress={() => {
+                                    undo()
+                                    setActive(null)
+                                }}
+                            >
+                                {t('action.undo')}
+                            </IslandButton>
+                        )}
                     </ExpandedBottom>
                 ),
             },
