@@ -337,8 +337,15 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const runningGame = activeGame?.status === 'running' ? activeGame : undefined
 
     // A half-filled finish panel belongs to one game. Another device can finish or delete that game,
-    // and its winner and scores must not reappear for whatever is running next.
+    // and its winner and scores must not reappear for whatever is running next. A game started offline
+    // changes from its temporary (negative) id to the real one when it syncs — that is the same game.
+    const finishGameIdRef = useRef<number | null>(null)
     useEffect(() => {
+        const id = runningGame?.id
+        if (id == null) return  // the panel is hidden meanwhile
+        const previous = finishGameIdRef.current
+        finishGameIdRef.current = id
+        if (previous === null || previous === id || previous < 0) return
         setFinishGameOpen(false)
         setFinishWinnerRef('')
         setFinishScores({})

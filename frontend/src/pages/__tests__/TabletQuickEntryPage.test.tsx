@@ -907,6 +907,26 @@ describe('TabletQuickEntryPage — finish game flow', () => {
         expect(screen.getByText(/game\.finish/)).toBeDisabled()
     })
 
+    it('keeps the panel input when an offline game gets its real id on sync', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const show = (...games: object[]) => vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, games } as any, invalidate: vi.fn(),
+        } as any)
+        const { TabletQuickEntryPage } = await import('../TabletQuickEntryPage')
+        const element = () => <TabletQuickEntryPage eveningId={42} players={PLAYERS as any} onClose={vi.fn()} />
+        show({ ...RUNNING_GAME, id: -1700000000000 })
+        const view = await renderTabletQuickEntry()
+        fireEvent.click(screen.getByText(/quickEntry\.finishGame/))
+        fireEvent.click(within(screen.getByTestId('finish-panel')).getByRole('button', {name: 'Hansi'}))
+
+        show()  // the queue is empty, the evening not yet refetched
+        view.rerender(element())
+        show({ ...RUNNING_GAME, id: 7 })
+        view.rerender(element())
+
+        expect(within(screen.getByTestId('finish-panel')).getByRole('button', {name: 'Hansi'})).toHaveClass('active')
+    })
+
     it('calls api.finishGame when winner selected and confirm clicked', async () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
