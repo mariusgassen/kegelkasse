@@ -864,6 +864,24 @@ describe('TabletQuickEntryPage — finish game flow', () => {
         })
     })
 
+    // With a full table the winner and score lists are taller than a tablet: they have to scroll
+    // while the confirm button stays put, and the capture columns give up their space meanwhile.
+    it('keeps the confirm button outside the scrolling lists and yields the screen to the panel', async () => {
+        await renderTabletQuickEntry()
+        expect(screen.getByText('penalty.who').closest('.hidden')).toBeNull()
+
+        fireEvent.click(screen.getByText(/quickEntry\.finishGame/))
+        const body = await screen.findByTestId('finish-panel-body')
+        expect(body).toHaveClass('overflow-y-auto', 'min-h-0')
+        expect(body).not.toContainElement(screen.getByText(/game\.finish/))
+        expect(screen.getByTestId('finish-panel')).toContainElement(screen.getByText(/game\.finish/))
+        expect(screen.getByText('penalty.who').closest('.hidden')).not.toBeNull()
+
+        fireEvent.click(screen.getByText('action.cancel'))
+        expect(screen.queryByTestId('finish-panel')).not.toBeInTheDocument()
+        expect(screen.getByText('penalty.who').closest('.hidden')).toBeNull()
+    })
+
     it('calls api.finishGame when winner selected and confirm clicked', async () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
