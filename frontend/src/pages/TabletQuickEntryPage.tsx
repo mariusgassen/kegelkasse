@@ -313,6 +313,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const overviewPrevTopRef = useRef<Map<number, number>>(new Map())
     useLayoutEffect(() => {
         const prev = overviewPrevTopRef.current
+        // The finish panel hides this column, where every row measures 0: keep the visible positions
+        if (finishGameOpen) return
         const next = new Map<number, number>()
         overviewRowRefs.current.forEach((el, id) => {
             next.set(id, el.getBoundingClientRect().top)
@@ -330,9 +332,24 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             }
         })
         overviewPrevTopRef.current = next
-    }, [overviewSortedPlayers])
+    }, [overviewSortedPlayers, finishGameOpen])
     // Keep `runningGame` as alias for the finish-game actions (only valid when actually running)
     const runningGame = activeGame?.status === 'running' ? activeGame : undefined
+
+    // A half-filled finish panel belongs to one game. Another device can finish or delete that game,
+    // and its winner and scores must not reappear for whatever is running next. A game started offline
+    // changes from its temporary (negative) id to the real one when it syncs — that is the same game.
+    const finishGameIdRef = useRef<number | null>(null)
+    useEffect(() => {
+        const id = runningGame?.id
+        if (id == null) return  // the panel is hidden meanwhile
+        const previous = finishGameIdRef.current
+        finishGameIdRef.current = id
+        if (previous === null || previous === id || previous < 0) return
+        setFinishGameOpen(false)
+        setFinishWinnerRef('')
+        setFinishScores({})
+    }, [runningGame?.id])
 
     // Turn order — mode is fixed on the game, not a runtime choice
     const teams = evening?.teams ?? []
@@ -710,6 +727,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     }
 
     const noSelection = selectedPlayerIds.length === 0
+    // The finish panel takes over the rest of the screen: with a full table its lists are taller than
+    // a tablet, so they scroll inside the panel while the confirm button stays on screen. Everything
+    // that is not needed to finish steps aside, so that short landscape phones have room too.
+    const finishing = finishGameOpen && !!runningGame
     const lastThrow = liveThrows.length > 0 ? liveThrows[liveThrows.length - 1] : null
 
     // Shared button style helpers
@@ -735,17 +756,18 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
             {/* ── Header — 2-Tier Island-Safe Sticky Zone ── */}
             <header
-                className="flex-shrink-0"
+                className={finishing ? 'flex flex-col flex-1 min-h-0' : 'flex-shrink-0'}
                 style={{
                     background: 'var(--surface)',
                     borderBottom: '1px solid var(--line)',
-                    paddingBottom: '8px',
+                    // While finishing, the header reaches the bottom edge: stay clear of the home indicator
+                    paddingBottom: finishing ? 'max(env(safe-area-inset-bottom), 8px)' : '8px',
                     paddingLeft: 'max(env(safe-area-inset-left), 12px)',
                     paddingRight: 'max(env(safe-area-inset-right), 12px)',
                 }}
             >
                 {/* Tier 1 (56px island bar): [✕] on the far left; center + right left clear for Dynamic Island */}
-                <div className="h-14 flex items-center justify-between gap-2">
+                <div className="h-14 flex-shrink-0 flex items-center justify-between gap-2">
                     <Button type="button" variant="secondary" size="xs" onClick={onClose} aria-label={t('action.close')}>
                         ✕
                     </Button>
@@ -754,7 +776,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 {/* Tier 2: Unified Game Cockpit & Mode Strip (sits cleanly below the 56px island band) */}
                 {activeGame ? (
                     <div
-                        className="mt-1 rounded-xl border border-line px-3 py-2 flex flex-col gap-2"
+                        className="mt-1 flex-shrink-0 rounded-xl border border-line px-3 py-2 flex flex-col gap-2"
                         style={{background: 'var(--surface-2)'}}
                     >
                         {/* Game identity, mode & primary CTA row */}
@@ -797,7 +819,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         </div>
 
                         {/* Teams required warning — every game needs teams set up on the evening first */}
-                        {teams.length === 0 && (
+                        {!finishing && teams.length === 0 && (
                             <div
                                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium"
                                 style={{
@@ -812,7 +834,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         )}
 
                         {/* Unassigned-players warning — teams exist but not all players are on one */}
-                        {teams.length > 0 && unassignedPlayers.length > 0 && (
+                        {!finishing && teams.length > 0 && unassignedPlayers.length > 0 && (
                             <div
                                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium"
                                 style={{
@@ -829,7 +851,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         )}
 
                         {/* Turn order — current + queue + switch/advance (camera/throw-tracking feature) */}
-                        {throwTracking && turnOrder.length > 0 && (
+                        {!finishing && throwTracking && turnOrder.length > 0 && (
                             <div className="flex items-center gap-1.5 flex-wrap pt-1.5 border-t border-line">
                                 {/* Current player badge */}
                                 <div
@@ -874,7 +896,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         )}
 
                         {/* Throw history strip + heatmap toggle */}
-                        {throwTracking && liveThrows.length > 0 && (
+                        {!finishing && throwTracking && liveThrows.length > 0 && (
                             <div className="pt-1.5 border-t border-line">
                                 <div className="flex gap-1.5 overflow-x-auto pb-0.5 items-center no-scrollbar">
                                     {[...liveThrows].reverse().map(th => {
@@ -1097,12 +1119,13 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 )}
 
                 {/* Drawer: finish game panel */}
-                {finishGameOpen && activeGame && (
+                {finishing && activeGame && (
                     <div
-                        className="mt-2 p-3 rounded-xl border border-line"
+                        data-testid="finish-panel"
+                        className="mt-2 p-3 rounded-xl border border-line flex flex-col flex-1 min-h-0"
                         style={{background: 'var(--surface-2)'}}
                     >
-                        <div className="text-xs font-bold text-ink mb-2">
+                        <div className="flex-shrink-0 text-xs font-bold text-ink mb-2">
                             🏁 {activeGame.name} — {t('quickEntry.selectWinner')}
                             {lastThrow?.cumulative != null && (
                                 <span className="text-muted font-normal ml-2">
@@ -1110,101 +1133,103 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 </span>
                             )}
                         </div>
-                        <div className="flex flex-wrap gap-1.5 mb-2">
-                            {activeGame.winner_type === 'team' && evening!.teams.map(team => (
-                                <button key={team.id} type="button"
-                                        className={`chip ${finishWinnerRef === `t:${team.id}` ? 'active' : ''}`}
-                                        onClick={() => setFinishWinnerRef(`t:${team.id}`)}>
-                                    {team.name}
-                                </button>
-                            ))}
-                            {activeGame.winner_type === 'individual' && evening!.players.map(p => (
-                                <button key={p.id} type="button"
-                                        className={`chip ${finishWinnerRef === `p:${p.id}` ? 'active' : ''}`}
-                                        onClick={() => setFinishWinnerRef(`p:${p.id}`)}>
-                                    {dn(p)}
-                                </button>
-                            ))}
-                        </div>
-                        {/* Score inputs */}
-                        <div className="mb-2">
-                            <div className="text-xs text-muted mb-1">
-                                {t('game.scores')}
+                        <div data-testid="finish-panel-body" className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                                {activeGame.winner_type === 'team' && evening!.teams.map(team => (
+                                    <button key={team.id} type="button"
+                                            className={`chip ${finishWinnerRef === `t:${team.id}` ? 'active' : ''}`}
+                                            onClick={() => setFinishWinnerRef(`t:${team.id}`)}>
+                                        {team.name}
+                                    </button>
+                                ))}
+                                {activeGame.winner_type === 'individual' && evening!.players.map(p => (
+                                    <button key={p.id} type="button"
+                                            className={`chip ${finishWinnerRef === `p:${p.id}` ? 'active' : ''}`}
+                                            onClick={() => setFinishWinnerRef(`p:${p.id}`)}>
+                                        {dn(p)}
+                                    </button>
+                                ))}
                             </div>
-                            <div className="flex flex-col gap-1">
-                                {activeGame.winner_type === 'team'
-                                    ? evening!.teams.map(team => (
-                                        <div key={`t:${team.id}`} className="flex items-center gap-2">
-                                            <span className="text-xs text-ink flex-1">{team.name}</span>
-                                            <input
-                                                className="kce-input"
-                                                type="number" min="0"
-                                                style={{width: 64}}
-                                                value={finishScores[`t:${team.id}`] ?? ''}
-                                                onChange={e => setFinishScores(prev => ({...prev, [`t:${team.id}`]: e.target.value}))}
-                                                placeholder="0"
-                                            />
-                                        </div>
-                                    ))
-                                    : evening!.players.map(p => (
-                                        <div key={`p:${p.id}`} className="flex items-center gap-2">
-                                            <span className="text-xs text-ink flex-1">{dn(p)}</span>
-                                            <input
-                                                className="kce-input"
-                                                type="number" min="0"
-                                                style={{width: 64}}
-                                                value={finishScores[`p:${p.id}`] ?? ''}
-                                                onChange={e => setFinishScores(prev => ({...prev, [`p:${p.id}`]: e.target.value}))}
-                                                placeholder="0"
-                                            />
-                                        </div>
-                                    ))
-                                }
-                            </div>
-                        </div>
-                        {/* Loser penalty preview */}
-                        {finishWinnerRef && (
-                            <div
-                                className="mb-2 px-2.5 py-2 rounded-lg border border-line"
-                                style={{background: 'var(--surface)'}}
-                            >
-                                <div className="text-xs font-bold text-muted mb-1">
-                                    {t('game.perPointPreview')}
-                                    {(activeGame.per_point_penalty ?? 0) > 0
-                                        ? ` (+${fe(activeGame.per_point_penalty)}/${t('game.perPointUnit')})`
-                                        : ''}
+                            {/* Score inputs */}
+                            <div className="mb-2">
+                                <div className="text-xs text-muted mb-1">
+                                    {t('game.scores')}
                                 </div>
-                                {(() => {
-                                    const base = activeGame.loser_penalty
-                                    const ppp = activeGame.per_point_penalty ?? 0
-                                    const wScore = parseFloat(finishScores[finishWinnerRef] ?? '') || 0
-                                    const isTeamGame = finishWinnerRef.startsWith('t:')
-                                    const losers = evening!.players.filter(p =>
-                                        `p:${p.id}` !== finishWinnerRef &&
-                                        (!p.team_id || `t:${p.team_id}` !== finishWinnerRef)
-                                    )
-                                    const seen = new Set<string>()
-                                    return losers.map(p => {
-                                        const ref = isTeamGame && p.team_id ? `t:${p.team_id}` : `p:${p.id}`
-                                        if (seen.has(ref)) return null
-                                        seen.add(ref)
-                                        const lScore = parseFloat(finishScores[ref] ?? '') || 0
-                                        const diff = Math.abs(wScore - lScore)
-                                        const total = base + diff * ppp
-                                        const label = isTeamGame && p.team_id
-                                            ? evening!.teams.find(t => t.id === p.team_id)?.name ?? p.name
-                                            : dn(p)
-                                        return (
-                                            <div key={ref} className="flex justify-between text-xs py-0.5">
-                                                <span className="text-ink">{label}</span>
-                                                <span className="font-bold text-danger-fg">{fe(total)}</span>
+                                <div className="flex flex-col gap-1">
+                                    {activeGame.winner_type === 'team'
+                                        ? evening!.teams.map(team => (
+                                            <div key={`t:${team.id}`} className="flex items-center gap-2">
+                                                <span className="text-xs text-ink flex-1">{team.name}</span>
+                                                <input
+                                                    className="kce-input"
+                                                    type="number" min="0"
+                                                    style={{width: 64}}
+                                                    value={finishScores[`t:${team.id}`] ?? ''}
+                                                    onChange={e => setFinishScores(prev => ({...prev, [`t:${team.id}`]: e.target.value}))}
+                                                    placeholder="0"
+                                                />
                                             </div>
-                                        )
-                                    })
-                                })()}
+                                        ))
+                                        : evening!.players.map(p => (
+                                            <div key={`p:${p.id}`} className="flex items-center gap-2">
+                                                <span className="text-xs text-ink flex-1">{dn(p)}</span>
+                                                <input
+                                                    className="kce-input"
+                                                    type="number" min="0"
+                                                    style={{width: 64}}
+                                                    value={finishScores[`p:${p.id}`] ?? ''}
+                                                    onChange={e => setFinishScores(prev => ({...prev, [`p:${p.id}`]: e.target.value}))}
+                                                    placeholder="0"
+                                                />
+                                            </div>
+                                        ))
+                                    }
+                                </div>
                             </div>
-                        )}
-                        <div className="flex gap-2">
+                            {/* Loser penalty preview */}
+                            {finishWinnerRef && (
+                                <div
+                                    className="mb-2 px-2.5 py-2 rounded-lg border border-line"
+                                    style={{background: 'var(--surface)'}}
+                                >
+                                    <div className="text-xs font-bold text-muted mb-1">
+                                        {t('game.perPointPreview')}
+                                        {(activeGame.per_point_penalty ?? 0) > 0
+                                            ? ` (+${fe(activeGame.per_point_penalty)}/${t('game.perPointUnit')})`
+                                            : ''}
+                                    </div>
+                                    {(() => {
+                                        const base = activeGame.loser_penalty
+                                        const ppp = activeGame.per_point_penalty ?? 0
+                                        const wScore = parseFloat(finishScores[finishWinnerRef] ?? '') || 0
+                                        const isTeamGame = finishWinnerRef.startsWith('t:')
+                                        const losers = evening!.players.filter(p =>
+                                            `p:${p.id}` !== finishWinnerRef &&
+                                            (!p.team_id || `t:${p.team_id}` !== finishWinnerRef)
+                                        )
+                                        const seen = new Set<string>()
+                                        return losers.map(p => {
+                                            const ref = isTeamGame && p.team_id ? `t:${p.team_id}` : `p:${p.id}`
+                                            if (seen.has(ref)) return null
+                                            seen.add(ref)
+                                            const lScore = parseFloat(finishScores[ref] ?? '') || 0
+                                            const diff = Math.abs(wScore - lScore)
+                                            const total = base + diff * ppp
+                                            const label = isTeamGame && p.team_id
+                                                ? evening!.teams.find(t => t.id === p.team_id)?.name ?? p.name
+                                                : dn(p)
+                                            return (
+                                                <div key={ref} className="flex justify-between text-xs py-0.5">
+                                                    <span className="text-ink">{label}</span>
+                                                    <span className="font-bold text-danger-fg">{fe(total)}</span>
+                                                </div>
+                                            )
+                                        })
+                                    })()}
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex-shrink-0 flex gap-2 pt-2">
                             <Button variant="secondary" size="sm" style={{flex: 1}}
                                     onClick={() => { setFinishGameOpen(false); setFinishWinnerRef(''); setFinishScores({}) }}>
                                 {t('action.cancel')}
@@ -1250,7 +1275,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
                 {/* Mobile phone mode switcher (< lg): sleek segmented pill control inside the header */}
                 <div
-                    className="lg:hidden mt-2 p-0.5 rounded-xl border border-line flex items-center gap-1"
+                    className={`lg:hidden mt-2 p-0.5 rounded-xl border border-line items-center gap-1 ${finishing ? 'hidden' : 'flex'}`}
                     style={{background: 'var(--surface-2)'}}
                 >
                     <button
@@ -1293,7 +1318,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             </header>
 
             {/* ── Three-column body on wide landscape tablets (`lg`), dedicated mobile phone layout below `lg` — respects side safe areas ── */}
-            <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden" style={{
+            <div className={finishing ? 'hidden' : 'flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden'} style={{
                 paddingLeft: 'env(safe-area-inset-left)',
                 paddingRight: 'env(safe-area-inset-right)',
             }}>
@@ -1552,7 +1577,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             </div>
 
             {/* ── Recent entries bar — respects bottom + side safe areas ── */}
-            {recentEvents.length > 0 && (
+            {!finishing && recentEvents.length > 0 && (
                 <div
                     className="flex-shrink-0 px-3 pt-2"
                     style={{
