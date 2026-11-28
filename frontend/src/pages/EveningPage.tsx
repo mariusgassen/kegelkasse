@@ -963,7 +963,7 @@ function missingPinsLabel(pins: ClubPin[], text: string): string {
 
 function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenaltyLogged, onCancelPending}: {
     pins: ClubPin[]
-    evening: { id: number; penalty_log: { id: number; player_name: string; penalty_type_name: string }[] }
+    evening: { id: number; penalty_log: { id: number; player_id: number | null; penalty_type_name: string }[] }
     players: EveningPlayer[]
     regularMembers: RegularMember[]
     pinPenalty: number
@@ -1026,7 +1026,8 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
                 const holderPlayer = players.find(p => p.regular_member_id === holderId)
                 const logEntry = holderPlayer
                     ? evening.penalty_log.find(l =>
-                        l.player_name === holderPlayer.name && (
+                        // By id: an entry still waiting offline carries the nickname, not the name
+                        l.player_id === holderPlayer.id && (
                             l.penalty_type_name === missingPinsLabel(holderPins, t('pin.missingPenalty')) ||
                             holderPins.some(hp => l.penalty_type_name.startsWith(hp.icon) && l.penalty_type_name.includes(hp.name))
                         )
