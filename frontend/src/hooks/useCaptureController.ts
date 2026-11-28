@@ -82,12 +82,12 @@ export function useCaptureController(options: CaptureControllerOptions) {
         qc.invalidateQueries({queryKey: ['guest-balances']})
     }, [qc])
 
-    const nameOf = (ids: number[]) => ids.length === 1
-        ? (() => {
-            const p = optionsRef.current.players.find(pl => pl.id === ids[0])
-            return p ? optionsRef.current.displayName(p) : '?'
-        })()
-        : `${ids.length} ${t('capture.people')}`
+    /** Whom a booking went to, for the receipt. */
+    const nameOf = useCallback((ids: number[]) => {
+        if (ids.length > 1) return `${ids.length} ${t('capture.people')}`
+        const p = optionsRef.current.players.find(pl => pl.id === ids[0])
+        return p ? optionsRef.current.displayName(p) : '?'
+    }, [t])
 
     /** Takes one sent request back, wherever it is by now. */
     const takeBack = useCallback(async (sent: Sent) => {
@@ -169,7 +169,7 @@ export function useCaptureController(options: CaptureControllerOptions) {
             undo: optionsRef.current.receiptUndo === false ? undefined : announceUndo(sent),
         })
         return sent.map(s => s.ts)
-    }, [audioCallouts, announceUndo, refresh, t])
+    }, [audioCallouts, announceUndo, nameOf, refresh, t])
 
     const dispatch = useCallback((action: CaptureAction) => {
         const before = stateRef.current
@@ -223,7 +223,7 @@ export function useCaptureController(options: CaptureControllerOptions) {
             badge: `${participantIds.length}×`,
             undo: announceUndo([{ts, kind: 'drinks', done}]),
         })
-    }, [announceUndo, refresh, t])
+    }, [announceUndo, nameOf, refresh, t])
 
     /** Removes one saved or queued entry (the list rows' ✕). */
     const removeEntry = useCallback(async (id: number, kind: 'penalty' | 'drink') => {
