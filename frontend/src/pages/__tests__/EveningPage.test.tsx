@@ -1313,6 +1313,22 @@ describe('EveningPage — PinsAlert error and undo', () => {
         await waitFor(() => expect(api.deletePenalty).toHaveBeenCalledWith(42, 99))
     })
 
+    // A penalty recorded offline has no server id: it leaves the queue instead of being sent a DELETE
+    it('removes a queued pin penalty from the offline queue on undo', async () => {
+        await setupPinsAlertMocks([{ ...PENALTY_LOG_WITH_PIN[0], id: -3000000001 }])
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const cancelPendingItem = vi.fn(() => Promise.resolve())
+        vi.mocked(useActiveEvening).mockReturnValue({
+            ...vi.mocked(useActiveEvening)(), cancelPendingItem,
+        } as any)
+        const { api } = await import('@/api/client.ts')
+        await renderEveningPage()
+        await waitFor(() => screen.getByText('action.undo'))
+        fireEvent.click(screen.getByText('action.undo'))
+        await waitFor(() => expect(cancelPendingItem).toHaveBeenCalledWith(-3000000001, 'penalty'))
+        expect(api.deletePenalty).not.toHaveBeenCalled()
+    })
+
     it('calls toastError when undoMissingPin deletePenalty fails', async () => {
         await setupPinsAlertMocks(PENALTY_LOG_WITH_PIN)
         const { api } = await import('@/api/client.ts')

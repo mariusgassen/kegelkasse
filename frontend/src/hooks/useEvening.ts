@@ -18,6 +18,10 @@ import type {
  * A pending penalty has no server id yet. It is shown with a negative one that names both the queued
  * request and the player, because one request can book several players. Naming the player (not their
  * position) keeps the ids of the others valid after one of them has been cancelled.
+ *
+ * Relies on evening player ids being server ids (positive and far below the factor): players cannot
+ * be added to an evening under a temporary id. Pending penalty ids are only ever compared with other
+ * penalty ids.
  */
 const PENDING_PENALTY_FACTOR = 1_000_000_000
 
@@ -411,14 +415,8 @@ export function useActiveEvening() {
             if (type === 'penalty') {
                 const queueItemId = Math.floor(Math.abs(fakeId) / PENDING_PENALTY_FACTOR)
                 const playerId = Math.abs(fakeId) % PENDING_PENALTY_FACTOR
-                const item = (await offlineQueue.getAll()).find(q => q.id === queueItemId)
-                if (item) {
-                    const body = item.body as {player_ids?: number[]}
-                    const others = (body.player_ids ?? []).filter(id => id !== playerId)
-                    // A booking for several players stays queued for everyone else
-                    if (others.length) await offlineQueue.update({...item, body: {...body, player_ids: others}})
-                    else await offlineQueue.remove(queueItemId)
-                }
+                // A booking for several players stays queued for everyone else
+                if (queueItemId > 0) await offlineQueue.removePlayer(queueItemId, playerId)
             } else if (type === 'drink') {
                 const queueItemId = Math.abs(fakeId)
                 if (queueItemId > 0) await offlineQueue.remove(queueItemId)

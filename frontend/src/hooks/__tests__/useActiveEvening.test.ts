@@ -41,13 +41,13 @@ vi.mock('@/api/client.ts', () => ({
 
 const mockOfflineQueueGetAll = vi.fn().mockResolvedValue([])
 const mockOfflineQueueRemove = vi.fn().mockResolvedValue(undefined)
-const mockOfflineQueueUpdate = vi.fn().mockResolvedValue(undefined)
+const mockOfflineQueueRemovePlayer = vi.fn().mockResolvedValue(undefined)
 
 vi.mock('@/offlineQueue.ts', () => ({
     offlineQueue: {
         getAll: mockOfflineQueueGetAll,
         remove: mockOfflineQueueRemove,
-        update: mockOfflineQueueUpdate,
+        removePlayer: mockOfflineQueueRemovePlayer,
         count: vi.fn().mockResolvedValue(0),
     },
     SYNC_FLUSHED_EVENT: 'kegelkasse:sync-flushed',
@@ -373,21 +373,19 @@ describe('useActiveEvening — cancelling a pending penalty', () => {
         vi.mocked(useQuery).mockReset()
     })
 
-    it.each([3, 25, 1234])('removes the queued booking %i it belongs to', async (queueId) => {
+    it.each([3, 25, 1234])('cancels in the queued booking %i it belongs to', async (queueId) => {
         const { result } = await renderPending([booking(2, [1]), booking(queueId, [2])])
         const entry = result.current.evening!.penalty_log.find(l => l.client_timestamp === queueId)!
         await act(() => result.current.cancelPendingItem(entry.id, 'penalty'))
-        expect(mockOfflineQueueRemove).toHaveBeenCalledExactlyOnceWith(queueId)
-        expect(mockOfflineQueueUpdate).not.toHaveBeenCalled()
+        expect(mockOfflineQueueRemovePlayer).toHaveBeenCalledExactlyOnceWith(queueId, 2)
     })
 
-    it('keeps the other players of a booking made for several', async () => {
-        const { result } = await renderPending([booking(4, [1, 2])])
-        const bob = result.current.evening!.penalty_log.find(l => l.player_id === 2)!
-        await act(() => result.current.cancelPendingItem(bob.id, 'penalty'))
-        expect(mockOfflineQueueRemove).not.toHaveBeenCalled()
-        expect(mockOfflineQueueUpdate).toHaveBeenCalledExactlyOnceWith(
-            expect.objectContaining({id: 4, body: expect.objectContaining({player_ids: [1]})}))
+    it('keeps the ids of the other players stable once one has left the booking', async () => {
+        const first = await renderPending([booking(4, [1, 2])])
+        const bobBefore = first.result.current.evening!.penalty_log.find(l => l.player_id === 2)!.id
+        first.unmount()
+        const after = await renderPending([booking(4, [2])])
+        expect(after.result.current.evening!.penalty_log.map(l => l.id)).toEqual([bobBefore])
     })
 })
 
