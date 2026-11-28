@@ -20,6 +20,9 @@ Das Getränke-Modul protokolliert Bier- und Schnappsrunden während eines Abends
 
 ## Runde in der Schnellerfassung
 
+Im [neuen Design](./neues-design) wählst du zuerst **Bierrunde** oder **Schnapsrunde**; alle
+Anwesenden trinken mit, bis du jemanden abwählst. Im klassischen Design gilt:
+
 In der **Schnellerfassung** (⚡, Tablet-Vollbild) werden Getränkerunden genauso
 eingetragen wie Strafen: Wähle in der linken Spalte die **teilnehmenden Spieler**
 (Mehrfachauswahl) und tippe dann im mittleren Panel auf **🍺 Bier** oder

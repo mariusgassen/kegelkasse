@@ -85,6 +85,11 @@ Lesbarkeit nötig ist, behält dabei aber ihren Farbton. Dasselbe gilt für Team
 und Abzeichen-Stufen — jede Schrift- und Linienfarbe wird gegen ihren Hintergrund geprüft, sodass keine
 Kombination aus Vereinsfarbe und Hell/Dunkel-Modus unleserlich werden kann.
 
+## Design: Klassisch oder Neu
+
+Ebenfalls unter **Profil → Einstellungen** wählst du bei **Design**, ob die App für dich im
+gewohnten Aussehen oder im [neuen Design](./funktionen/neues-design) erscheint.
+
 ## Schriftgrößen
 
 Alle Texte sind mindestens 12 Pixel groß, gelesene Inhalte (Untertitel, Beträge, Hinweise) 14 Pixel.

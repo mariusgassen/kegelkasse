@@ -30,6 +30,9 @@ Die Übersicht beantwortet auf einen Blick drei Fragen — je eine Karte pro Fra
 
 Die Übersicht zeigt dabei **immer die echten Vereinszahlen** — der Spieler-Filter der Analyse wirkt sich nie auf sie aus.
 
+Im [neuen Design](./neues-design) ist die Reihenfolge anders: offene **Zahlungsanfragen** (für
+Kassenwarte), dann der **Kassenstand**, dann dein Konto.
+
 ### Mein Konto
 
 Ganz oben steht dein eigenes Konto:
