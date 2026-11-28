@@ -32,7 +32,7 @@ const evening = {
     penalty_log: [] as object[], drink_rounds: [] as object[],
 }
 const invalidate = vi.fn(() => Promise.resolve())
-const cancelPendingItem = vi.fn(() => Promise.resolve(true))
+const cancelPendingItem = vi.fn(() => Promise.resolve())
 vi.mock('@/hooks/useEvening.ts', () => ({
     useActiveEvening: () => ({evening, invalidate, cancelPendingItem}),
 }))
@@ -80,7 +80,7 @@ beforeEach(() => {
     vi.mocked(offlineQueue.getAll).mockResolvedValue([])
     vi.mocked(offlineQueue.remove).mockResolvedValue(undefined)
     vi.mocked(api.getEvening).mockResolvedValue({penalty_log: [], drink_rounds: []} as never)
-    cancelPendingItem.mockResolvedValue(true)
+    cancelPendingItem.mockResolvedValue(undefined)
     useAppStore.setState({
         user: {id: 1, ui_design: 'new', regular_member_id: 1} as never,
         penaltyTypes: PENALTY_TYPES as never, regularMembers: [], gameTemplates: [],
@@ -236,10 +236,10 @@ describe('quick entry — new design', () => {
             id: -3000000011, player_id: 11, player_name: 'Hansi', penalty_type_name: 'Gosse', icon: '🚫',
             amount: 1, unit_amount: 0.1, mode: 'count', game_id: null, client_timestamp: Date.now(),
         }]
-        cancelPendingItem.mockResolvedValue(false)
+        cancelPendingItem.mockRejectedValue(new Error('sync.notPending'))
         open()
         await tap(screen.getByRole('button', {name: /capture\.remove: Hansi, Gosse/}))
-        expect(toastError).toHaveBeenCalledWith(new Error('capture.alreadySent'))
+        expect(toastError).toHaveBeenCalledWith(new Error('sync.notPending'))
         expect(events.some(e => e.kind === 'undo')).toBe(false)
     })
 

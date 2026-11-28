@@ -60,8 +60,9 @@ Auswahl auf; rückt die Kamera weiter, bleibt deine Auswahl stehen.
 - In der Schnellerfassung löschst du unter **Letzte Einträge** einen Eintrag der letzten Minute mit
   einem Tipp; ältere fragen erst **Löschen?**
 
-Lässt sich eine offline erfasste Buchung nicht mehr zurücknehmen, weil sie inzwischen übertragen
-wurde oder nicht auffindbar ist, sagt die App das — dann bitte im Protokoll prüfen.
+Klappt das Zurücknehmen nicht (keine Verbindung, die Übertragung läuft noch, oder der Eintrag ist
+nicht auffindbar), sagt die App das. **Letzte zurück** meint dann weiterhin dieselbe Buchung; im
+Zweifel hilft ein Blick ins Protokoll.
 
 Wird eine Buchung aus der Anzahl-Erfassung **innerhalb einer Minute** gelöscht, bekommt die Person
 **keine** Mitteilung „Strafe storniert“ — sie hat von der Buchung auch keine erhalten.

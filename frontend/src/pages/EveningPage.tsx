@@ -969,7 +969,7 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
     pinPenalty: number
     onPenaltyLogged: () => void
     /** Removes a penalty that is still waiting in the offline queue. */
-    onCancelPending: (logId: number) => Promise<unknown>
+    onCancelPending: (logId: number) => Promise<void>
 }) {
     const t = useT()
     // Only show pins that have a holder who is playing tonight

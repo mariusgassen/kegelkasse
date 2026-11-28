@@ -17,7 +17,7 @@ const money = (v: number) => new Intl.NumberFormat('de-DE', {style: 'currency', 
 interface CaptureSheetProps {
     evening: Evening
     invalidate: () => Promise<unknown> | void
-    cancelPendingItem: (id: number, type: 'penalty' | 'drink') => Promise<boolean>
+    cancelPendingItem: (id: number, type: 'penalty' | 'drink') => Promise<void>
     onClose: () => void
     /** Opens the form for a penalty that is not on the list, or an amount in euros. */
     onCustom: () => void

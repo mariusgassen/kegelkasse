@@ -541,7 +541,12 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         const ev = recentEvents.find(e => e.key === key)
         // Pending item (id < 0) — cancel the queued operation directly (no server call)
         if (id < 0) {
-            await cancelPendingItem(id, type)
+            try {
+                await cancelPendingItem(id, type)
+            } catch (e: unknown) {
+                toastError(e)
+                return
+            }
             announceQuickEntryEvent({
                 kind: 'undo',
                 icon: '↩️',

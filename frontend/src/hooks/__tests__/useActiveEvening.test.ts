@@ -365,12 +365,22 @@ describe('useActiveEvening — cancelling a pending penalty', () => {
 
     beforeEach(() => {
         vi.clearAllMocks()
+        mockOfflineQueueRemovePlayer.mockResolvedValue(true)
         mockActiveEveningId = 5
     })
 
     afterEach(async () => {
         const { useQuery } = await import('@tanstack/react-query')
         vi.mocked(useQuery).mockReset()
+    })
+
+    // The sync was faster: the booking is on the server, so nothing may look as if it were cancelled
+    it('says so and refetches when there is nothing left to cancel', async () => {
+        mockOfflineQueueRemovePlayer.mockResolvedValue(false)
+        const { result } = await renderPending([booking(2, [1])])
+        const entry = result.current.evening!.penalty_log[0]
+        await expect(result.current.cancelPendingItem(entry.id, 'penalty')).rejects.toThrow()
+        expect(mockInvalidateQueries).toHaveBeenCalledWith({queryKey: ['evening', 5]})
     })
 
     it.each([3, 25, 1234])('cancels in the queued booking %i it belongs to', async (queueId) => {

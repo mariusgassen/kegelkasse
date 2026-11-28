@@ -22,9 +22,11 @@ export interface CaptureState {
     tray: number[]
     /** With "several": who already received the current tray, so nobody gets it twice. */
     applied: number[]
+    /** Counts the trays: a new number whenever one is started, kept while entries are removed. */
+    trayNo: number
 }
 
-export const EMPTY_CAPTURE: CaptureState = {selected: [], multi: false, tray: [], applied: []}
+export const EMPTY_CAPTURE: CaptureState = {selected: [], multi: false, tray: [], applied: [], trayNo: 0}
 
 export type CaptureAction =
     | {type: 'penalty'; penaltyTypeId: number}
@@ -33,8 +35,8 @@ export type CaptureAction =
     | {type: 'release'}
     | {type: 'discard'}
     | {type: 'untray'; index: number}
-    /** A hand-out was taken back: these people may receive that very tray again. */
-    | {type: 'unapply'; playerIds: number[]; tray: number[]}
+    /** A hand-out was taken back: these people may receive that tray again. */
+    | {type: 'unapply'; playerIds: number[]; trayNo: number}
     /** Forget people and penalty types that no longer exist (removed on another device). */
     | {type: 'prune'; playerIds: number[]; penaltyTypeIds: number[]}
 
@@ -42,6 +44,8 @@ export type CaptureAction =
 export interface Booking {
     playerIds: number[]
     penaltyTypeIds: number[]
+    /** Set when a collected tray was handed out. */
+    trayNo?: number
 }
 
 export interface CaptureResult {
@@ -58,13 +62,14 @@ export function captureStep(state: CaptureState, action: CaptureAction): Capture
             // A tray that has been handed out is done: the next tap starts a new one, so that nobody
             // is charged the old penalties a second time
             const kept = state.applied.length ? [] : state.tray
-            return {state: {...state, tray: [...kept, action.penaltyTypeId], applied: []}}
+            const trayNo = kept.length ? state.trayNo : state.trayNo + 1
+            return {state: {...state, tray: [...kept, action.penaltyTypeId], applied: [], trayNo}}
         }
         case 'player': {
             const id = action.playerId
             if (state.tray.length) {
                 if (state.multi && state.applied.includes(id)) return {state}
-                const booking = {playerIds: [id], penaltyTypeIds: state.tray}
+                const booking = {playerIds: [id], penaltyTypeIds: state.tray, trayNo: state.trayNo}
                 return {
                     state: state.multi ? {...state, applied: [...state.applied, id]} : {...state, tray: [], applied: []},
                     booking,
@@ -77,7 +82,7 @@ export function captureStep(state: CaptureState, action: CaptureAction): Capture
             if (!state.multi) return {state: {...state, multi: true}}
             // Leaving "several": a tray that has been handed out is done
             const spent = state.applied.length > 0
-            return {state: {selected: [], multi: false, tray: spent ? [] : state.tray, applied: []}}
+            return {state: {...state, selected: [], multi: false, tray: spent ? [] : state.tray, applied: []}}
         }
         case 'release':
             if (!state.selected.length) return {state}
@@ -90,7 +95,7 @@ export function captureStep(state: CaptureState, action: CaptureAction): Capture
             return {state: {...state, tray, applied: tray.length ? state.applied : []}}
         }
         case 'unapply': {
-            if (action.tray !== state.tray) return {state}
+            if (action.trayNo !== state.trayNo) return {state}
             return {state: {...state, applied: state.applied.filter(id => !action.playerIds.includes(id))}}
         }
         case 'prune': {

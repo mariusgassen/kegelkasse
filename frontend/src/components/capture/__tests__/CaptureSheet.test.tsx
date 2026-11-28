@@ -5,6 +5,7 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 import {api} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 import {HOLD_MS} from '@/lib/capture.ts'
+import {toastError} from '@/utils/error.ts'
 import {CaptureSheet} from '../CaptureSheet.tsx'
 
 vi.mock('@/i18n', () => ({useT: () => (key: string) => key, t: (key: string) => key}))
@@ -116,6 +117,32 @@ describe('CaptureSheet — undo last', () => {
         expect(removed()).toEqual([102])
         await act(async () => { done() })
         expect(undo()).toBeEnabled()
+    })
+
+    it('means the same booking again after it could not be taken back', async () => {
+        vi.mocked(api.deletePenalty).mockRejectedValueOnce(new Error('offline'))
+        open()
+        await tap(person('Hansi'))
+        await tap(penalty('Gosse'))
+        await tap(penalty('Bande'))
+        await wait(HOLD_MS + 100)
+        await tap(undo())
+        expect(toastError).toHaveBeenCalledWith(new Error('offline'))
+        expect(footer().getByText(/capture\.last: Hansi · Bande/)).toBeInTheDocument()
+        await tap(undo())
+        expect(removed()).toEqual([102, 102])
+        expect(footer().getByText(/capture\.last: Hansi · Gosse/)).toBeInTheDocument()
+    })
+
+    it('keeps only what is still charged of a partly taken back tray', async () => {
+        vi.mocked(api.deletePenalty).mockImplementation((_, id) =>
+            id === 102 ? Promise.reject(new Error('offline')) : Promise.resolve(undefined as never))
+        open()
+        await tap(penalty('Gosse'))
+        await tap(penalty('Bande'))
+        await tap(person('Hansi'))
+        await tap(undo())
+        expect(footer().getByText(/capture\.last: Hansi · Bande$/)).toBeInTheDocument()
     })
 
     it('can take back a handed-out tray while it is still collected', async () => {

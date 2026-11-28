@@ -43,7 +43,7 @@ describe('penalties first', () => {
         expect(play(tap(10), tap(11), tap(10)).bookings).toEqual([])
         const {state, bookings} = play(tap(10), tap(11), tap(10), person(2))
         expect(bookings).toEqual([[[2], [10, 11, 10]]])
-        expect(state).toEqual(EMPTY_CAPTURE)
+        expect(state).toMatchObject({selected: [], tray: [], applied: []})
     })
 
     it('does not lose the tray when a selection times out', () => {
@@ -86,14 +86,26 @@ describe('several people', () => {
 
     it('lets people receive a tray again once exactly that hand-out was taken back', () => {
         const {state} = play(several, tap(10), person(1), person(2))
-        const undo = captureStep(state, {type: 'unapply', playerIds: [1], tray: state.tray}).state
+        const undo = captureStep(state, {type: 'unapply', playerIds: [1], trayNo: state.trayNo}).state
         expect(undo.applied).toEqual([2])
-        // An equal but different tray is another hand-out: nothing changes
-        expect(captureStep(state, {type: 'unapply', playerIds: [1], tray: [10]}).state).toBe(state)
+        // The tray before this one: nothing changes
+        expect(captureStep(state, {type: 'unapply', playerIds: [1], trayNo: state.trayNo - 1}).state).toBe(state)
+    })
+
+    it('still knows the tray after one of its entries was removed', () => {
+        const {state} = play(several, tap(10), tap(11), person(1), {type: 'untray', index: 1})
+        expect(captureStep(state, {type: 'unapply', playerIds: [1], trayNo: state.trayNo}).state.applied).toEqual([])
+    })
+
+    it('numbers a new tray anew, also after leaving "several"', () => {
+        const first = play(several, tap(10), person(1))
+        const second = play(several, tap(10), person(1), several, several, tap(10))
+        expect(second.state.trayNo).toBeGreaterThan(first.state.trayNo)
     })
 
     it('clears a handed-out tray on leaving, but keeps an untouched one', () => {
-        expect(play(several, tap(10), person(1), several).state).toEqual(EMPTY_CAPTURE)
+        expect(play(several, tap(10), person(1), several).state)
+            .toMatchObject({multi: false, selected: [], tray: [], applied: []})
         expect(play(several, tap(10), several).state).toMatchObject({multi: false, tray: [10]})
     })
 

@@ -1419,6 +1419,24 @@ describe('TabletQuickEntryPage — recent event deletion', () => {
         expect(api.deletePenalty).not.toHaveBeenCalled()
     })
 
+    it('shows why a pending entry could not be cancelled instead of reporting it as removed', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const cancelPendingItem = vi.fn(() => Promise.reject(new Error('already sent')))
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...EVENING_WITH_LOG, penalty_log: [{ ...EVENING_WITH_LOG.penalty_log[0], id: -3000000001 }] } as any,
+            invalidate: vi.fn(), cancelPendingItem,
+        } as any)
+        const { toastError } = await import('@/utils/error.ts')
+        const receipts = vi.fn()
+        window.addEventListener('kegelkasse:quick-entry-event', receipts)
+        await renderTabletQuickEntry()
+        const adminBtns = screen.getAllByRole('button', { name: /Admin/ })
+        fireEvent.click(adminBtns[adminBtns.length - 1])
+        await waitFor(() => expect(toastError).toHaveBeenCalledWith(new Error('already sent')))
+        expect(receipts).not.toHaveBeenCalled()
+        window.removeEventListener('kegelkasse:quick-entry-event', receipts)
+    })
+
     it('cancels delete confirmation on Escape key', async () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()

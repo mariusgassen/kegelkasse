@@ -4,7 +4,8 @@ import {api, authState, NetworkError, flushOfflineQueue} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 import {pendingStore} from '@/pendingStore.ts'
 import {offlineQueue, SYNC_FLUSHED_EVENT, type QueuedRequest} from '@/offlineQueue.ts'
-import {withQueueLock} from '@/lib/queueLock.ts'
+import {QUEUE_WAIT_MS, QueueBusyError, withQueueLock} from '@/lib/queueLock.ts'
+import {t as tl} from '@/i18n'
 import type {
     DrinkRound,
     Evening,
@@ -411,10 +412,10 @@ export function useActiveEvening() {
      * For game cancellation all related operations (start, finish, etc.) whose path
      * contains the temp game ID string are also removed.
      *
-     * Waits for a running sync first. Resolves to false when there was nothing left to cancel,
-     * i.e. the sync has already sent it.
+     * Waits briefly for a running sync. Throws, with a message for the user, when the sync takes too
+     * long or when there is nothing left to cancel because it has already sent the entry.
      */
-    async function cancelPendingItem(fakeId: number, type: 'penalty' | 'drink' | 'game'): Promise<boolean> {
+    async function cancelPendingItem(fakeId: number, type: 'penalty' | 'drink' | 'game'): Promise<void> {
         let cancelled = false
         try {
             await withQueueLock(async () => {
@@ -443,10 +444,16 @@ export function useActiveEvening() {
                         }
                     }
                 }
-            })
-        } catch { /* IndexedDB unavailable */ }
+            }, QUEUE_WAIT_MS)
+        } catch (e) {
+            if (e instanceof QueueBusyError) throw e
+            /* otherwise IndexedDB is unavailable */
+        }
         window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
-        return cancelled
+        if (!cancelled) {
+            invalidate()
+            throw new Error(tl('sync.notPending'))
+        }
     }
 
     return {evening, isLoading, invalidate, activeEveningId, isPending, cancelPendingItem}

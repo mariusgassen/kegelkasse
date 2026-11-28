@@ -3,7 +3,7 @@ import {useQueryClient} from '@tanstack/react-query'
 import {api} from '@/api/client.ts'
 import {useT} from '@/i18n'
 import {offlineQueue} from '@/offlineQueue.ts'
-import {withQueueLock} from '@/lib/queueLock.ts'
+import {QUEUE_WAIT_MS, withQueueLock} from '@/lib/queueLock.ts'
 import {captureStep, countTray, EMPTY_CAPTURE, HOLD_MS, type Booking, type CaptureAction, type CaptureState} from '@/lib/capture.ts'
 import {announceQuickEntryEvent} from '@/lib/quickEntryEvents.ts'
 import {playSound} from '@/lib/soundboard'
@@ -42,15 +42,15 @@ export interface PenaltyBooking {
     sent: Sent[]
     playerIds: number[]
     items: Array<{type: PenaltyType; count: number}>
-    /** The penalty ids as booked; the very tray when it was one. */
-    tray: number[]
+    /** Set when a collected tray was handed out. */
+    trayNo?: number
 }
 
 export interface CaptureControllerOptions {
     eveningId: number
     evening: Evening | null | undefined
     invalidate: () => Promise<unknown> | void
-    cancelPendingItem: (id: number, type: 'penalty' | 'drink') => Promise<boolean>
+    cancelPendingItem: (id: number, type: 'penalty' | 'drink') => Promise<void>
     players: EveningPlayer[]
     penaltyTypes: PenaltyType[]
     displayName: (p: EveningPlayer) => string
@@ -127,7 +127,7 @@ export function useCaptureController(options: CaptureControllerOptions) {
                     && (q.body as {client_timestamp?: number}).client_timestamp === ts)
                 for (const q of queued) await offlineQueue.remove(q.id!)
                 return queued.length
-            })
+            }, QUEUE_WAIT_MS)
             if (dequeued) {
                 window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
             } else {
@@ -145,15 +145,24 @@ export function useCaptureController(options: CaptureControllerOptions) {
         await refresh()
     }, [qc, refresh, t])
 
-    const announceUndo = useCallback((sent: Sent[], booking?: Pick<PenaltyBooking, 'playerIds' | 'tray'>) => async () => {
-        setHistory(list => list.filter(b => b.sent !== sent))
-        try {
-            await Promise.all(sent.map(takeBack))
-            if (booking) commit(captureStep(stateRef.current, {type: 'unapply', ...booking}).state)
-            announceQuickEntryEvent({kind: 'undo', icon: '↩️', title: t('capture.undone'), subtitle: '', badge: '✕'})
-        } catch (e: unknown) {
-            toastError(e)
+    const announceUndo = useCallback((sent: Sent[], booking?: Pick<PenaltyBooking, 'playerIds' | 'trayNo'>) => async () => {
+        const results = await Promise.allSettled(sent.map(takeBack))
+        const stillBooked = (_: unknown, i: number) => results[i].status === 'rejected'
+        const left = sent.filter(stillBooked)
+        // What could not be taken back stays the booking "undo last" means, so a retry hits it again
+        setHistory(list => list.flatMap(b => {
+            if (b.sent !== sent) return [b]
+            return left.length ? [{...b, sent: left, items: b.items.filter(stillBooked)}] : []
+        }))
+        const failure = results.find(r => r.status === 'rejected')
+        if (failure) {
+            toastError(failure.reason)
+            return
         }
+        if (booking?.trayNo !== undefined) {
+            commit(captureStep(stateRef.current, {type: 'unapply', playerIds: booking.playerIds, trayNo: booking.trayNo}).state)
+        }
+        announceQuickEntryEvent({kind: 'undo', icon: '↩️', title: t('capture.undone'), subtitle: '', badge: '✕'})
     }, [commit, takeBack, t])
 
     const book = useCallback((booking: Booking) => {
@@ -184,7 +193,7 @@ export function useCaptureController(options: CaptureControllerOptions) {
             done.then(refresh).catch(() => {}).finally(() => setSaving(list => list.filter(s => s.ts !== ts)))
             return {eveningId, ts, kind: 'penalties', done}
         })
-        setHistory(list => [...list, {sent, items, playerIds: booking.playerIds, tray: booking.penaltyTypeIds}])
+        setHistory(list => [...list, {sent, items, playerIds: booking.playerIds, trayNo: booking.trayNo}])
         if (audioCallouts) playSound(items[items.length - 1].type.sound_key)
         haptic('success')
         const total = items.reduce((sum, i) => sum + i.type.default_amount * i.count, 0) * booking.playerIds.length
@@ -198,8 +207,7 @@ export function useCaptureController(options: CaptureControllerOptions) {
                 : `${pieces} ${t('capture.penalties')}`,
             subtitle: nameOf(booking.playerIds),
             badge: `+${money(total)}`,
-            undo: optionsRef.current.receiptUndo === false ? undefined
-                : announceUndo(sent, {playerIds: booking.playerIds, tray: booking.penaltyTypeIds}),
+            undo: optionsRef.current.receiptUndo === false ? undefined : announceUndo(sent, booking),
         })
         return sent.map(s => s.ts)
     }, [audioCallouts, announceUndo, nameOf, refresh, t])
@@ -267,11 +275,7 @@ export function useCaptureController(options: CaptureControllerOptions) {
         const {eveningId, cancelPendingItem} = optionsRef.current
         try {
             if (id < 0) {
-                if (await cancelPendingItem(id, kind) === false) {
-                    // The sync was faster: the entry is on the server now and can be deleted there
-                    await refresh()
-                    throw new Error(t('capture.alreadySent'))
-                }
+                await cancelPendingItem(id, kind)
             } else {
                 await (kind === 'penalty' ? api.deletePenalty(eveningId, id) : api.deleteDrinkRound(eveningId, id))
                 await refresh()
