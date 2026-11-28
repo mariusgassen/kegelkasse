@@ -47,6 +47,35 @@ describe('offlineQueue.count', () => {
     })
 })
 
+describe('offlineQueue.removePlayer', () => {
+    async function queueBooking(player_ids: number[]) {
+        await offlineQueue.enqueue('POST', '/evening/1/penalties', {player_ids, icon: '🚫'})
+        await offlineQueue.enqueue('POST', '/evening/1/drinks', {})
+        return (await offlineQueue.getAll())[0].id!
+    }
+
+    it('keeps the others queued, in the same place in the replay order', async () => {
+        const id = await queueBooking([1, 2])
+        await offlineQueue.removePlayer(id, 2)
+        const items = await offlineQueue.getAll()
+        expect(items.map(i => i.path)).toEqual(['/evening/1/penalties', '/evening/1/drinks'])
+        expect(items[0].body).toEqual({player_ids: [1], icon: '🚫'})
+    })
+
+    it('drops the request once nobody is left, also when cancelled at the same time', async () => {
+        const id = await queueBooking([1, 2])
+        await Promise.all([offlineQueue.removePlayer(id, 1), offlineQueue.removePlayer(id, 2)])
+        expect((await offlineQueue.getAll()).map(i => i.path)).toEqual(['/evening/1/drinks'])
+    })
+
+    it('never brings back a request that has already been sent and removed', async () => {
+        const id = await queueBooking([1, 2])
+        await offlineQueue.remove(id)
+        await offlineQueue.removePlayer(id, 2)
+        expect((await offlineQueue.getAll()).map(i => i.path)).toEqual(['/evening/1/drinks'])
+    })
+})
+
 describe('offlineQueue.remove', () => {
     it('removes a specific item by id', async () => {
         await offlineQueue.enqueue('POST', '/evening/1/penalties', {})

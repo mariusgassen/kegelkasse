@@ -60,6 +60,30 @@ export const offlineQueue = {
         })
     },
 
+    /**
+     * Takes one player out of a queued booking, dropping the request once nobody is left. It keeps its
+     * place in the replay order. Reading and writing happen in one transaction: two quick cancels
+     * cannot overwrite each other, and a request the sync has just sent cannot be written back.
+     */
+    async removePlayer(id: number, playerId: number): Promise<void> {
+        const db = await openDb()
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE, 'readwrite')
+            const store = tx.objectStore(STORE)
+            const req = store.get(id)
+            req.onsuccess = () => {
+                const item = req.result as QueuedRequest | undefined
+                if (!item) return
+                const body = item.body as {player_ids?: number[]}
+                const others = (body.player_ids ?? []).filter(p => p !== playerId)
+                if (others.length) store.put({...item, body: {...body, player_ids: others}})
+                else store.delete(id)
+            }
+            tx.oncomplete = () => { db.close(); resolve() }
+            tx.onerror = () => { db.close(); reject(tx.error) }
+        })
+    },
+
     async remove(id: number): Promise<void> {
         const db = await openDb()
         return new Promise((resolve, reject) => {
