@@ -6,6 +6,7 @@ import {ScoreboardPage} from './pages/ScoreboardPage'
 import {scoreboardToken} from './lib/scoreboard'
 import {restoreAppIcon} from './lib/appIcon'
 import './index.css'
+import './design/new.css'
 
 const queryClient = new QueryClient({
     defaultOptions: {queries: {staleTime: 1000 * 10, retry: 1, refetchOnWindowFocus: true}},

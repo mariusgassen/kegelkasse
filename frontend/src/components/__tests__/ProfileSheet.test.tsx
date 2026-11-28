@@ -717,16 +717,12 @@ describe('ProfileSheet — push preferences', () => {
             expect(screen.getByText('push.pref.penalties')).toBeInTheDocument()
         })
 
-        // Click the toggle button for 'penalties' — it's aria-pressed=true
-        const toggles = screen.getAllByRole('button', { pressed: true })
-        // Click the first non-disabled pressed toggle (skip the always-on committee toggle)
-        const enabledToggle = toggles.find(b => !b.hasAttribute('disabled'))
-        if (enabledToggle) {
-            fireEvent.click(enabledToggle)
-            await waitFor(() => {
-                expect(api.updatePushPreferences).toHaveBeenCalled()
-            })
-        }
+        // Click the pressed channel toggle in the 'penalties' row
+        const row = screen.getByText('push.pref.penalties').closest('div')!
+        fireEvent.click(row.querySelector('button[aria-pressed="true"]')!)
+        await waitFor(() => {
+            expect(api.updatePushPreferences).toHaveBeenCalled()
+        })
     })
 
     it('shows push.reminders section header', async () => {
@@ -1498,12 +1494,9 @@ describe('ProfileSheet — togglePushPref error reverts state', () => {
         } as any)
         await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => screen.getByText('push.pref.penalties'))
-        const toggles = screen.getAllByRole('button', { pressed: true })
-        const enabledToggle = toggles.find(b => !b.hasAttribute('disabled'))
-        if (enabledToggle) {
-            fireEvent.click(enabledToggle)
-            await waitFor(() => expect(toastError).toHaveBeenCalled())
-        }
+        const row = screen.getByText('push.pref.penalties').closest('div')!
+        fireEvent.click(row.querySelector('button[aria-pressed="true"]')!)
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
     })
 })
 

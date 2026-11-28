@@ -683,9 +683,9 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
             {/* Add penalty sheet */}
             <Sheet open={sheet} onClose={() => setSheet(false)} title={t('penalty.enter')}
                    onSubmit={tab === 'quick' ? submitQuick : submitCustom}>
-                <div className="flex gap-1 mb-3">
+                <div className="kce-segment flex gap-1 mb-3">
                     {([['quick', '⚡', t('penalty.quick')], ['custom', '✏️', t('penalty.custom')]] as const).map(([id, icon, label]) => (
-                        <button key={id} type="button"
+                        <button key={id} type="button" aria-pressed={tab === id}
                                 className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                 onClick={() => setTab(id)}><span aria-hidden="true">{icon}</span> <span>{label}</span>
                         </button>
@@ -818,9 +818,9 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
             {/* Drink sheet */}
             <Sheet open={drinkSheet} onClose={() => setDrinkSheet(false)} title={t('drinks.round')}>
                 <div className="flex flex-col gap-3">
-                    <div className="flex gap-1">
+                    <div className="kce-segment flex gap-1">
                         {(['beer', 'shots'] as const).map(dt => (
-                            <button key={dt} type="button"
+                            <button key={dt} type="button" aria-pressed={drinkType === dt}
                                     className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${drinkType === dt ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                     onClick={() => setDrinkType(dt)}>
                                 {dt === 'beer' ? `🍺 ${t('drinks.beer')}` : `🥃 ${t('drinks.shots')}`}
@@ -860,9 +860,9 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                    onSubmit={submitEdit}>
                 <div className="flex flex-col gap-3">
                     {/* Quick / custom toggle */}
-                    <div className="flex gap-1">
+                    <div className="kce-segment flex gap-1">
                         {([['quick', '⚡', t('penalty.quick')], ['custom', '✏️', t('penalty.custom')]] as const).map(([id, icon, label]) => (
-                            <button key={id} type="button"
+                            <button key={id} type="button" aria-pressed={editTab === id}
                                     className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${editTab === id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                     onClick={() => setEditTab(id)}><span aria-hidden="true">{icon}</span> <span>{label}</span>
                             </button>

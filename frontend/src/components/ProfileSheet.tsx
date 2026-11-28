@@ -62,7 +62,7 @@ function ChannelToggles({value, onChange, emailEnabled, telegramEnabled, disable
         onChange(selected.includes(c) ? selected.filter(x => x !== c) : [...selected, c])
     }
     return (
-        <div className={['flex items-center gap-0.5 bg-surface-2 rounded-lg p-0.5 flex-shrink-0', disabled ? 'opacity-40' : ''].join(' ')} role="group">
+        <div className={['kce-segment flex items-center gap-0.5 bg-surface-2 rounded-lg p-0.5 flex-shrink-0', disabled ? 'opacity-40' : ''].join(' ')} role="group">
             {options.map(o => {
                 const on = selected.includes(o.c)
                 return (
@@ -721,9 +721,9 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {/* Language */}
                     <div className="kce-card p-4 flex items-center justify-between">
                         <Caption as="span">{t('settings.language')}</Caption>
-                        <div className="flex gap-1">
+                        <div className="kce-segment flex gap-1">
                             {(['de', 'en'] as const).map(l => (
-                                <button key={l} onClick={() => {
+                                <button key={l} aria-pressed={locale === l} onClick={() => {
                                     setLocale(l);
                                     api.updateLocale(l).catch(() => {
                                     })
@@ -738,9 +738,9 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {/* Theme */}
                     <div className="kce-card p-4 flex items-center justify-between">
                         <Caption as="span">{t('settings.theme.title')}</Caption>
-                        <div className="flex gap-1">
+                        <div className="kce-segment flex gap-1">
                             {(['dark', 'light', 'system'] as Theme[]).map(th => (
-                                <button key={th} onClick={() => setTheme(th)}
+                                <button key={th} aria-pressed={theme === th} onClick={() => setTheme(th)}
                                         className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${theme === th ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}>
                                     {t(`settings.theme.${th}` as any)}
                                 </button>
@@ -770,9 +770,9 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                             <Caption><span aria-hidden="true">🎉</span> <span>{t('settings.effects.title')}</span></Caption>
                             <div className="text-xs text-muted mt-0.5">{t('settings.effects.hint')}</div>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="kce-segment flex gap-1">
                             {([true, false] as const).map(v => (
-                                <button key={String(v)} onClick={() => setEffectsEnabled(v)}
+                                <button key={String(v)} aria-pressed={effectsEnabled === v} onClick={() => setEffectsEnabled(v)}
                                         className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${effectsEnabled === v ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}>
                                     {t(v ? 'settings.effects.on' : 'settings.effects.off')}
                                 </button>
@@ -786,9 +786,9 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                             <Caption><span aria-hidden="true">🏝️</span> <span>{t('settings.idleIsland.title')}</span></Caption>
                             <div className="text-xs text-muted mt-0.5">{t('settings.idleIsland.hint')}</div>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="kce-segment flex gap-1">
                             {([true, false] as const).map(v => (
-                                <button key={String(v)} onClick={() => v ? awakenIdle() : dismissIdle(null)}
+                                <button key={String(v)} aria-pressed={(!idleDismissed) === v} onClick={() => v ? awakenIdle() : dismissIdle(null)}
                                         className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${(!idleDismissed) === v ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}>
                                     {t(v ? 'settings.idleIsland.on' : 'settings.idleIsland.off')}
                                 </button>

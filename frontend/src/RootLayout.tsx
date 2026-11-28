@@ -288,10 +288,10 @@ export function RootLayout() {
                     tab. Lives in the header region so it stays put as the page scrolls. */}
                 {inVerein && (
                     <nav aria-label={t('nav.verein')}
-                         className="verein-subnav flex gap-1 overflow-x-auto px-3 py-2"
+                         className="verein-subnav kce-tabs flex gap-1 overflow-x-auto px-3 py-2"
                          style={{background: 'var(--canvas)', borderBottom: '1px solid var(--line)'}}>
                         {VEREIN_SECTIONS.filter(s => !s.adminOnly || isAdminRole).map(s => (
-                            <button key={s.id} type="button"
+                            <button key={s.id} type="button" aria-current={page === s.id ? 'page' : undefined}
                                     onClick={() => setPage(s.id)}
                                     className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${page === s.id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}>
                                 <s.Icon size={14} strokeWidth={page === s.id ? 2.5 : 2}/>

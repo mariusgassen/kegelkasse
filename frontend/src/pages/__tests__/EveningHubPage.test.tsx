@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -865,5 +865,40 @@ describe('EveningHubPage — deep-link hash parsing', () => {
         vi.mocked(useHashTab).mockReturnValue(['penalties', setSubTab] as any)
         await renderHubPage()
         expect(setSubTab).not.toHaveBeenCalledWith('highlights')
+    })
+})
+
+describe('EveningHubPage — new design', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useAppStore } = await import('@/store/app.ts')
+        useAppStore.setState({user: {id: 1, ui_design: 'new'} as any})
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: makeEvening(), isLoading: false, invalidate: vi.fn(), activeEveningId: 1, isPending: false,
+        } as any)
+        vi.mocked(useHashTab).mockReturnValue(['penalties', vi.fn()] as any)
+    })
+
+    afterEach(async () => {
+        const { useAppStore } = await import('@/store/app.ts')
+        useAppStore.setState({user: null})
+    })
+
+    it('keeps the tab bar to five tabs, with manage as a labelled icon', async () => {
+        await renderHubPage()
+        const strip = screen.getByRole('button', {name: 'evening.manage'}).parentElement!
+        expect(within(strip).getAllByRole('button').map(b => b.textContent)).toEqual(
+            ['live.tab', 'evening.tab.log', 'nav.games', 'evening.tab.highlights', ''])
+        expect(within(strip).getByRole('button', {name: 'evening.tab.log'})).toHaveAttribute('aria-current', 'page')
+    })
+
+    it('offers ending the evening under manage', async () => {
+        await renderHubPage()
+        const end = screen.getByText('evening.end')
+        expect(screen.getByTestId('evening-page').parentElement!.parentElement).toContainElement(end)
+        fireEvent.click(end)
+        expect(screen.getByText('evening.endConfirm')).toBeInTheDocument()
     })
 })
