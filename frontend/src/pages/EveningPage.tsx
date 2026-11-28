@@ -23,10 +23,13 @@ import {Button} from '@/components/ui/Button.tsx'
 import {Field} from '@/components/ui/Field.tsx'
 import {Markdown} from '@/components/ui/Markdown.tsx'
 import {MarkdownField} from '@/components/ui/MarkdownField.tsx'
+import {AbsencePenalties} from '@/components/evening/AbsencePenalties.tsx'
+import {useUiDesign} from '@/lib/design'
 
 export function EveningPage() {
     const t = useT()
     const {evening, invalidate, activeEveningId, isPending, cancelPendingItem} = useActiveEvening()
+    const isNewDesign = useUiDesign() === 'new'
     const {regularMembers, user} = useAppStore()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
     const {closeConfirm, setCloseConfirm, closing, closeEndedAt, setCloseEndedAt, openCloseConfirm, confirmClose, reopen} =
@@ -216,6 +219,13 @@ export function EveningPage() {
                     </div>
                 </div>
             </div>
+
+            {/* New design: kept here, out of the way of the capture buttons on the protocol */}
+            {isNewDesign && (
+                <div className="mb-3">
+                    <AbsencePenalties evening={evening} onDone={invalidate}/>
+                </div>
+            )}
 
             {/* Close-confirm sheet */}
             {closeConfirm && (

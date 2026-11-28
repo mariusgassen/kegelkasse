@@ -1901,3 +1901,20 @@ describe('EveningPage — edit sheet onChange handlers', () => {
         await waitFor(() => expect(api.updateEvening).toHaveBeenCalled())
     })
 })
+
+describe('EveningPage — new design', () => {
+    beforeEach(() => { vi.clearAllMocks() })
+
+    it('offers the absence calculation on the manage page', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, penalty_log: [] } as any, invalidate: vi.fn(), activeEveningId: 42, isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        const state = { user: { ...ADMIN_USER, ui_design: 'new' }, regularMembers: [], setActiveEveningId: vi.fn() }
+        vi.mocked(useAppStore).mockImplementation(((sel?: any) => sel ? sel(state) : state) as any)
+        await setupDefaultApiMocks()
+        await renderEveningPage()
+        expect(screen.getByRole('button', { name: /penalty\.absence\.calculate/ })).toBeInTheDocument()
+    })
+})

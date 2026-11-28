@@ -44,6 +44,8 @@ export interface CaptureControllerOptions {
     displayName: (p: EveningPlayer) => string
     /** Format an amount in euros. */
     money: (amount: number) => string
+    /** Whether the island receipt offers to take the booking back (default yes). */
+    receiptUndo?: boolean
 }
 
 let lastTimestamp = 0
@@ -164,7 +166,7 @@ export function useCaptureController(options: CaptureControllerOptions) {
                 : `${pieces} ${t('capture.penalties')}`,
             subtitle: nameOf(booking.playerIds),
             badge: `+${money(total)}`,
-            undo: announceUndo(sent),
+            undo: optionsRef.current.receiptUndo === false ? undefined : announceUndo(sent),
         })
         return sent.map(s => s.ts)
     }, [audioCallouts, announceUndo, refresh, t])
