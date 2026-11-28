@@ -4,6 +4,7 @@ import {api, authState, NetworkError, flushOfflineQueue} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 import {pendingStore} from '@/pendingStore.ts'
 import {offlineQueue, SYNC_FLUSHED_EVENT, type QueuedRequest} from '@/offlineQueue.ts'
+import {withQueueLock} from '@/lib/queueLock.ts'
 import type {
     DrinkRound,
     Evening,
@@ -409,32 +410,43 @@ export function useActiveEvening() {
      *
      * For game cancellation all related operations (start, finish, etc.) whose path
      * contains the temp game ID string are also removed.
+     *
+     * Waits for a running sync first. Resolves to false when there was nothing left to cancel,
+     * i.e. the sync has already sent it.
      */
-    async function cancelPendingItem(fakeId: number, type: 'penalty' | 'drink' | 'game') {
+    async function cancelPendingItem(fakeId: number, type: 'penalty' | 'drink' | 'game'): Promise<boolean> {
+        let cancelled = false
         try {
-            if (type === 'penalty') {
-                const queueItemId = Math.floor(Math.abs(fakeId) / PENDING_PENALTY_FACTOR)
-                const playerId = Math.abs(fakeId) % PENDING_PENALTY_FACTOR
-                // A booking for several players stays queued for everyone else
-                if (queueItemId > 0) await offlineQueue.removePlayer(queueItemId, playerId)
-            } else if (type === 'drink') {
-                const queueItemId = Math.abs(fakeId)
-                if (queueItemId > 0) await offlineQueue.remove(queueItemId)
-            } else {
-                // Game: remove the creation item and all subsequent operations that
-                // reference this temp ID in their path (start, finish, etc.)
-                const all = await offlineQueue.getAll()
-                const tempIdStr = String(fakeId)
-                for (const item of all) {
-                    const isCreation = item.tempId === fakeId
-                    const isRelated = item.path.includes(tempIdStr)
-                    if ((isCreation || isRelated) && item.id !== undefined) {
-                        await offlineQueue.remove(item.id)
+            await withQueueLock(async () => {
+                if (type === 'penalty') {
+                    const queueItemId = Math.floor(Math.abs(fakeId) / PENDING_PENALTY_FACTOR)
+                    const playerId = Math.abs(fakeId) % PENDING_PENALTY_FACTOR
+                    // A booking for several players stays queued for everyone else
+                    if (queueItemId > 0) cancelled = await offlineQueue.removePlayer(queueItemId, playerId)
+                } else if (type === 'drink') {
+                    const queueItemId = Math.abs(fakeId)
+                    if ((await offlineQueue.getAll()).some(item => item.id === queueItemId)) {
+                        await offlineQueue.remove(queueItemId)
+                        cancelled = true
+                    }
+                } else {
+                    // Game: remove the creation item and all subsequent operations that
+                    // reference this temp ID in their path (start, finish, etc.)
+                    const all = await offlineQueue.getAll()
+                    const tempIdStr = String(fakeId)
+                    for (const item of all) {
+                        const isCreation = item.tempId === fakeId
+                        const isRelated = item.path.includes(tempIdStr)
+                        if ((isCreation || isRelated) && item.id !== undefined) {
+                            await offlineQueue.remove(item.id)
+                            cancelled = true
+                        }
                     }
                 }
-            }
+            })
         } catch { /* IndexedDB unavailable */ }
         window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+        return cancelled
     }
 
     return {evening, isLoading, invalidate, activeEveningId, isPending, cancelPendingItem}

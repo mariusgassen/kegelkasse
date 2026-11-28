@@ -68,6 +68,14 @@ describe('offlineQueue.removePlayer', () => {
         expect((await offlineQueue.getAll()).map(i => i.path)).toEqual(['/evening/1/drinks'])
     })
 
+    it('says whether there was still something to cancel', async () => {
+        const id = await queueBooking([1, 2])
+        expect(await offlineQueue.removePlayer(id, 2)).toBe(true)
+        expect(await offlineQueue.removePlayer(id, 2)).toBe(false)
+        await offlineQueue.remove(id)
+        expect(await offlineQueue.removePlayer(id, 1)).toBe(false)
+    })
+
     it('never brings back a request that has already been sent and removed', async () => {
         const id = await queueBooking([1, 2])
         await offlineQueue.remove(id)

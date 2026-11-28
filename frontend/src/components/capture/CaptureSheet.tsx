@@ -17,7 +17,7 @@ const money = (v: number) => new Intl.NumberFormat('de-DE', {style: 'currency', 
 interface CaptureSheetProps {
     evening: Evening
     invalidate: () => Promise<unknown> | void
-    cancelPendingItem: (id: number, type: 'penalty' | 'drink') => Promise<void>
+    cancelPendingItem: (id: number, type: 'penalty' | 'drink') => Promise<boolean>
     onClose: () => void
     /** Opens the form for a penalty that is not on the list, or an amount in euros. */
     onCustom: () => void
@@ -48,24 +48,28 @@ export function CaptureSheet({evening, invalidate, cancelPendingItem, onClose, o
     const counts = padCounts(capture, lines, new Map(penaltyTypes.map(pt => [pt.name, pt.id])))
     const sorted = sortPenaltyTypes(penaltyTypes)
     const trayValue = tray.reduce((sum, id) => sum + (penaltyTypes.find(pt => pt.id === id)?.default_amount ?? 0), 0)
-    const lastRemovable = [...lines].reverse().find(l => l.remove)
     const nameOf = (id: number) => {
         const p = players.find(pl => pl.id === id)
         return p ? displayName(p) : '?'
     }
+    const namesOf = (ids: number[]) => ids.length === 1 ? nameOf(ids[0]) : `${ids.length} ${t('capture.people')}`
+    const {last} = capture
+    const lastText = last && `${t('capture.last')}: ${namesOf(last.playerIds)} · ${
+        last.items.map(i => `${i.type.name}${i.count > 1 ? ` ×${i.count}` : ''}`).join(', ')}`
+    // While a tray is being collected, discarding comes first; once handed out it can be taken back too
+    const canUndo = !!last && (!collecting || applied.length > 0)
 
     /** Collected penalties are not saved yet: ask before throwing them away. */
     const leave = (then: () => void) => collecting && !applied.length ? setLeaving(() => then) : then()
 
     const title = collecting ? t('capture.whoWasIt')
-        : selected.length === 1 ? nameOf(selected[0])
-            : selected.length ? `${selected.length} ${t('capture.people')}`
-                : t('capture.nobody')
+        : selected.length ? namesOf(selected)
+            : t('capture.nobody')
     const detail = collecting
         ? `${tray.length} ${t('capture.collected')} · ${money(trayValue)} · ${t('capture.unsaved')}`
-        : selected.length
+        : lines.length
             ? `${lines.reduce((n, l) => n + l.count, 0)} ${t('capture.penalties')} · ${money(lines.reduce((s, l) => s + l.value, 0))} ${t('capture.saved')}`
-            : t('capture.prompt')
+            : lastText ?? t('capture.prompt')
 
     return (
         <>
@@ -102,11 +106,12 @@ export function CaptureSheet({evening, invalidate, cancelPendingItem, onClose, o
                         <span className="block truncate font-extrabold">{title}</span>
                         <span className="block text-xs text-muted">{detail}</span>
                     </p>
-                    {collecting ? (
-                        <Button type="button" onClick={capture.discard}>{t('capture.discard')}</Button>
-                    ) : lastRemovable && (
-                        <Button type="button" onClick={lastRemovable.remove}>{t('capture.undoLast')}</Button>
+                    {canUndo && (
+                        <Button type="button" disabled={capture.undoing} onClick={capture.undoLast}>
+                            {t('capture.undoLast')}
+                        </Button>
                     )}
+                    {collecting && <Button type="button" onClick={capture.discard}>{t('capture.discard')}</Button>}
                 </div>
             </Sheet>
             {leaving && (

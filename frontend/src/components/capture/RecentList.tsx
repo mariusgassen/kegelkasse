@@ -61,7 +61,8 @@ export function RecentList({capture, evening, players, displayName, money, time,
     if (!rows.length) return null
 
     function remove(row: Row) {
-        const immediately = row.id < 0 || (row.quiet && Date.now() - row.ts < FRESH_MS)
+        // Either way round: a device whose clock runs ahead must not make its entries "fresh" for hours
+        const immediately = row.id < 0 || (row.quiet && Math.abs(Date.now() - row.ts) < FRESH_MS)
         if (!immediately && confirming !== row.key) {
             setConfirming(row.key)
             return

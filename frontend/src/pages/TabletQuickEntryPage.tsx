@@ -174,7 +174,9 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         eveningId, evening, invalidate, cancelPendingItem, players, penaltyTypes, displayName: dn, money: fe,
     })
     const [confirmClose, setConfirmClose] = useState(false)
-    const requestClose = () => capture.state.tray.length ? setConfirmClose(true) : onClose()
+    // Collected penalties nobody has received yet would be lost: ask first
+    const requestClose = () => capture.state.tray.length && !capture.state.applied.length
+        ? setConfirmClose(true) : onClose()
 
     // Sort: current user first, then alphabetical
     const sortedPlayers = useMemo(() =>

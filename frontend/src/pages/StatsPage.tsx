@@ -1351,7 +1351,7 @@ export function StatsPage() {
             ) : (
                 <>
                     {/* Evening picker */}
-                    <div className="kce-segment flex gap-1.5 overflow-x-auto pb-1 mb-3 -mx-3 px-3" style={{scrollbarWidth: 'none'}}>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 mb-3 -mx-3 px-3" style={{scrollbarWidth: 'none'}}>
                         {sortedEvenings.map(e => {
                             const isActive = e.id === activeEveningId
                             const isSelected = e.id === effectiveId

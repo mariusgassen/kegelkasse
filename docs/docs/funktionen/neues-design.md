@@ -43,7 +43,7 @@ beim Schließen fragt die App vorher nach.
 
 Mit **Mehrere** wählst du mehrere Personen auf einmal: Jede angetippte Strafe geht an alle. Hast du
 schon Strafen gesammelt, bekommt jede danach angetippte Person die ganze Sammlung — jede nur
-einmal.
+einmal. Die nächste Strafe, die du danach antippst, beginnt eine neue Sammlung.
 
 ### Wer dran ist
 
@@ -54,9 +54,14 @@ Auswahl auf; rückt die Kamera weiter, bleibt deine Auswahl stehen.
 ### Vertipper zurücknehmen
 
 - In der Schnellerfassung öffnet sich nach jeder Buchung die **Live-Insel** mit **Rückgängig**
-- Am Handy nimmt **Letzte zurück** unten im Eingabefenster den letzten Eintrag zurück
+- Am Handy nimmt **Letzte zurück** unten im Eingabefenster alles zurück, was der letzte Tipp
+  gebucht hat (eine ganze Sammlung oder eine Strafe für mehrere Personen); noch einmal getippt, ist
+  der Tipp davor an der Reihe. Was davon betroffen ist, steht daneben unter **Zuletzt**
 - In der Schnellerfassung löschst du unter **Letzte Einträge** einen Eintrag der letzten Minute mit
   einem Tipp; ältere fragen erst **Löschen?**
+
+Lässt sich eine offline erfasste Buchung nicht mehr zurücknehmen, weil sie inzwischen übertragen
+wurde oder nicht auffindbar ist, sagt die App das — dann bitte im Protokoll prüfen.
 
 Wird eine Buchung aus der Anzahl-Erfassung **innerhalb einer Minute** gelöscht, bekommt die Person
 **keine** Mitteilung „Strafe storniert“ — sie hat von der Buchung auch keine erhalten.

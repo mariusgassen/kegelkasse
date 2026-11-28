@@ -4,6 +4,7 @@ import {act, fireEvent, render, screen, within} from '@testing-library/react'
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 import {api} from '@/api/client.ts'
 import {offlineQueue} from '@/offlineQueue.ts'
+import {toastError} from '@/utils/error.ts'
 import {useAppStore} from '@/store/app.ts'
 import {HOLD_MS} from '@/lib/capture.ts'
 import {QUICK_ENTRY_EVENT, type QuickEntryEventDetail} from '@/lib/quickEntryEvents.ts'
@@ -13,6 +14,7 @@ vi.mock('@/i18n', () => ({useT: () => (key: string) => key, t: (key: string) => 
 vi.mock('@/api/client.ts', () => ({
     api: {
         addPenalty: vi.fn(), deletePenalty: vi.fn(), addDrinkRound: vi.fn(), deleteDrinkRound: vi.fn(),
+        getEvening: vi.fn(),
         setActivePlayer: vi.fn(() => Promise.resolve()), finishGame: vi.fn(() => Promise.resolve()),
     },
 }))
@@ -30,7 +32,7 @@ const evening = {
     penalty_log: [] as object[], drink_rounds: [] as object[],
 }
 const invalidate = vi.fn(() => Promise.resolve())
-const cancelPendingItem = vi.fn(() => Promise.resolve())
+const cancelPendingItem = vi.fn(() => Promise.resolve(true))
 vi.mock('@/hooks/useEvening.ts', () => ({
     useActiveEvening: () => ({evening, invalidate, cancelPendingItem}),
 }))
@@ -47,11 +49,13 @@ const onClose = vi.fn()
 
 function open() {
     const client = new QueryClient()
-    render(
+    const page = () => (
         <QueryClientProvider client={client}>
             <TabletQuickEntryPage eveningId={42} players={evening.players as never} onClose={onClose}/>
-        </QueryClientProvider>,
+        </QueryClientProvider>
     )
+    const view = render(page())
+    return {rerender: () => act(async () => { view.rerender(page()) })}
 }
 
 const board = () => within(screen.getByTestId('capture-board'))
@@ -73,6 +77,10 @@ beforeEach(() => {
     vi.mocked(api.addPenalty).mockImplementation(() => Promise.resolve([{id: ++id}] as never))
     vi.mocked(api.deletePenalty).mockResolvedValue(undefined)
     vi.mocked(api.addDrinkRound).mockResolvedValue({id: 7} as never)
+    vi.mocked(offlineQueue.getAll).mockResolvedValue([])
+    vi.mocked(offlineQueue.remove).mockResolvedValue(undefined)
+    vi.mocked(api.getEvening).mockResolvedValue({penalty_log: [], drink_rounds: []} as never)
+    cancelPendingItem.mockResolvedValue(true)
     useAppStore.setState({
         user: {id: 1, ui_design: 'new', regular_member_id: 1} as never,
         penaltyTypes: PENALTY_TYPES as never, regularMembers: [], gameTemplates: [],
@@ -122,6 +130,19 @@ describe('quick entry — new design', () => {
         expect(person('Hansi')).toHaveAttribute('aria-pressed', 'false')
         await tap(penalty('Bande'))
         expect(api.addPenalty).toHaveBeenCalledTimes(1)
+    })
+
+    // Live updates, camera throws and finished saves re-render the page all the time
+    it('releases the selection after the pause although the page keeps re-rendering', async () => {
+        const page = open()
+        await tap(person('Hansi'))
+        for (let i = 0; i < 4; i++) {
+            await wait(HOLD_MS / 3)
+            await page.rerender()
+        }
+        expect(person('Hansi')).toHaveAttribute('aria-pressed', 'false')
+        await tap(penalty('Gosse'))
+        expect(api.addPenalty).not.toHaveBeenCalled()
     })
 
     it('collects penalties and saves them all with the tap on a person', async () => {
@@ -182,6 +203,67 @@ describe('quick entry — new design', () => {
         expect(api.deletePenalty).not.toHaveBeenCalled()
     })
 
+    /** Books one penalty while offline and returns its client timestamp. */
+    async function bookOffline() {
+        vi.mocked(api.addPenalty).mockResolvedValue(null as never)
+        open()
+        await tap(person('Hansi'))
+        await tap(penalty('Gosse'))
+        return vi.mocked(api.addPenalty).mock.calls[0][1].client_timestamp
+    }
+
+    it('asks the server for a booking the sync has sent in the meantime', async () => {
+        const stamp = await bookOffline()
+        vi.mocked(api.getEvening).mockResolvedValue({
+            penalty_log: [{id: 899, client_timestamp: stamp - 1}, {id: 900, client_timestamp: stamp}], drink_rounds: [],
+        } as never)
+        await act(async () => { last().undo!() })
+        expect(api.getEvening).toHaveBeenCalledWith(42)
+        expect(api.deletePenalty).toHaveBeenCalledExactlyOnceWith(42, 900)
+        expect(last()).toMatchObject({kind: 'undo'})
+    })
+
+    it('does not claim to have taken back what it cannot find', async () => {
+        await bookOffline()
+        await act(async () => { last().undo!() })
+        expect(api.deletePenalty).not.toHaveBeenCalled()
+        expect(toastError).toHaveBeenCalledWith(new Error('capture.undoNotFound'))
+        expect(events.some(e => e.kind === 'undo')).toBe(false)
+    })
+
+    it('says so when a queued entry was sent before it could be removed', async () => {
+        evening.penalty_log = [{
+            id: -3000000011, player_id: 11, player_name: 'Hansi', penalty_type_name: 'Gosse', icon: '🚫',
+            amount: 1, unit_amount: 0.1, mode: 'count', game_id: null, client_timestamp: Date.now(),
+        }]
+        cancelPendingItem.mockResolvedValue(false)
+        open()
+        await tap(screen.getByRole('button', {name: /capture\.remove: Hansi, Gosse/}))
+        expect(toastError).toHaveBeenCalledWith(new Error('capture.alreadySent'))
+        expect(events.some(e => e.kind === 'undo')).toBe(false)
+    })
+
+    it('offers a tray again to the person whose hand-out was taken back', async () => {
+        open()
+        await tap(board().getByRole('button', {name: /capture\.several/}))
+        await tap(penalty('Gosse'))
+        await tap(person('Hansi'))
+        await tap(person('Hansi'))  // has it already
+        expect(api.addPenalty).toHaveBeenCalledTimes(1)
+        await act(async () => { last().undo!() })
+        await tap(person('Hansi'))
+        expect(api.addPenalty).toHaveBeenCalledTimes(2)
+    })
+
+    it('closes without asking once the collected penalties have been handed out', async () => {
+        open()
+        await tap(board().getByRole('button', {name: /capture\.several/}))
+        await tap(penalty('Gosse'))
+        await tap(person('Hansi'))
+        await tap(screen.getByRole('button', {name: 'action.close'}))
+        expect(onClose).toHaveBeenCalled()
+    })
+
     it('books a drink round for everyone who was not tapped away', async () => {
         open()
         await tap(board().getByRole('button', {name: /capture\.beerRound/}))
@@ -197,8 +279,12 @@ describe('quick entry — new design', () => {
         evening.penalty_log = [
             {...entry, id: 1, penalty_type_name: 'Gosse', client_timestamp: Date.now() - 1000},
             {...entry, id: 2, penalty_type_name: 'Bande', client_timestamp: Date.now() - 600_000},
+            // from a device whose clock runs ahead
+            {...entry, id: 3, player_id: 10, penalty_type_name: 'Bande', client_timestamp: Date.now() + 600_000},
         ]
         open()
+        await tap(screen.getByRole('button', {name: /capture\.remove: Admin, Bande/}))
+        expect(api.deletePenalty).not.toHaveBeenCalled()
         await tap(screen.getByRole('button', {name: /capture\.remove: Hansi, Gosse/}))
         expect(api.deletePenalty).toHaveBeenLastCalledWith(42, 1)
         await tap(screen.getByRole('button', {name: /capture\.remove: Hansi, Bande/}))

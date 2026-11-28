@@ -215,22 +215,26 @@ html[data-design="new"] {
     }
 }
 
-/* Small controls across the pages (reaction pills, filter chips, inline links) keep their size, and
-   the area that answers a tap grows to 44px in height. In a layer, so that a button positioned by a
-   utility class stays where it is. */
+/* Small controls across the pages (filter chips, inline links) keep their size, and the area that
+   answers a tap grows to 44px in height. Not for full-width rows or in wrapping, stacked or grid
+   groups: there it would cover the neighbour above or below and steal its taps. In a layer, so that
+   a button positioned by a utility class stays where it is. */
 @layer components {
-    html[data-design="new"] .app-main button {
+    html[data-design="new"] .app-main button:not(.flex-wrap > *, .flex-col > *, .grid > *, .w-full) {
         position: relative;
     }
 
-    html[data-design="new"] .app-main button::after {
+    html[data-design="new"] .app-main button:not(.flex-wrap > *, .flex-col > *, .grid > *, .w-full)::after {
         content: '';
         position: absolute;
         inset: min(0px, calc(50% - 22px)) 0;
     }
 }
 
-/* A horizontal scroller clips that area, so the buttons in one grow instead */
-html[data-design="new"] .app-main .overflow-x-auto > button {
+/* A horizontal scroller clips that area, reaction pills sit in wrapping rows and full-width rows are
+   stacked: these grow instead */
+html[data-design="new"] .app-main button.w-full,
+html[data-design="new"] .app-main .overflow-x-auto > button,
+html[data-design="new"] .app-main .kce-pill {
     min-height: 40px;
 }

@@ -69,9 +69,27 @@ describe('several people', () => {
         expect(state.applied).toEqual([1, 2])
     })
 
-    it('treats a changed tray as new', () => {
-        const {bookings} = play(several, tap(10), person(1), tap(11), person(1))
-        expect(bookings).toEqual([[[1], [10]], [[1], [10, 11]]])
+    it('starts a new tray with the first tap after one was handed out', () => {
+        const {state, bookings} = play(several, tap(10), person(1), person(2), tap(11), person(1))
+        expect(bookings).toEqual([[[1], [10]], [[2], [10]], [[1], [11]]])
+        expect(state.tray).toEqual([11])
+    })
+
+    it('still collects several penalties before the first person', () => {
+        expect(play(several, tap(10), tap(11), person(1)).bookings).toEqual([[[1], [10, 11]]])
+    })
+
+    it('does not give the rest of a handed-out tray to the same person again', () => {
+        const {bookings} = play(several, tap(10), tap(11), person(1), {type: 'untray', index: 0}, person(1))
+        expect(bookings).toEqual([[[1], [10, 11]]])
+    })
+
+    it('lets people receive a tray again once exactly that hand-out was taken back', () => {
+        const {state} = play(several, tap(10), person(1), person(2))
+        const undo = captureStep(state, {type: 'unapply', playerIds: [1], tray: state.tray}).state
+        expect(undo.applied).toEqual([2])
+        // An equal but different tray is another hand-out: nothing changes
+        expect(captureStep(state, {type: 'unapply', playerIds: [1], tray: [10]}).state).toBe(state)
     })
 
     it('clears a handed-out tray on leaving, but keeps an untouched one', () => {

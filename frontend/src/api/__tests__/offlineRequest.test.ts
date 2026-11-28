@@ -322,3 +322,29 @@ describe('request — negative game ID is queued without hitting server', () => 
         )
     })
 })
+
+// A queued booking must not be taken out of the queue while the sync is sending it
+describe('flushOfflineQueue — holds the queue while it replays', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        mockGetAll.mockResolvedValue([
+            { id: 1, method: 'POST', path: '/evening/5/penalties', body: {}, timestamp: 1000 },
+        ])
+    })
+
+    it('lets other queue work wait until the sent item is removed', async () => {
+        const { authState, flushOfflineQueue } = await import('../client')
+        const { withQueueLock } = await import('@/lib/queueLock')
+        authState.setToken('tok')
+        let answer!: (r: Response) => void
+        mockFetch.mockReturnValueOnce(new Promise<Response>(resolve => { answer = resolve }))
+        const flush = flushOfflineQueue()
+        const task = vi.fn(async () => mockOfflineQueueRemove.mock.calls.length)
+        const waiting = withQueueLock(task)
+        await vi.waitFor(() => expect(mockFetch).toHaveBeenCalled())
+        expect(task).not.toHaveBeenCalled()
+        answer(jsonOk([{ id: 42 }]))
+        await flush
+        expect(await waiting).toBe(1)
+    })
+})

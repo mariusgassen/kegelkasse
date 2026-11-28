@@ -8,7 +8,7 @@
  *    whole tray. Nothing collected is saved before that.
  *
  * "Several" lets both directions address more than one person. Pure and React-free; the hold timer
- * and the booking itself live in `hooks/useCapture.ts` and `hooks/useCaptureBooking.ts`.
+ * and the booking itself live in `hooks/useCaptureController.ts`.
  */
 
 /** How long a selection survives without a tap before it lets go. */
@@ -33,6 +33,8 @@ export type CaptureAction =
     | {type: 'release'}
     | {type: 'discard'}
     | {type: 'untray'; index: number}
+    /** A hand-out was taken back: these people may receive that very tray again. */
+    | {type: 'unapply'; playerIds: number[]; tray: number[]}
     /** Forget people and penalty types that no longer exist (removed on another device). */
     | {type: 'prune'; playerIds: number[]; penaltyTypeIds: number[]}
 
@@ -53,8 +55,10 @@ export function captureStep(state: CaptureState, action: CaptureAction): Capture
             if (state.selected.length) {
                 return {state, booking: {playerIds: state.selected, penaltyTypeIds: [action.penaltyTypeId]}}
             }
-            // A changed tray is a new one: everybody may receive it again
-            return {state: {...state, tray: [...state.tray, action.penaltyTypeId], applied: []}}
+            // A tray that has been handed out is done: the next tap starts a new one, so that nobody
+            // is charged the old penalties a second time
+            const kept = state.applied.length ? [] : state.tray
+            return {state: {...state, tray: [...kept, action.penaltyTypeId], applied: []}}
         }
         case 'player': {
             const id = action.playerId
@@ -80,8 +84,15 @@ export function captureStep(state: CaptureState, action: CaptureAction): Capture
             return {state: {...state, selected: []}}
         case 'discard':
             return {state: {...state, tray: [], applied: []}}
-        case 'untray':
-            return {state: {...state, tray: state.tray.filter((_, i) => i !== action.index), applied: []}}
+        case 'untray': {
+            const tray = state.tray.filter((_, i) => i !== action.index)
+            // Whoever already received it must not get the rest again
+            return {state: {...state, tray, applied: tray.length ? state.applied : []}}
+        }
+        case 'unapply': {
+            if (action.tray !== state.tray) return {state}
+            return {state: {...state, applied: state.applied.filter(id => !action.playerIds.includes(id))}}
+        }
         case 'prune': {
             const selected = state.selected.filter(id => action.playerIds.includes(id))
             const tray = state.tray.filter(id => action.penaltyTypeIds.includes(id))
